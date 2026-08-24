@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env
+.env.*
+!.env.example
+supabase/.temp
+coverage
+SRS_MUN_Platform.docx
+_srs_extract.txt
+**/.DS_Store
