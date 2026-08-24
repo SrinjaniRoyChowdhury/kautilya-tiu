@@ -20,8 +20,9 @@
   --color-gold-400: var(--gold-400);
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
-  --font-sans: var(--font-outfit);
-  --font-serif: var(--font-cormorant);
+  --font-sans: var(--font-poppins);
+  --font-serif: var(--font-montserrat);
+  --font-heading: var(--font-montserrat);
   --color-background: var(--parchment-50);
   --color-foreground: var(--ink);
 }
@@ -33,7 +34,7 @@ body {
 
 body {
   color: var(--ink);
-  font-family: var(--font-outfit), system-ui, sans-serif;
+  font-family: var(--font-poppins), system-ui, sans-serif;
   background-color: #fffdf7;
   background-image:
     linear-gradient(
@@ -69,6 +70,16 @@ body::before {
 body > * {
   position: relative;
   z-index: 1;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+legend {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
 }
 
 .text-gold-gradient {

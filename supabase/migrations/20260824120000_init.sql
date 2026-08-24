@@ -1159,7 +1159,7 @@ where r.name = 'FOOD_OPERATOR';
 
 insert into public.site_settings (
   id, society_name, tagline, about_html, mission_html, history_html,
-  contact_email, contact_phone, contact_address, hero_stats
+  contact_email, contact_phone, contact_address, instagram_url, hero_stats
 ) values (
   true,
   'Kautilya MUN',
@@ -1167,8 +1167,9 @@ insert into public.site_settings (
   '<p>Kautilya Model United Nations is the annual conference of our college MUN society — a forum where students debate as delegates, chairs, and members of the International Press.</p><p>Named for Chanakya (Kautilya), whose <em>Arthashastra</em> treated statecraft as a discipline of evidence and consequence, the society trains speakers who can argue, negotiate, and still hold a brief to the facts.</p>',
   '<p>To run a conference that is operationally exact — seats, payments, credentials, and logistics that do not fail under load — and intellectually serious enough that a first-time delegate leaves knowing how a resolution is actually made.</p>',
   '<p>The society has hosted successive editions of Kautilya MUN without rebuilding the platform each year. Past committees, galleries, and results remain on this site so the record of the conference outlasts any single secretariat.</p>',
-  'secretariat@kautilya.local',
+  'tiukautilya@gmail.com',
   '+91 90000 00000',
-  'College Campus, India',
-  '[{"label":"Editions hosted","value":"8+"},{"label":"Committees / year","value":"6"},{"label":"Delegates","value":"300+"}]'::jsonb
+  'Techno India University, West Bengal, India',
+  'https://www.instagram.com/kautilya_tiu/',
+  '[{"label":"Editions hosted","value":"1"},{"label":"Committees / year","value":"6"},{"label":"Delegates","value":"300+"}]'::jsonb
 );

@@ -16,10 +16,10 @@ const fallbackSettings: SiteSettings = {
   about_html: null,
   mission_html: null,
   history_html: null,
-  contact_email: null,
+  contact_email: "tiukautilya@gmail.com",
   contact_phone: null,
-  contact_address: null,
-  instagram_url: null,
+  contact_address: "Techno India University, West Bengal, India",
+  instagram_url: "https://www.instagram.com/kautilya_tiu/",
   linkedin_url: null,
   hero_stats: [],
 };
