@@ -16,7 +16,7 @@ function JsonBlock({ label, value }: { label: string; value: unknown }) {
 
 export function AuditRow({ row, href }: { row: AuditLog; href?: string | null }) {
   return (
-    <article className="frame-gold rounded-sm bg-parchment-50/85 p-6 backdrop-blur-sm">
+    <article className="frame-gold rounded-sm bg-parchment-50/85 p-4 backdrop-blur-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           {href ? (

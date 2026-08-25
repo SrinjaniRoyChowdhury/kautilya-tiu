@@ -51,10 +51,7 @@ export default async function AdminAuditPage({
   return (
     <AdminListShell
       header={
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">Staff</p>
-          <h1 className="font-serif text-2xl text-gold-700">Audit log</h1>
-        </div>
+        <h1 className="font-serif text-2xl text-gold-700">Audit log</h1>
       }
       footer={
         <AdminPagination

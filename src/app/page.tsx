@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
+import { HomeIntro } from "@/components/public/home-intro";
 import { CommitteeCard, Hero, PlainCopy } from "@/components/public/marketing";
 import { Card, Container } from "@/components/ui/card";
 import { getActiveEdition, getAnnouncements, getPublicCommittees, getSiteSettings } from "@/lib/data";
@@ -13,6 +14,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <HomeIntro />
       <Hero
         societyName={settings.society_name}
         tagline={settings.tagline}

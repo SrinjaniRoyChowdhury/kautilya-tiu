@@ -44,10 +44,7 @@ export default async function AdminCredentialsPage({
   return (
     <AdminListShell
       header={
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">Staff</p>
-          <h1 className="font-serif text-2xl text-gold-700">Credentials</h1>
-        </div>
+        <h1 className="font-serif text-2xl text-gold-700">Credentials</h1>
       }
       footer={
         <AdminPagination
@@ -87,7 +84,7 @@ export default async function AdminCredentialsPage({
       <div className="grid gap-3">
         {paged.items.length ? (
           paged.items.map((row) => (
-            <Card key={row.id}>
+            <Card key={row.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-serif text-xl">{row.full_name}</p>

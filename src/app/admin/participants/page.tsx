@@ -51,10 +51,7 @@ export default async function AdminParticipantsPage({
   return (
     <AdminListShell
       header={
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">Staff</p>
-          <h1 className="font-serif text-2xl text-gold-700">Participants</h1>
-        </div>
+        <h1 className="font-serif text-2xl text-gold-700">Participants</h1>
       }
       footer={
         <AdminPagination
@@ -95,7 +92,7 @@ export default async function AdminParticipantsPage({
         {paged.items.length ? (
           paged.items.map((row) => (
             <Link key={row.id} href={`/admin/participants/${row.id}`}>
-              <Card className="hover:bg-parchment-100">
+              <Card className="p-4 hover:bg-parchment-100">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-serif text-xl">{row.full_name}</p>

@@ -63,10 +63,7 @@ export default async function AdminPaymentsPage({
   return (
     <AdminListShell
       header={
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">Staff</p>
-          <h1 className="font-serif text-2xl text-gold-700">Payment queue</h1>
-        </div>
+        <h1 className="font-serif text-2xl text-gold-700">Payment queue</h1>
       }
       footer={
         <AdminPagination
@@ -81,15 +78,15 @@ export default async function AdminPaymentsPage({
       toolbar={
         <>
           <AdminNav current="/admin/payments" className="mb-0" />
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {FILTERS.map((item) => (
               <Link
                 key={item.id}
                 href={adminListHref("/admin/payments", { ...query, filter: item.id }, 1)}
                 className={
                   item.id === activeFilter.id
-                    ? "rounded-sm bg-gold-700 px-3 py-1.5 text-sm text-parchment-50"
-                    : "rounded-sm border border-gold-700/25 px-3 py-1.5 text-sm text-gold-700"
+                    ? "shrink-0 rounded-sm bg-gold-700 px-2.5 py-1 text-sm text-parchment-50"
+                    : "shrink-0 rounded-sm border border-gold-700/25 px-2.5 py-1 text-sm text-gold-700"
                 }
               >
                 {item.label}
@@ -132,7 +129,7 @@ export default async function AdminPaymentsPage({
         {paged.items.length ? (
           paged.items.map((payment) => (
             <Link key={payment.id} href={`/admin/payments/${payment.id}`}>
-              <Card className="hover:bg-parchment-100">
+              <Card className="p-4 hover:bg-parchment-100">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-serif text-xl">{payerName(payment)}</p>
