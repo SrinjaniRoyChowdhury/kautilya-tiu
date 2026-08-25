@@ -35,6 +35,20 @@ export default async function ContactPage() {
             {settings.contact_address}
           </p>
         ) : null}
+        {settings.instagram_url ? (
+          <p>
+            <a className="text-gold-700 hover:underline" href={settings.instagram_url}>
+              Instagram
+            </a>
+          </p>
+        ) : null}
+        {settings.linkedin_url ? (
+          <p>
+            <a className="text-gold-700 hover:underline" href={settings.linkedin_url}>
+              LinkedIn
+            </a>
+          </p>
+        ) : null}
       </Card>
     </Container>
   );

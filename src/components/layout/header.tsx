@@ -12,6 +12,7 @@ const links = [
   { href: "/committees", label: "Committees" },
   { href: "/editions", label: "Editions" },
   { href: "/team", label: "Team" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -19,9 +20,10 @@ type Props = {
   societyName: string;
   email: string | null;
   isStaff: boolean;
+  canScan: boolean;
 };
 
-export function Header({ societyName, email, isStaff }: Props) {
+export function Header({ societyName, email, isStaff, canScan }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -57,6 +59,11 @@ export function Header({ societyName, email, isStaff }: Props) {
               {isStaff ? (
                 <Link href="/admin" className="text-sm text-gold-700 hover:underline">
                   Admin
+                </Link>
+              ) : null}
+              {canScan ? (
+                <Link href="/scan" className="text-sm text-gold-700 hover:underline">
+                  Scan
                 </Link>
               ) : null}
               <Link href="/dashboard" className="text-sm text-ink-muted hover:text-gold-700">
@@ -116,6 +123,11 @@ export function Header({ societyName, email, isStaff }: Props) {
                 {isStaff ? (
                   <Link href="/admin" onClick={() => setOpen(false)}>
                     Admin
+                  </Link>
+                ) : null}
+                {canScan ? (
+                  <Link href="/scan" onClick={() => setOpen(false)}>
+                    Scan
                   </Link>
                 ) : null}
                 <form action={logoutAction}>

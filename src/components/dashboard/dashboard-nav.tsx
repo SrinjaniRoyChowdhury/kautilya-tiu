@@ -4,6 +4,8 @@ import { cn } from "@/lib/format";
 const items = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/register", label: "Registration" },
+  { href: "/dashboard/pay", label: "Payment" },
+  { href: "/dashboard/qr", label: "Credential" },
   { href: "/dashboard/profile", label: "Profile" },
 ];
 

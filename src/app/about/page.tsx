@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Container, PageHeader } from "@/components/ui/card";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { getSiteSettings } from "@/lib/data";
 
 export const metadata: Metadata = { title: "About" };
@@ -15,7 +16,7 @@ export default async function AboutPage() {
           <div
             className="mt-3 space-y-3 text-ink-muted [&_p]:leading-7"
             dangerouslySetInnerHTML={{
-              __html: settings.about_html || "<p>About copy is managed in the CMS.</p>",
+              __html: sanitizeHtml(settings.about_html) || "<p>About copy is managed in the CMS.</p>",
             }}
           />
         </section>
@@ -24,7 +25,7 @@ export default async function AboutPage() {
           <div
             className="mt-3 space-y-3 text-ink-muted [&_p]:leading-7"
             dangerouslySetInnerHTML={{
-              __html: settings.mission_html || "<p>Mission copy is managed in the CMS.</p>",
+              __html: sanitizeHtml(settings.mission_html) || "<p>Mission copy is managed in the CMS.</p>",
             }}
           />
         </section>
@@ -33,7 +34,7 @@ export default async function AboutPage() {
           <div
             className="mt-3 space-y-3 text-ink-muted [&_p]:leading-7"
             dangerouslySetInnerHTML={{
-              __html: settings.history_html || "<p>History copy is managed in the CMS.</p>",
+              __html: sanitizeHtml(settings.history_html) || "<p>History copy is managed in the CMS.</p>",
             }}
           />
         </section>

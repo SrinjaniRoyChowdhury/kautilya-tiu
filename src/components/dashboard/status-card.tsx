@@ -14,19 +14,19 @@ const STATUS_COPY: Record<string, { label: string; detail: string }> = {
   },
   PAYMENT_PENDING: {
     label: "Payment pending",
-    detail: "Seat held. Upload UPI proof in Phase 3. You may still change committee until payment is verified.",
+    detail: "Seat held. Upload UPI proof from Payment. You may still change committee until proof is under review.",
   },
   PAYMENT_VERIFIED: {
     label: "Payment verified",
-    detail: "The secretariat has verified payment. Confirmation and QR follow.",
+    detail: "The secretariat has verified payment. Confirmation follows this status.",
   },
   PAYMENT_REJECTED: {
     label: "Payment rejected",
-    detail: "The last payment was rejected. You can update the form and resubmit proof in Phase 3.",
+    detail: "The last payment was rejected. Update the form if needed and resubmit proof.",
   },
   CONFIRMED: {
     label: "Confirmed",
-    detail: "You are confirmed. Your QR will appear here in Phase 4.",
+    detail: "You are confirmed. Open Credential for the scannable QR used all three days and for meals.",
   },
   CANCELLED: {
     label: "Cancelled",
@@ -76,9 +76,21 @@ export function RegistrationStatusCard({
       {registration.food_preference ? (
         <p className="mt-1 text-sm text-ink-muted">Food: {registration.food_preference}</p>
       ) : null}
-      <Link href="/dashboard/register" className="mt-4 inline-block text-sm text-gold-700 hover:underline">
-        {registration.status === "DRAFT" ? "Continue form" : "View registration"}
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link href="/dashboard/register" className="text-sm text-gold-700 hover:underline">
+          {registration.status === "DRAFT" ? "Continue form" : "View registration"}
+        </Link>
+        {registration.status === "PAYMENT_PENDING" || registration.status === "PAYMENT_REJECTED" ? (
+          <Link href="/dashboard/pay" className="text-sm text-gold-700 hover:underline">
+            Go to payment
+          </Link>
+        ) : null}
+        {registration.status === "CONFIRMED" ? (
+          <Link href="/dashboard/qr" className="text-sm text-gold-700 hover:underline">
+            Open credential
+          </Link>
+        ) : null}
+      </div>
     </Card>
   );
 }

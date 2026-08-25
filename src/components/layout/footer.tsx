@@ -26,6 +26,9 @@ export function Footer({ settings }: { settings: SiteSettings }) {
           <Link href="/editions" className="hover:text-gold-700">
             Past editions
           </Link>
+          <Link href="/gallery" className="hover:text-gold-700">
+            Gallery
+          </Link>
           <Link href="/login" className="hover:text-gold-700">
             Delegate login
           </Link>
@@ -50,7 +53,7 @@ export function Footer({ settings }: { settings: SiteSettings }) {
         </address>
       </div>
       <p className="border-t border-gold-700/15 py-4 text-center text-xs text-ink-muted">
-        Platform reusable across editions. No paid services required to operate Phase 1.
+        Platform reusable across editions. No paid services required.
       </p>
     </footer>
   );

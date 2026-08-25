@@ -5,6 +5,13 @@ const items = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/editions", label: "Editions" },
   { href: "/admin/committees", label: "Committees" },
+  { href: "/admin/payments", label: "Payments" },
+  { href: "/admin/credentials", label: "Credentials" },
+  { href: "/admin/scanners", label: "Scanners" },
+  { href: "/admin/attendance", label: "Venue" },
+  { href: "/admin/cms", label: "Content" },
+  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit", label: "Audit" },
 ];
 
 export function AdminNav({ current }: { current: string }) {

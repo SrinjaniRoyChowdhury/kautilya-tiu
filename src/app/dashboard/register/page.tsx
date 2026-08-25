@@ -7,11 +7,13 @@ import { startRegistrationAction } from "@/app/actions/registrations";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import {
   getActiveEdition,
+  getCoveringPaymentForRegistration,
   getFieldDefinitions,
   getMyRegistration,
   getPublicCommittees,
   getRegistrationValues,
 } from "@/lib/data";
+import { coveringPaymentLocksRegistration } from "@/lib/payments";
 import { isRegistrationOpen } from "@/lib/registration";
 import type { Edition } from "@/types";
 
@@ -104,6 +106,7 @@ async function RegistrationBody({
     getPublicCommittees(edition.id),
     getRegistrationValues(registration.id),
   ]);
+  const covering = await getCoveringPaymentForRegistration(registration.id);
   const preferred = committees.find((item) => item.slug === committeeSlug);
   const visible = committees.filter(
     (item) => item.status === "OPEN" || item.id === registration.committee_id,
@@ -118,6 +121,7 @@ async function RegistrationBody({
         committees={visible}
         values={values}
         preferredCommitteeId={preferred?.id}
+        paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
       />
     </Card>
   );

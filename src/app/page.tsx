@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
 import { CommitteeCard, Hero } from "@/components/public/marketing";
 import { Card, Container } from "@/components/ui/card";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { getActiveEdition, getAnnouncements, getPublicCommittees, getSiteSettings } from "@/lib/data";
 
 export default async function HomePage() {
@@ -59,7 +60,7 @@ export default async function HomePage() {
                     <h3 className="mt-2 font-serif text-2xl">{item.title}</h3>
                     <div
                       className="mt-2 text-sm text-ink-muted [&_p]:mb-2"
-                      dangerouslySetInnerHTML={{ __html: item.body_html }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.body_html) }}
                     />
                   </Card>
                 </li>

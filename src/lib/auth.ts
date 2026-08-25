@@ -63,3 +63,41 @@ export async function isStaffUser(): Promise<boolean> {
     return false;
   }
 }
+
+export async function hasPermission(code: string, editionId?: string | null): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data, error } = await supabase.rpc("has_permission", {
+      p_code: code,
+      p_edition_id: editionId ?? null,
+    });
+    if (error) return false;
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
+export async function hasScanAccess(): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { data, error } = await supabase.rpc("has_scan_access");
+    if (error) return false;
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
+export function isOperatorOnly(roleNames: string[]): boolean {
+  if (!roleNames.length) return false;
+  return roleNames.every((name) => name === "ATTENDANCE_OPERATOR" || name === "FOOD_OPERATOR");
+}

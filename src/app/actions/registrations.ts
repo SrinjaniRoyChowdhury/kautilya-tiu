@@ -177,7 +177,7 @@ async function runSave(
   return {
     success:
       intent === "submit"
-        ? "Registration submitted. Pay from your dashboard in Phase 3."
+        ? "Registration submitted. Pay from your dashboard."
         : "Draft saved.",
   };
 }
