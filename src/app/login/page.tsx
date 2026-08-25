@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/auth/auth-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
+import { safeInternalPath } from "@/lib/safe-path";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -12,9 +13,13 @@ export default async function LoginPage({
   const { next } = await searchParams;
   return (
     <Container className="py-12">
-      <PageHeader eyebrow="Delegates" title="Sign in" />
+        <PageHeader
+          eyebrow="Account"
+          title="Sign in"
+          description="Delegates use this form for registration. Desk scanners sign in with the email and password the secretariat created."
+        />
       <Card className="max-w-md">
-        <LoginForm nextPath={next && next.startsWith("/") ? next : "/dashboard"} />
+        <LoginForm nextPath={safeInternalPath(next, "/dashboard")} />
       </Card>
     </Container>
   );

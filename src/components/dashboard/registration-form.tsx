@@ -73,6 +73,7 @@ export function RegistrationForm({
   committees,
   values,
   preferredCommitteeId,
+  paymentLocked = false,
 }: {
   editionId: string;
   registration: Registration;
@@ -80,8 +81,10 @@ export function RegistrationForm({
   committees: Committee[];
   values: RegistrationFieldValue[];
   preferredCommitteeId?: string;
+  paymentLocked?: boolean;
 }) {
-  const editable = (PRE_PAYMENT_STATUSES as readonly string[]).includes(registration.status);
+  const editable =
+    (PRE_PAYMENT_STATUSES as readonly string[]).includes(registration.status) && !paymentLocked;
   const schema = useMemo(() => buildRegistrationSchema(fields), [fields]);
   const [state, formAction, actionPending] = useActionState(
     registrationFormAction,
@@ -160,8 +163,8 @@ export function RegistrationForm({
                   {closed
                     ? "Closed"
                     : full
-                      ? "No seats remaining"
-                      : `${remaining} of ${committee.capacity} seats remaining`}
+                      ? "No delegations remaining"
+                      : `${remaining} of ${committee.capacity} delegations remaining`}
                 </span>
               </span>
             </label>
@@ -225,7 +228,9 @@ export function RegistrationForm({
         </div>
       ) : (
         <p className="text-sm text-ink-muted">
-          This registration is locked. Committee changes after payment require the secretariat.
+          {paymentLocked
+            ? "Proof is under review or already verified. Committee changes now go through the secretariat."
+            : "This registration is locked. Committee changes after payment require the secretariat."}
         </p>
       )}
     </form>

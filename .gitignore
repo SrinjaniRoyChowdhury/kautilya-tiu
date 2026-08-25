@@ -40,6 +40,10 @@ supabase/.branches
 
 # extracted SRS scratch
 _srs_extract.txt
+_p7_srs.txt
+
+# local database dumps (never commit)
+/backups/
 
 # vercel
 .vercel

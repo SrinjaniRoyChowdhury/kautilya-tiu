@@ -2,16 +2,20 @@ import type { Metadata } from "next";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { RegistrationForm } from "@/components/dashboard/registration-form";
 import { ResendVerification } from "@/components/dashboard/resend-verification";
+import { RulesAcceptance } from "@/components/dashboard/rules-acceptance";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { startRegistrationAction } from "@/app/actions/registrations";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import {
   getActiveEdition,
+  getCoveringPaymentForRegistration,
   getFieldDefinitions,
   getMyRegistration,
   getPublicCommittees,
   getRegistrationValues,
+  getConferenceDocuments,
 } from "@/lib/data";
+import { coveringPaymentLocksRegistration } from "@/lib/payments";
 import { isRegistrationOpen } from "@/lib/registration";
 import type { Edition } from "@/types";
 
@@ -99,11 +103,26 @@ async function RegistrationBody({
     );
   }
 
+  const docs = await getConferenceDocuments();
+  const published = {
+    rulebook: docs.some((doc) => doc.kind === "rulebook"),
+    guidelines: docs.some((doc) => doc.kind === "guidelines"),
+  };
+
+  if (!registration.accepted_rules_at) {
+    return (
+      <Card>
+        <RulesAcceptance registrationId={registration.id} published={published} />
+      </Card>
+    );
+  }
+
   const [fields, committees, values] = await Promise.all([
     getFieldDefinitions(edition.id),
     getPublicCommittees(edition.id),
     getRegistrationValues(registration.id),
   ]);
+  const covering = await getCoveringPaymentForRegistration(registration.id);
   const preferred = committees.find((item) => item.slug === committeeSlug);
   const visible = committees.filter(
     (item) => item.status === "OPEN" || item.id === registration.committee_id,
@@ -118,6 +137,7 @@ async function RegistrationBody({
         committees={visible}
         values={values}
         preferredCommitteeId={preferred?.id}
+        paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
       />
     </Card>
   );

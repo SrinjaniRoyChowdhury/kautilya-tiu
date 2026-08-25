@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { HiOutlineSpeakerphone } from "react-icons/hi";
-import { CommitteeCard, Hero } from "@/components/public/marketing";
+import { CommitteeCard, Hero, PlainCopy } from "@/components/public/marketing";
 import { Card, Container } from "@/components/ui/card";
 import { getActiveEdition, getAnnouncements, getPublicCommittees, getSiteSettings } from "@/lib/data";
 
@@ -57,10 +57,7 @@ export default async function HomePage() {
                       <HiOutlineSpeakerphone /> Notice
                     </p>
                     <h3 className="mt-2 font-serif text-2xl">{item.title}</h3>
-                    <div
-                      className="mt-2 text-sm text-ink-muted [&_p]:mb-2"
-                      dangerouslySetInnerHTML={{ __html: item.body_html }}
-                    />
+                    <PlainCopy className="mt-2 text-sm" text={item.body_html} />
                   </Card>
                 </li>
               ))}

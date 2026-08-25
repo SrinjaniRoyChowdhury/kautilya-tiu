@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat, Poppins } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { getProfile, getRoleNames, getSessionUser } from "@/lib/auth";
+import { getProfile, getRoleNames, getSessionUser, hasScanAccess } from "@/lib/auth";
 import { getSiteSettings } from "@/lib/data";
 import "./globals.css";
 
@@ -34,11 +34,12 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [settings, user, profile, roles] = await Promise.all([
+  const [settings, user, profile, roles, canScan] = await Promise.all([
     getSiteSettings(),
     getSessionUser(),
     getProfile(),
     getRoleNames(),
+    hasScanAccess(),
   ]);
 
   return (
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           societyName={settings.society_name}
           email={profile?.email ?? user?.email ?? null}
           isStaff={roles.length > 0}
+          canScan={canScan}
         />
         <main className="flex-1">{children}</main>
         <Footer settings={settings} />

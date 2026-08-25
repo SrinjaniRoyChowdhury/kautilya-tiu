@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { formatInrFromMinor } from "@/lib/format";
+import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import type { Committee, Registration } from "@/types";
 
 const STATUS_COPY: Record<string, { label: string; detail: string }> = {
   DRAFT: {
     label: "Draft",
-    detail: "Your form is saved. Submit it to hold a committee seat and proceed to payment.",
+    detail: "Your form is saved. Submit it to hold a committee place and proceed to payment.",
   },
   SUBMITTED: {
     label: "Submitted",
@@ -14,19 +14,19 @@ const STATUS_COPY: Record<string, { label: string; detail: string }> = {
   },
   PAYMENT_PENDING: {
     label: "Payment pending",
-    detail: "Seat held. Upload UPI proof in Phase 3. You may still change committee until payment is verified.",
+    detail: "Delegation held. Upload UPI proof from Payment. You may still change committee until proof is under review.",
   },
   PAYMENT_VERIFIED: {
     label: "Payment verified",
-    detail: "The secretariat has verified payment. Confirmation and QR follow.",
+    detail: "The secretariat has verified payment. Confirmation follows this status.",
   },
   PAYMENT_REJECTED: {
     label: "Payment rejected",
-    detail: "The last payment was rejected. You can update the form and resubmit proof in Phase 3.",
+    detail: "The last payment was rejected. Update the form if needed and resubmit proof.",
   },
   CONFIRMED: {
     label: "Confirmed",
-    detail: "You are confirmed. Your QR will appear here in Phase 4.",
+    detail: "You are confirmed. Open Credential for the scannable QR used all three days and for meals.",
   },
   CANCELLED: {
     label: "Cancelled",
@@ -73,12 +73,29 @@ export function RegistrationStatusCard({
           ) : null}
         </p>
       ) : null}
+      {formatDelegation(registration.allocated_slr, registration.allocated_portfolio) ? (
+        <p className="mt-1 text-sm">
+          Allocated delegation: {formatDelegation(registration.allocated_slr, registration.allocated_portfolio)}
+        </p>
+      ) : null}
       {registration.food_preference ? (
         <p className="mt-1 text-sm text-ink-muted">Food: {registration.food_preference}</p>
       ) : null}
-      <Link href="/dashboard/register" className="mt-4 inline-block text-sm text-gold-700 hover:underline">
-        {registration.status === "DRAFT" ? "Continue form" : "View registration"}
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link href="/dashboard/register" className="text-sm text-gold-700 hover:underline">
+          {registration.status === "DRAFT" ? "Continue form" : "View registration"}
+        </Link>
+        {registration.status === "PAYMENT_PENDING" || registration.status === "PAYMENT_REJECTED" ? (
+          <Link href="/dashboard/pay" className="text-sm text-gold-700 hover:underline">
+            Go to payment
+          </Link>
+        ) : null}
+        {registration.status === "CONFIRMED" ? (
+          <Link href="/dashboard/qr" className="text-sm text-gold-700 hover:underline">
+            Open credential
+          </Link>
+        ) : null}
+      </div>
     </Card>
   );
 }

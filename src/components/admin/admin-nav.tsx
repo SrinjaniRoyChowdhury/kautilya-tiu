@@ -5,11 +5,20 @@ const items = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/editions", label: "Editions" },
   { href: "/admin/committees", label: "Committees" },
+  { href: "/admin/payments", label: "Payments" },
+  { href: "/admin/participants", label: "Participants" },
+  { href: "/admin/credentials", label: "Credentials" },
+  { href: "/admin/scanners", label: "Scanners" },
+  { href: "/admin/editors", label: "Editors" },
+  { href: "/admin/attendance", label: "Venue" },
+  { href: "/admin/cms", label: "Content" },
+  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit", label: "Audit" },
 ];
 
-export function AdminNav({ current }: { current: string }) {
+export function AdminNav({ current, className }: { current: string; className?: string }) {
   return (
-    <nav className="mb-8 flex flex-wrap gap-2 font-heading" aria-label="Admin">
+    <nav className={cn("mb-8 flex flex-wrap gap-2 font-heading", className)} aria-label="Admin">
       {items.map((item) => (
         <Link
           key={item.href}

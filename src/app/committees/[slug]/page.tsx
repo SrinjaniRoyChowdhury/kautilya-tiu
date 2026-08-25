@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
+import { toPlainText } from "@/lib/sanitize";
 import { seatsHeld } from "@/lib/registration";
 import { getActiveEdition, getCommitteeBySlug } from "@/lib/data";
 
@@ -30,8 +31,8 @@ export default async function CommitteeDetailPage({ params }: Props) {
       <PageHeader eyebrow={committee.short_name} title={committee.name} />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <article>
-          <p className="text-ink-muted leading-7">
-            {committee.description || "A full briefing will be published with the study guide."}
+          <p className="whitespace-pre-wrap text-ink-muted leading-7">
+            {toPlainText(committee.description) || "A full briefing will be published with the study guide."}
           </p>
           {committee.rules_url ? (
             <p className="mt-4">
@@ -55,13 +56,14 @@ export default async function CommitteeDetailPage({ params }: Props) {
           ) : null}
           {committee.portfolio_config?.length ? (
             <section className="mt-8">
-              <h2 className="font-serif text-2xl text-gold-700">Sample portfolios</h2>
+              <h2 className="font-serif text-2xl text-gold-700">Portfolios</h2>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {committee.portfolio_config.map((item) => (
                   <li
-                    key={item.name}
+                    key={`${item.slr ?? item.name}-${item.name}`}
                     className="rounded-sm border border-gold-700/25 px-2 py-1 text-sm"
                   >
+                    {item.slr ? `${item.slr}. ` : ""}
                     {item.name}
                   </li>
                 ))}
@@ -75,7 +77,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
             {formatInrFromMinor(committee.fee_minor)}
           </p>
           <p className="text-sm text-ink-muted">
-            {remaining} of {committee.capacity} seats remaining
+            {remaining} of {committee.capacity} delegations remaining
           </p>
           <p className="text-sm text-ink-muted">Status: {committee.status}</p>
           <Link

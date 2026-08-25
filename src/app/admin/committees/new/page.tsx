@@ -12,7 +12,11 @@ export default async function NewCommitteePage() {
 
   return (
     <Container className="py-12">
-      <PageHeader eyebrow="Admin" title="New committee" />
+      <PageHeader
+        eyebrow="Admin"
+        title="New committee"
+        description="Save the committee first, then upload the portfolio matrix on the next screen."
+      />
       <AdminNav current="/admin/committees" />
       <Card>
         {editions.length ? (

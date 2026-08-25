@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { HiArrowRight } from "react-icons/hi";
 import { BrandLogo } from "@/components/brand/logo";
+import { cn } from "@/lib/format";
 import { formatDateRange, formatInrFromMinor, seatsRemaining } from "@/lib/format";
 import { seatsHeld } from "@/lib/registration";
+import { toPlainText } from "@/lib/sanitize";
 import type { Committee, Edition, HeroStat } from "@/types";
 
 export function Hero({
@@ -104,10 +106,24 @@ export function CommitteeCard({
         <span>
           {committee.status === "CLOSED" || full
             ? "Waitlist / closed"
-            : `${remaining} of ${committee.capacity} seats remaining`}
+            : `${remaining} of ${committee.capacity} delegations remaining`}
         </span>
         <span>{committee.status}</span>
       </div>
     </Link>
   );
+}
+
+export function PlainCopy({
+  text,
+  fallback,
+  className,
+}: {
+  text?: string | null;
+  fallback?: string;
+  className?: string;
+}) {
+  const value = toPlainText(text) || fallback || "";
+  if (!value) return null;
+  return <p className={cn("whitespace-pre-wrap leading-7 text-ink-muted", className)}>{value}</p>;
 }

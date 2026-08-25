@@ -1,0 +1,32 @@
+export const MAX_PROOF_BYTES = 5 * 1024 * 1024;
+
+export type ProofMime = "image/jpeg" | "image/png" | "image/webp";
+
+export function sniffPdf(bytes: Uint8Array): boolean {
+  return (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  );
+}
+
+export function sniffImageMime(bytes: Uint8Array): ProofMime | null {
+  if (bytes.length < 12) return null;
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return "image/png";
+  }
+  const riff = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+  const webp = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+  if (riff === "RIFF" && webp === "WEBP") return "image/webp";
+  return null;
+}
+
+export function proofExtension(mime: ProofMime): "jpg" | "png" | "webp" {
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  return "jpg";
+}

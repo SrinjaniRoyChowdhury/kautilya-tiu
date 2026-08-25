@@ -1,7 +1,17 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import {
+  AUTH_LIMIT,
+  AUTH_WINDOW_MS,
+  SIGNUP_LIMIT,
+  clientKeyFromHeaders,
+  rateLimit,
+} from "@/lib/rate-limit";
+import { hasScanAccess, getRoleNames, isContentEditorOnly, isOperatorOnly, isProtectedAdminEmail } from "@/lib/auth";
+import { safeInternalPath } from "@/lib/safe-path";
 import { createClient } from "@/lib/supabase/server";
 
 const signupSchema = z.object({
@@ -36,7 +46,15 @@ function firstIssue(error: z.ZodError): AuthState {
   return { error: error.issues[0]?.message ?? "Please check the form", fieldErrors };
 }
 
+async function authClientKey(): Promise<string> {
+  return clientKeyFromHeaders(await headers());
+}
+
 export async function signupAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const ip = await authClientKey();
+  if (!rateLimit(`signup:${ip}`, SIGNUP_LIMIT, AUTH_WINDOW_MS)) {
+    return { error: "Too many sign-up attempts. Try again in 15 minutes." };
+  }
   const parsed = signupSchema.safeParse({
     full_name: formData.get("full_name"),
     email: formData.get("email"),
@@ -63,7 +81,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     if (error.message.toLowerCase().includes("already")) {
       return { error: "That email is already registered. Sign in instead." };
     }
-    return { error: error.message };
+    return { error: "Could not create the account. Try again." };
   }
 
   return {
@@ -79,6 +97,15 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   });
   if (!parsed.success) return firstIssue(parsed.error);
 
+  const ip = await authClientKey();
+  const emailKey = parsed.data.email.toLowerCase();
+  if (
+    !rateLimit(`login-ip:${ip}`, AUTH_LIMIT, AUTH_WINDOW_MS) ||
+    !rateLimit(`login:${ip}:${emailKey}`, AUTH_LIMIT, AUTH_WINDOW_MS)
+  ) {
+    return { error: "Too many sign-in attempts. Try again in 15 minutes." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
@@ -89,9 +116,16 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
     return { error: "Invalid email or password." };
   }
 
-  const next = String(formData.get("next") || "/dashboard");
-  const safeNext = next.startsWith("/") ? next : "/dashboard";
-  redirect(safeNext);
+  const requested = safeInternalPath(formData.get("next"), "/dashboard");
+  redirect(await postLoginPath(requested));
+}
+
+async function postLoginPath(requested: string): Promise<string> {
+  const [canScan, roles] = await Promise.all([hasScanAccess(), getRoleNames()]);
+  if (requested.startsWith("/scan") && !canScan) return "/dashboard";
+  if (isOperatorOnly(roles)) return "/scan";
+  if (isContentEditorOnly(roles)) return "/admin/cms";
+  return requested;
 }
 
 export async function logoutAction() {
@@ -107,6 +141,17 @@ export async function forgotPasswordAction(
   const email = String(formData.get("email") ?? "").trim();
   const parsed = z.string().email().safeParse(email);
   if (!parsed.success) return { error: "Enter a valid email", fieldErrors: { email: "Enter a valid email" } };
+
+  const ip = await authClientKey();
+  if (!rateLimit(`reset:${ip}`, SIGNUP_LIMIT, AUTH_WINDOW_MS)) {
+    return { error: "Too many reset attempts. Try again in 15 minutes." };
+  }
+
+  if (isProtectedAdminEmail(parsed.data)) {
+    return {
+      success: "If that email exists, a reset link is on its way. Check Inbucket locally (port 54324).",
+    };
+  }
 
   const supabase = await createClient();
   const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

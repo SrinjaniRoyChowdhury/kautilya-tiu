@@ -1,0 +1,81 @@
+"use client";
+
+import { useActionState } from "react";
+import { Button } from "@/components/ui/button";
+import { Field, Input, Textarea } from "@/components/ui/field";
+import { updatePaymentInstructionsAction, type PaymentState } from "@/app/actions/payments";
+import type { PaymentInstructions } from "@/types";
+
+export function PaymentInstructionsForm({
+  editionId,
+  instructions,
+}: {
+  editionId: string;
+  instructions: PaymentInstructions | null;
+}) {
+  const action = updatePaymentInstructionsAction.bind(null, editionId);
+  const [state, formAction, pending] = useActionState(action, {} as PaymentState);
+
+  return (
+    <form action={formAction} className="grid gap-4 sm:grid-cols-2">
+      {state.error ? (
+        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+      {state.success ? (
+        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
+          {state.success}
+        </p>
+      ) : null}
+      <Field label="UPI ID" htmlFor="upi_id">
+        <Input id="upi_id" name="upi_id" defaultValue={instructions?.upi_id ?? ""} />
+      </Field>
+      <Field label="Account name" htmlFor="account_name">
+        <Input
+          id="account_name"
+          name="account_name"
+          defaultValue={instructions?.account_name ?? ""}
+        />
+      </Field>
+      <Field label="Bank" htmlFor="bank_name">
+        <Input id="bank_name" name="bank_name" defaultValue={instructions?.bank_name ?? ""} />
+      </Field>
+      <Field label="Account number" htmlFor="account_number">
+        <Input
+          id="account_number"
+          name="account_number"
+          defaultValue={instructions?.account_number ?? ""}
+        />
+      </Field>
+      <Field label="IFSC" htmlFor="ifsc">
+        <Input id="ifsc" name="ifsc" defaultValue={instructions?.ifsc ?? ""} />
+      </Field>
+      <div className="sm:col-span-2">
+        <Field
+          label="UPI QR image"
+          htmlFor="upi_qr"
+          hint="Only secretariat admins can change this. Delegates see it on the pay page."
+        >
+          <Input id="upi_qr" name="upi_qr" type="file" accept="image/jpeg,image/png,image/webp" />
+        </Field>
+        {instructions?.upi_qr_image_key ? (
+          <label className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+            <input type="checkbox" name="remove_qr" />
+            Remove the current QR
+          </label>
+        ) : null}
+      </div>
+      <div className="sm:col-span-2">
+        <Field label="Notes shown to payers" htmlFor="notes">
+          <Textarea id="notes" name="notes" defaultValue={instructions?.notes ?? ""} />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : "Save payment instructions"}
+        </Button>
+      </div>
+    </form>
+  );
+}

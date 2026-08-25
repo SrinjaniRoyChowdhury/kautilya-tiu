@@ -40,6 +40,7 @@ export type EbMember = {
 };
 
 export type Portfolio = {
+  slr?: number;
   name: string;
 };
 
@@ -112,6 +113,41 @@ export type Registration = {
   expected_fee_minor: number | null;
   submitted_at: string | null;
   confirmed_at: string | null;
+  accepted_rules_at?: string | null;
+  allocated_slr?: number | null;
+  allocated_portfolio?: string | null;
+};
+
+export type ConferenceDocument = {
+  kind: "rulebook" | "guidelines";
+  file_name: string;
+  storage_key: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminParticipant = {
+  id: string;
+  edition_id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  status: RegistrationStatus;
+  committee_short_name: string | null;
+  food_preference: FoodPreference | null;
+  paid: boolean;
+};
+
+export type FoodCollectionRow = {
+  id: string;
+  meal_schedule_id: string;
+  event_day: number;
+  meal_name: string;
+  full_name: string;
+  email: string;
+  committee_short_name: string | null;
+  collected_at: string;
 };
 
 export type RegistrationFieldValue = {
@@ -127,16 +163,51 @@ export type Announcement = {
   edition_id: string | null;
   title: string;
   body_html: string;
+  published?: boolean;
   published_at: string | null;
+  display_order?: number;
 };
 
 export type TeamMember = {
   id: string;
+  edition_id?: string | null;
   full_name: string;
   role_title: string;
   bio: string | null;
   photo_url: string | null;
   display_order: number;
+  published?: boolean;
+};
+
+export type GalleryAlbum = {
+  id: string;
+  edition_id: string;
+  title: string;
+  description: string | null;
+  published: boolean;
+  display_order: number;
+  images?: GalleryImage[];
+};
+
+export type GalleryImage = {
+  id: string;
+  album_id: string;
+  storage_key: string;
+  caption: string | null;
+  display_order: number;
+};
+
+export type AuditLog = {
+  id: string;
+  actor_user_id: string | null;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  old_value: unknown;
+  new_value: unknown;
+  created_at: string;
+  actor_name: string | null;
+  actor_email: string | null;
 };
 
 export type Profile = {
@@ -153,4 +224,151 @@ export type UserRoleRow = {
   user_id: string;
   edition_id: string | null;
   roles: { name: string } | { name: string }[] | null;
+};
+
+export type ScannerAssignment = {
+  id: string;
+  user_id: string;
+  edition_id: string | null;
+  role_name: string;
+  full_name: string;
+  email: string;
+  edition_name: string | null;
+  password_plain?: string | null;
+};
+
+export type CommitteeDelegate = {
+  id: string;
+  full_name: string;
+  email: string;
+  status: RegistrationStatus;
+  allocated_slr: number | null;
+  allocated_portfolio: string | null;
+};
+
+export type PaymentStatus =
+  | "DRAFT"
+  | "PENDING"
+  | "UNDER_REVIEW"
+  | "VERIFIED"
+  | "REJECTED"
+  | "CANCELLED";
+
+export type AmountFlag = "UNDERPAID" | "EXACT" | "OVERPAID" | "UNKNOWN";
+
+export type PaymentInstructions = {
+  id: string;
+  edition_id: string;
+  upi_id: string | null;
+  upi_qr_image_key: string | null;
+  bank_name: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  ifsc: string | null;
+  notes: string | null;
+};
+
+export type Payment = {
+  id: string;
+  edition_id: string;
+  payer_user_id: string;
+  expected_amount_minor: number;
+  paid_amount_minor: number | null;
+  currency: string;
+  status: PaymentStatus;
+  amount_flag: AmountFlag;
+  proof_image_key: string | null;
+  proof_sha256?: string | null;
+  transaction_ref: string | null;
+  paid_at: string | null;
+  verified_by: string | null;
+  verified_at: string | null;
+  rejection_reason: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type PaymentParticipant = {
+  id: string;
+  payment_id: string;
+  registration_id: string | null;
+  user_id: string | null;
+  unmatched_email: string | null;
+  amount_minor: number;
+  created_at?: string;
+  users?: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+  registrations?: {
+    status: RegistrationStatus;
+    expected_fee_minor: number | null;
+    users?: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+    committees?: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
+  } | null;
+};
+
+export type PaymentWithParticipants = Payment & {
+  payment_participants: PaymentParticipant[];
+  payer?: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+};
+
+export type QrToken = {
+  id: string;
+  registration_id: string;
+  display_code: string;
+  status: "ACTIVE" | "REVOKED";
+  issued_at: string;
+};
+
+export type ConfirmedCredential = {
+  id: string;
+  edition_id: string;
+  full_name: string;
+  email: string;
+  food_preference: FoodPreference | null;
+  committee_short_name: string | null;
+  committee_name: string | null;
+  display_code: string | null;
+  allocated_slr: number | null;
+  allocated_portfolio: string | null;
+};
+
+export type MealSchedule = {
+  id: string;
+  edition_id: string;
+  event_day: number;
+  meal_type_id: string;
+  starts_at: string | null;
+  name: string;
+};
+
+export type AttendanceRow = {
+  id: string;
+  registration_id: string;
+  event_day: number;
+  checked_in_at: string;
+  checked_out_at: string | null;
+  method: "QR_SCAN" | "MANUAL";
+  notes: string | null;
+  full_name?: string;
+  email?: string;
+  committee_short_name?: string | null;
+};
+
+export type EventStatus = {
+  attendance: Array<{
+    event_day: number;
+    checked_in_at: string;
+    checked_out_at: string | null;
+  }>;
+  meals: Array<{
+    event_day: number;
+    meal_name: string;
+    collected_at: string;
+  }>;
+};
+
+export type FoodStat = {
+  meal_schedule_id: string;
+  event_day: number;
+  meal_name: string;
+  collected: number;
 };

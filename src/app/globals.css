@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --site-header-height: 4.75rem;
   --parchment-50: #fffdf7;
   --parchment-100: #f8f1e3;
   --parchment-200: #efe3ca;
@@ -70,6 +71,10 @@ body::before {
 body > * {
   position: relative;
   z-index: 1;
+}
+
+body > header {
+  z-index: 40;
 }
 
 h1,

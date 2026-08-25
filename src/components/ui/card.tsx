@@ -23,13 +23,15 @@ export function PageHeader({
   eyebrow,
   title,
   description,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
+  className?: string;
 }) {
   return (
-    <header className="mb-10 max-w-3xl">
+    <header className={cn("mb-10 max-w-3xl", className)}>
       {eyebrow ? (
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">
           {eyebrow}

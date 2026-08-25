@@ -30,6 +30,12 @@ export function Footer({ settings }: { settings: SiteSettings }) {
           <Link href="/editions" className="hover:text-gold-400">
             Past editions
           </Link>
+          <Link href="/gallery" className="hover:text-gold-400">
+            Gallery
+          </Link>
+          <Link href="/rulebook" className="hover:text-gold-400">
+            Rulebook
+          </Link>
           <Link href="/login" className="hover:text-gold-400">
             Delegate login
           </Link>
@@ -70,7 +76,9 @@ export function Footer({ settings }: { settings: SiteSettings }) {
       </div>
       <div className="border-t border-gold-400/20">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 text-xs text-parchment-300 sm:px-6">
-          <p>© {new Date().getFullYear()} {settings.society_name}. All rights reserved.</p>
+          <p>
+            © {new Date().getFullYear()} {settings.society_name}. All rights reserved.
+          </p>
           <p className="text-right">
             Behind the digital curtain: Srinjani Roy Chowdhury and Pratik Guha Roy
           </p>
