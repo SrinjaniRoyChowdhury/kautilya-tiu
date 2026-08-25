@@ -67,14 +67,22 @@ body::before {
   z-index: 0;
 }
 
-#__next,
-body > * {
+body > header,
+body > main,
+body > footer {
   position: relative;
-  z-index: 1;
 }
 
 body > header {
   z-index: 40;
+}
+
+body > main {
+  z-index: 2;
+}
+
+body > footer {
+  z-index: 1;
 }
 
 h1,

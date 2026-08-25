@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useState, useSyncExternalStore } from "react";
 import { HiOutlineMenu, HiOutlineX } from "react-icons/hi";
 import { logoutAction } from "@/app/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
+import { cn } from "@/lib/format";
+import { isHomeIntroDone, subscribeHomeIntro, syncHomeIntroPath } from "@/lib/intro-gate";
 
 const links = [
   { href: "/", label: "Home" },
@@ -25,10 +28,23 @@ type Props = {
 };
 
 export function Header({ societyName, email, isStaff, canScan }: Props) {
+  const pathname = usePathname();
+  syncHomeIntroPath(pathname);
+  const introDone = useSyncExternalStore(
+    subscribeHomeIntro,
+    isHomeIntroDone,
+    () => pathname !== "/",
+  );
   const [open, setOpen] = useState(false);
+  const hideForIntro = pathname === "/" && !introDone;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md transition-opacity duration-700 ease-out",
+        hideForIntro && "pointer-events-none opacity-0",
+      )}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={societyName}>
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />

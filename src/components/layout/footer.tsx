@@ -6,7 +6,7 @@ import type { SiteSettings } from "@/types";
 
 export function Footer({ settings }: { settings: SiteSettings }) {
   return (
-    <footer className="mt-16 bg-[#1a1208] text-parchment-100">
+    <footer className="relative mt-10 bg-[#1a1208] text-parchment-100">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6">
         <div>
           <div className="flex items-center gap-3">

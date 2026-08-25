@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
@@ -15,22 +16,12 @@ export function AdminListShell({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 top-[var(--site-header-height)] z-20 flex flex-col overflow-hidden bg-parchment-50">
-      <div className="shrink-0 border-b border-gold-700/20 bg-parchment-50">
-        <Container className="space-y-3 py-3">
-          {header}
-          {toolbar}
-        </Container>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <Container className="py-4">{children}</Container>
-      </div>
-      {footer ? (
-        <div className="shrink-0 border-t border-gold-700/20 bg-parchment-50">
-          <Container className="py-3">{footer}</Container>
-        </div>
-      ) : null}
-    </div>
+    <Container className="py-6">
+      <div className="mb-3">{header}</div>
+      <div className="mb-4 space-y-2">{toolbar}</div>
+      {children}
+      {footer ? <div className="mt-6">{footer}</div> : null}
+    </Container>
   );
 }
 
@@ -46,13 +37,15 @@ export function AdminFilters({
   children?: ReactNode;
 }) {
   return (
-    <form method="get" action={action} className="grid gap-3 md:grid-cols-4 md:items-end">
-      <Field label="Search" htmlFor="q">
-        <Input id="q" name="q" defaultValue={q ?? ""} placeholder={qPlaceholder} />
-      </Field>
+    <form method="get" action={action} className="flex flex-wrap items-end gap-2">
+      <div className="min-w-[12rem] flex-1">
+        <Field label="Search" htmlFor="q">
+          <Input id="q" name="q" defaultValue={q ?? ""} placeholder={qPlaceholder} />
+        </Field>
+      </div>
       {children}
-      <Button type="submit" variant="secondary">
-        Apply filters
+      <Button type="submit" variant="secondary" size="sm">
+        Apply
       </Button>
     </form>
   );
@@ -81,9 +74,9 @@ export function AdminPagination({
       </p>
       <div className="flex gap-3">
         {page > 1 ? (
-          <a href={makeHref(page - 1)} className="text-gold-700 hover:underline">
+          <Link href={makeHref(page - 1)} className="text-gold-700 hover:underline">
             Previous
-          </a>
+          </Link>
         ) : (
           <span className="text-ink-muted">Previous</span>
         )}
@@ -91,9 +84,9 @@ export function AdminPagination({
           Page {page} of {pageCount}
         </span>
         {page < pageCount ? (
-          <a href={makeHref(page + 1)} className="text-gold-700 hover:underline">
+          <Link href={makeHref(page + 1)} className="text-gold-700 hover:underline">
             Next
-          </a>
+          </Link>
         ) : (
           <span className="text-ink-muted">Next</span>
         )}
