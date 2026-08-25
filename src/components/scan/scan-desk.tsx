@@ -95,6 +95,7 @@ export function ScanDesk({
   const lastScanRef = useRef("");
   const cooldownRef = useRef(0);
   const lookupRef = useRef<(value: string) => Promise<void>>(async () => undefined);
+  const flushQueueRef = useRef<() => Promise<void>>(async () => undefined);
 
   const dayMeals = meals.filter((meal) => meal.event_day === day);
   const selectedMeal = dayMeals.some((meal) => meal.id === mealId)
@@ -102,13 +103,18 @@ export function ScanDesk({
     : (dayMeals[0]?.id ?? "");
 
   useEffect(() => {
+    const video = videoRef.current;
     const boot = window.setTimeout(() => setQueue(loadQueue()), 0);
-    const sync = () => void flushQueue();
+    const sync = () => void flushQueueRef.current();
     window.addEventListener("online", sync);
     return () => {
       window.clearTimeout(boot);
       window.removeEventListener("online", sync);
-      stopCamera();
+      if (timerRef.current) window.cancelAnimationFrame(timerRef.current);
+      timerRef.current = 0;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      if (video) video.srcObject = null;
     };
   }, []);
 
@@ -141,6 +147,23 @@ export function ScanDesk({
     setQueue(remaining);
     if (items.length && remaining.length < items.length) {
       setBanner(`Synced ${items.length - remaining.length} queued scan(s).`);
+    }
+  }
+
+  useEffect(() => {
+    flushQueueRef.current = flushQueue;
+  });
+
+  async function markAttendance(secret: string) {
+    if (!navigator.onLine) {
+      enqueue({ kind: "attendance", token: secret, event_day: day });
+      return;
+    }
+    try {
+      const { json } = await postJson("/attendance/scan", { token: secret, event_day: day });
+      setResult(json);
+    } catch {
+      enqueue({ kind: "attendance", token: secret, event_day: day });
     }
   }
 
@@ -177,20 +200,10 @@ export function ScanDesk({
       pendingRef.current = false;
     }
   }
-  lookupRef.current = lookup;
 
-  async function markAttendance(secret: string) {
-    if (!navigator.onLine) {
-      enqueue({ kind: "attendance", token: secret, event_day: day });
-      return;
-    }
-    try {
-      const { json } = await postJson("/attendance/scan", { token: secret, event_day: day });
-      setResult(json);
-    } catch {
-      enqueue({ kind: "attendance", token: secret, event_day: day });
-    }
-  }
+  useEffect(() => {
+    lookupRef.current = lookup;
+  });
 
   async function checkout() {
     const secret = tokenRef.current || token;

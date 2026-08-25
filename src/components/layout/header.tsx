@@ -30,7 +30,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
   return (
     <header className="sticky top-0 z-40 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={societyName}>
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />
           <span className="flex min-w-0 flex-col leading-none">
             <span className="font-serif text-xl font-semibold tracking-wide text-gold-700 sm:text-2xl">

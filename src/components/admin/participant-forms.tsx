@@ -40,6 +40,8 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
 }
 
 export function DeleteParticipantForm({ participant }: { participant: AdminParticipant }) {
+  const action = deleteParticipantAction.bind(null, participant.id);
+  const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   if (participant.paid) {
     return (
       <p className="text-sm text-ink-muted">
@@ -47,8 +49,6 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
       </p>
     );
   }
-  const action = deleteParticipantAction.bind(null, participant.id);
-  const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   return (
     <form action={formAction} className="grid gap-3">
       {state.error ? (

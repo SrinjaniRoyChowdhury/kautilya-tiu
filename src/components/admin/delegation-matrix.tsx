@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { assignDelegationAction, uploadCommitteePortfoliosAction, type FormState } from "@/app/actions/committees";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -28,9 +29,9 @@ export function PortfolioUploadForm({ committeeId }: { committeeId: string }) {
         <Button type="submit" disabled={pending}>
           {pending ? "Uploading…" : "Upload matrix"}
         </Button>
-        <a href="/admin/committees/portfolio-template" className="mb-2 text-sm text-gold-700 hover:underline">
+        <Link href="/admin/committees/portfolio-template" prefetch={false} className="mb-2 text-sm text-gold-700 hover:underline">
           Download empty template
-        </a>
+        </Link>
       </div>
     </form>
   );

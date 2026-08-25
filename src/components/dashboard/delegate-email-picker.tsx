@@ -35,13 +35,11 @@ export function DelegateEmailPicker({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const excludeKey = (excludeEmails ?? []).map((email) => email.toLowerCase()).join("\0");
+  const q = query.trim();
+  const shownHits = q.length < 1 ? [] : hits;
 
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 1) {
-      setHits([]);
-      return;
-    }
+    if (q.length < 1) return;
     const blocked = new Set([
       ...excludeKey.split("\0").filter(Boolean),
       ...selected.map((row) => row.email.toLowerCase()),
@@ -68,7 +66,7 @@ export function DelegateEmailPicker({
       controller.abort();
       window.clearTimeout(handle);
     };
-  }, [query, editionId, excludeKey, selected]);
+  }, [q, editionId, excludeKey, selected]);
 
   function pick(row: PayableDelegate) {
     setSelected((prev) => {
@@ -113,16 +111,16 @@ export function DelegateEmailPicker({
           autoComplete="off"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          onFocus={() => hits.length && setOpen(true)}
+          onFocus={() => shownHits.length && setOpen(true)}
           placeholder="Start typing a name or email"
           className="w-full rounded-sm border border-gold-700/25 bg-parchment-50 px-3 py-2.5 text-sm text-ink placeholder:text-ink-muted/60"
         />
-        {open && (loading || hits.length > 0 || query.trim()) ? (
+        {open && (loading || shownHits.length > 0 || q) ? (
           <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-sm border border-gold-700/25 bg-parchment-50 shadow-sm">
             {loading ? (
               <li className="px-3 py-2 text-sm text-ink-muted">Searching…</li>
-            ) : hits.length ? (
-              hits.map((row) => (
+            ) : shownHits.length ? (
+              shownHits.map((row) => (
                 <li key={row.registration_id}>
                   <button
                     type="button"

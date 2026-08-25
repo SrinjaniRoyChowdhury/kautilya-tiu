@@ -65,6 +65,8 @@ export async function addMealTypeAction(
   _prev: OpsState,
   _formData: FormData,
 ): Promise<OpsState> {
+  void _prev;
+  void _formData;
   const allowed = await hasPermission("edition.manage", editionId);
   if (!allowed) return { error: "You need edition.manage to change meals." };
   const supabase = await createClient();

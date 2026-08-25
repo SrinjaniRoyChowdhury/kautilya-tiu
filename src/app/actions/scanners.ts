@@ -172,6 +172,8 @@ export async function removeScannerRoleAction(
   _prev: ScannerState,
   _formData: FormData,
 ): Promise<ScannerState> {
+  void _prev;
+  void _formData;
   const allowed = await hasPermission("users.manage");
   if (!allowed) return { error: "You need users.manage to remove scanners." };
   if (!isUuid(assignmentId)) return { error: "Missing assignment." };

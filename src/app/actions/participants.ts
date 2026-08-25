@@ -88,6 +88,8 @@ export async function deleteParticipantAction(
   _prev: ParticipantAdminState,
   _formData: FormData,
 ): Promise<ParticipantAdminState> {
+  void _prev;
+  void _formData;
   if (!isUuid(registrationId)) return { error: "Missing participant." };
   const allowed = await hasPermission("registration.edit");
   if (!allowed) return { error: "You need registration.edit to delete a delegate." };
