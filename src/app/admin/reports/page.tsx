@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { getAllEditionsAdmin } from "@/lib/data";
+import { getAllEditionsAdmin, getCommitteesForEdition } from "@/lib/data";
 import { canExportKind, REPORT_KINDS, type ReportKind } from "@/lib/reports";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -39,6 +39,9 @@ export default async function AdminReportsPage({
     editions[0] ??
     null;
 
+  const canParticipants = edition ? await canExportKind("participants", edition.id) : false;
+  const committees = edition && canParticipants ? await getCommitteesForEdition(edition.id) : [];
+
   const allowed = await Promise.all(
     REPORT_KINDS.map(async (kind) => ({
       kind,
@@ -64,7 +67,7 @@ export default async function AdminReportsPage({
       <PageHeader
         eyebrow="Staff"
         title="Reports"
-        description="CSV only — spreadsheets open it without a paid Excel library. Each download is checked on the server."
+        description="CSV for operations lists, and Excel for each committee's SLR, portfolio, and delegate."
       />
       <AdminNav current="/admin/reports" />
       {editions.length > 1 ? (
@@ -102,6 +105,29 @@ export default async function AdminReportsPage({
             </Card>
           ))}
       </div>
+      {committees.length ? (
+        <div className="mt-10">
+          <h2 className="font-serif text-2xl text-gold-700">Committee Excel</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            Each file has SLR number, portfolio, and the allocated delegate name.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {committees.map((committee) => (
+              <Card key={committee.id}>
+                <p className="font-serif text-2xl text-gold-700">{committee.short_name}</p>
+                <p className="mt-1 text-sm text-ink-muted">{committee.name}</p>
+                <p className="mt-2 text-sm text-ink-muted">{committee.portfolio_config.length} delegations</p>
+                <a
+                  href={`/admin/reports/committee/${committee.id}`}
+                  className="mt-4 inline-block text-sm text-gold-700 hover:underline"
+                >
+                  Download Excel
+                </a>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </Container>
   );
 }

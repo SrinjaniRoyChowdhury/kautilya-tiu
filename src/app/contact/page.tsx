@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { ContactDesk } from "@/components/public/contact-desk";
 import { Container } from "@/components/ui/card";
-import { getActiveEdition, getSiteSettings, getTeamMembers } from "@/lib/data";
+import { getActiveEdition, getSiteSettings } from "@/lib/data";
+import { HARDCODED_TEAM } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -10,15 +11,14 @@ export const metadata: Metadata = {
 };
 
 export default async function ContactPage() {
-  const [settings, members, edition] = await Promise.all([
+  const [settings, edition] = await Promise.all([
     getSiteSettings(),
-    getTeamMembers(),
     getActiveEdition(),
   ]);
 
   return (
     <Container className="py-12 sm:py-16">
-      <ContactDesk settings={settings} members={members} edition={edition} />
+      <ContactDesk settings={settings} members={HARDCODED_TEAM} edition={edition} />
     </Container>
   );
 }

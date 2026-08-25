@@ -40,6 +40,7 @@ export type EbMember = {
 };
 
 export type Portfolio = {
+  slr?: number;
   name: string;
 };
 
@@ -112,6 +113,41 @@ export type Registration = {
   expected_fee_minor: number | null;
   submitted_at: string | null;
   confirmed_at: string | null;
+  accepted_rules_at?: string | null;
+  allocated_slr?: number | null;
+  allocated_portfolio?: string | null;
+};
+
+export type ConferenceDocument = {
+  kind: "rulebook" | "guidelines";
+  file_name: string;
+  storage_key: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminParticipant = {
+  id: string;
+  edition_id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  status: RegistrationStatus;
+  committee_short_name: string | null;
+  food_preference: FoodPreference | null;
+  paid: boolean;
+};
+
+export type FoodCollectionRow = {
+  id: string;
+  meal_schedule_id: string;
+  event_day: number;
+  meal_name: string;
+  full_name: string;
+  email: string;
+  committee_short_name: string | null;
+  collected_at: string;
 };
 
 export type RegistrationFieldValue = {
@@ -198,6 +234,16 @@ export type ScannerAssignment = {
   full_name: string;
   email: string;
   edition_name: string | null;
+  password_plain?: string | null;
+};
+
+export type CommitteeDelegate = {
+  id: string;
+  full_name: string;
+  email: string;
+  status: RegistrationStatus;
+  allocated_slr: number | null;
+  allocated_portfolio: string | null;
 };
 
 export type PaymentStatus =
@@ -281,6 +327,8 @@ export type ConfirmedCredential = {
   committee_short_name: string | null;
   committee_name: string | null;
   display_code: string | null;
+  allocated_slr: number | null;
+  allocated_portfolio: string | null;
 };
 
 export type MealSchedule = {

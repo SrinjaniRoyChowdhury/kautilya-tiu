@@ -19,6 +19,8 @@ type ScanPerson = {
   committee_name?: string | null;
   food_preference?: string | null;
   display_code?: string;
+  allocated_slr?: number | null;
+  allocated_portfolio?: string | null;
   checked_in_at?: string | null;
   checked_out_at?: string | null;
   collected_at?: string | null;
@@ -569,6 +571,13 @@ export function ScanDesk({
               {result?.committee_short_name ?? "—"}
               {result?.committee_name ? ` · ${result.committee_name}` : ""}
             </p>
+            {result?.allocated_portfolio ? (
+              <p className="mt-1 text-sm">
+                Delegation{result.allocated_slr ? ` ${result.allocated_slr}` : ""}: {result.allocated_portfolio}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-ink-muted">Delegation not allocated yet</p>
+            )}
             <p className="mt-1 text-sm text-ink-muted">
               Food: {result?.food_preference ?? "unspecified"} · {result?.display_code}
             </p>

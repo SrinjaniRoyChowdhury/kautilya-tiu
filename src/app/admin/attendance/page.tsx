@@ -9,6 +9,7 @@ import {
   getActiveEdition,
   getAllEditionsAdmin,
   getAttendanceRoll,
+  getFoodCollections,
   getFoodStats,
 } from "@/lib/data";
 import { formatScanTime } from "@/lib/qr-http";
@@ -29,12 +30,15 @@ export default async function AdminAttendancePage({
     null;
   const defaultDay = eventDayFromEdition(edition?.start_date);
   const eventDay = day ? Number(day) : defaultDay;
-  const [canView, canCorrect, roll, food] = await Promise.all([
+  const [canView, canCorrect, roll, food, collections] = await Promise.all([
     hasPermission("attendance.scan", edition?.id),
     hasPermission("attendance.correct", edition?.id),
     edition ? getAttendanceRoll(edition.id, eventDay) : Promise.resolve([]),
     edition && (await hasPermission("food.scan", edition.id))
       ? getFoodStats(edition.id)
+      : Promise.resolve([]),
+    edition && (await hasPermission("food.scan", edition.id))
+      ? getFoodCollections(edition.id, eventDay)
       : Promise.resolve([]),
   ]);
 
@@ -108,6 +112,25 @@ export default async function AdminAttendancePage({
                   </li>
                 ))}
             </ul>
+          </Card>
+        ) : null}
+        {collections.length || food.length ? (
+          <Card className="lg:col-span-2">
+            <p className="font-serif text-2xl text-gold-700">Who collected food</p>
+            <p className="mt-1 text-sm text-ink-muted">Lunch and evening snacks for day {eventDay}.</p>
+            {collections.length ? (
+              <ul className="mt-4 grid gap-2 text-sm">
+                {collections.map((row) => (
+                  <li key={row.id}>
+                    <span className="font-medium">{row.full_name}</span>
+                    {row.committee_short_name ? ` · ${row.committee_short_name}` : ""} · {row.meal_name} ·{" "}
+                    {formatScanTime(row.collected_at)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-ink-muted">Nobody has collected a meal on this day yet.</p>
+            )}
           </Card>
         ) : null}
         {canCorrect ? (

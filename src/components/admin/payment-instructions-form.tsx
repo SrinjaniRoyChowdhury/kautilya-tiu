@@ -52,6 +52,21 @@ export function PaymentInstructionsForm({
         <Input id="ifsc" name="ifsc" defaultValue={instructions?.ifsc ?? ""} />
       </Field>
       <div className="sm:col-span-2">
+        <Field
+          label="UPI QR image"
+          htmlFor="upi_qr"
+          hint="Only secretariat admins can change this. Delegates see it on the pay page."
+        >
+          <Input id="upi_qr" name="upi_qr" type="file" accept="image/jpeg,image/png,image/webp" />
+        </Field>
+        {instructions?.upi_qr_image_key ? (
+          <label className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+            <input type="checkbox" name="remove_qr" />
+            Remove the current QR
+          </label>
+        ) : null}
+      </div>
+      <div className="sm:col-span-2">
         <Field label="Notes shown to payers" htmlFor="notes">
           <Textarea id="notes" name="notes" defaultValue={instructions?.notes ?? ""} />
         </Field>

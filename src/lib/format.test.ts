@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rupeesToMinor, seatsRemaining, slugify, hour12To24, localDateTimeValue, istDateTimeToIso, formatDateTime12h } from "./format";
+import { rupeesToMinor, seatsRemaining, slugify, hour12To24, localDateTimeValue, istDateTimeToIso, formatDateTime12h, formatDelegation } from "./format";
 
 describe("format helpers", () => {
   it("converts rupees to minor units", () => {
@@ -25,6 +25,11 @@ describe("format helpers", () => {
   it("never returns negative remaining seats", () => {
     expect(seatsRemaining(40, 41)).toBe(0);
     expect(seatsRemaining(40, 10)).toBe(30);
+  });
+
+  it("formats an allocated delegation", () => {
+    expect(formatDelegation(3, "France")).toBe("3. France");
+    expect(formatDelegation(null, null)).toBeNull();
   });
 
   it("slugifies names", () => {

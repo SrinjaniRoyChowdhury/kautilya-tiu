@@ -10,7 +10,7 @@ import {
   clientKeyFromHeaders,
   rateLimit,
 } from "@/lib/rate-limit";
-import { hasScanAccess, getRoleNames, isOperatorOnly } from "@/lib/auth";
+import { hasScanAccess, getRoleNames, isContentEditorOnly, isOperatorOnly, isProtectedAdminEmail } from "@/lib/auth";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createClient } from "@/lib/supabase/server";
 
@@ -124,6 +124,7 @@ async function postLoginPath(requested: string): Promise<string> {
   const [canScan, roles] = await Promise.all([hasScanAccess(), getRoleNames()]);
   if (requested.startsWith("/scan") && !canScan) return "/dashboard";
   if (isOperatorOnly(roles)) return "/scan";
+  if (isContentEditorOnly(roles)) return "/admin/cms";
   return requested;
 }
 
@@ -144,6 +145,12 @@ export async function forgotPasswordAction(
   const ip = await authClientKey();
   if (!rateLimit(`reset:${ip}`, SIGNUP_LIMIT, AUTH_WINDOW_MS)) {
     return { error: "Too many reset attempts. Try again in 15 minutes." };
+  }
+
+  if (isProtectedAdminEmail(parsed.data)) {
+    return {
+      success: "If that email exists, a reset link is on its way. Check Inbucket locally (port 54324).",
+    };
   }
 
   const supabase = await createClient();

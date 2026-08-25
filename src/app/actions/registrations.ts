@@ -24,7 +24,7 @@ const RPC_MESSAGES: Record<string, string> = {
   REGISTRATION_LOCKED: "This registration can no longer be edited. Contact the secretariat.",
   COMMITTEE_NOT_FOUND: "That committee is not available.",
   COMMITTEE_CLOSED: "That committee is closed.",
-  COMMITTEE_FULL: "That committee is full. Choose another committee.",
+  COMMITTEE_FULL: "That committee has no delegations remaining. Choose another committee.",
   COMMITTEE_REQUIRED: "Select a committee.",
   FOOD_REQUIRED: "Select a food preference.",
 };
@@ -134,6 +134,15 @@ async function runSave(
   const raw = parseFormPayload(formData, fields);
 
   if (intent === "submit") {
+    const supabaseGate = await createClient();
+    const { data: row } = await supabaseGate
+      .from("registrations")
+      .select("accepted_rules_at")
+      .eq("id", registrationId)
+      .maybeSingle();
+    if (!(row as { accepted_rules_at?: string | null } | null)?.accepted_rules_at) {
+      return { error: "Read and accept the rulebook and guidelines before submitting." };
+    }
     const schema = buildRegistrationSchema(fields);
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {

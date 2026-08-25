@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { formatInrFromMinor } from "@/lib/format";
+import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import type { Committee, Registration } from "@/types";
 
 const STATUS_COPY: Record<string, { label: string; detail: string }> = {
   DRAFT: {
     label: "Draft",
-    detail: "Your form is saved. Submit it to hold a committee seat and proceed to payment.",
+    detail: "Your form is saved. Submit it to hold a committee place and proceed to payment.",
   },
   SUBMITTED: {
     label: "Submitted",
@@ -14,7 +14,7 @@ const STATUS_COPY: Record<string, { label: string; detail: string }> = {
   },
   PAYMENT_PENDING: {
     label: "Payment pending",
-    detail: "Seat held. Upload UPI proof from Payment. You may still change committee until proof is under review.",
+    detail: "Delegation held. Upload UPI proof from Payment. You may still change committee until proof is under review.",
   },
   PAYMENT_VERIFIED: {
     label: "Payment verified",
@@ -71,6 +71,11 @@ export function RegistrationStatusCard({
           {registration.expected_fee_minor != null ? (
             <> · {formatInrFromMinor(registration.expected_fee_minor)} snapshotted</>
           ) : null}
+        </p>
+      ) : null}
+      {formatDelegation(registration.allocated_slr, registration.allocated_portfolio) ? (
+        <p className="mt-1 text-sm">
+          Allocated delegation: {formatDelegation(registration.allocated_slr, registration.allocated_portfolio)}
         </p>
       ) : null}
       {registration.food_preference ? (

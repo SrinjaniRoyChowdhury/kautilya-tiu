@@ -178,7 +178,7 @@ export default async function AdminHomePage({
                   <div className="flex justify-between text-sm">
                     <span>{committee.short_name}</span>
                     <span className="text-ink-muted">
-                      {committee.occupied} / {committee.capacity}
+                      {committee.occupied} / {committee.capacity} delegations
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 bg-parchment-200">
@@ -210,7 +210,7 @@ export default async function AdminHomePage({
         </Card>
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">CMS</p>
-          <p className="mt-2 text-sm text-ink-muted">Homepage, about, team, announcements, gallery.</p>
+          <p className="mt-2 text-sm text-ink-muted">Homepage, about, announcements, gallery.</p>
           <Link href="/admin/cms" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
             Edit content
           </Link>

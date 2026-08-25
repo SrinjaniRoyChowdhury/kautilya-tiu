@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sniffImageMime } from "./upload";
+import { sniffImageMime, sniffPdf } from "./upload";
 
 describe("sniffImageMime", () => {
   it("detects JPEG/PNG/WebP magic bytes and rejects other bytes", () => {
@@ -13,5 +13,10 @@ describe("sniffImageMime", () => {
     expect(sniffImageMime(png)).toBe("image/png");
     expect(sniffImageMime(webp)).toBe("image/webp");
     expect(sniffImageMime(exe)).toBeNull();
+  });
+
+  it("detects PDF magic bytes", () => {
+    expect(sniffPdf(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]))).toBe(true);
+    expect(sniffPdf(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0]))).toBe(false);
   });
 });

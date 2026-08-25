@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeHtml } from "./sanitize";
+import { sanitizeHtml, toPlainText } from "./sanitize";
 
 describe("sanitizeHtml", () => {
   it("strips script tags and event handlers", () => {
@@ -13,5 +13,12 @@ describe("sanitizeHtml", () => {
 
   it("returns empty for nullish input", () => {
     expect(sanitizeHtml(null)).toBe("");
+  });
+});
+
+describe("toPlainText", () => {
+  it("strips tags and keeps line breaks", () => {
+    expect(toPlainText("<p>Hello</p><br>world")).toBe("Hello\n\nworld");
+    expect(toPlainText("<b>Bold</b> &amp; plain")).toBe("Bold & plain");
   });
 });

@@ -106,7 +106,6 @@ export function CommitteeForm({
     : createCommitteeAction;
   const [state, formAction, pending] = useActionState(action, {} as FormState);
   const ebDefault = committee?.eb_json?.map((m) => `${m.name} | ${m.title}`).join("\n") ?? "";
-  const portfolios = committee?.portfolio_config?.map((p) => p.name).join("\n") ?? "";
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
@@ -145,16 +144,6 @@ export function CommitteeForm({
       <Field label="Slug" htmlFor="slug">
         <Input id="slug" name="slug" defaultValue={committee?.slug} />
       </Field>
-      <Field label="Capacity" htmlFor="capacity">
-        <Input
-          id="capacity"
-          name="capacity"
-          type="number"
-          min={0}
-          required
-          defaultValue={committee?.capacity ?? 40}
-        />
-      </Field>
       <Field
         label="Fee (₹)"
         htmlFor="fee_rupees"
@@ -189,15 +178,12 @@ export function CommitteeForm({
         <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} />
       </Field>
       <div className="sm:col-span-2">
-        <Field label="Description" htmlFor="description">
+        <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
           <Textarea id="description" name="description" defaultValue={committee?.description ?? ""} />
         </Field>
       </div>
       <Field label="Executive board" htmlFor="eb_json" hint="One per line: Name | Title">
         <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} />
-      </Field>
-      <Field label="Portfolios / countries" htmlFor="portfolio_config" hint="One name per line">
-        <Textarea id="portfolio_config" name="portfolio_config" defaultValue={portfolios} />
       </Field>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>

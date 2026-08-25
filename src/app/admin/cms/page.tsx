@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { deleteAnnouncementAction, deleteGalleryAlbumAction, deleteGalleryImageAction, deleteTeamMemberAction } from "@/app/actions/cms";
+import { deleteAnnouncementAction, deleteGalleryAlbumAction, deleteGalleryImageAction } from "@/app/actions/cms";
 import { AdminNav } from "@/components/admin/admin-nav";
+import {
+  ConferenceDocForm,
+  PublishedDocs,
+} from "@/components/admin/conference-doc-forms";
 import {
   AnnouncementForm,
   GalleryAlbumForm,
   GalleryImageForm,
   SiteSettingsForm,
-  TeamMemberForm,
 } from "@/components/admin/cms-forms";
 import { Button } from "@/components/ui/button";
 import { Card, Container, PageHeader } from "@/components/ui/card";
@@ -16,7 +19,7 @@ import {
   getAnnouncementsAdmin,
   getGalleryAlbums,
   getSiteSettings,
-  getTeamMembersAdmin,
+  getConferenceDocuments,
 } from "@/lib/data";
 
 export const metadata: Metadata = { title: "CMS" };
@@ -35,12 +38,13 @@ export default async function AdminCmsPage() {
     );
   }
 
-  const [settings, editions, announcements, team, albums] = await Promise.all([
+  const [settings, editions, announcements, albums, docs, canManageDocs] = await Promise.all([
     getSiteSettings(),
     getAllEditionsAdmin(),
     getAnnouncementsAdmin(),
-    getTeamMembersAdmin(),
     getGalleryAlbums(false),
+    getConferenceDocuments(),
+    hasPermission("edition.manage"),
   ]);
 
   return (
@@ -48,11 +52,23 @@ export default async function AdminCmsPage() {
       <PageHeader
         eyebrow="Staff"
         title="Content"
-        description="Changes go live on the public site without a deploy. HTML is accepted as pasted markup."
+        description="Changes go live on the public site without a deploy. Paste plain text only — HTML tags are stripped."
       />
       <AdminNav current="/admin/cms" />
 
-      <Card>
+      {canManageDocs ? (
+        <Card>
+          <p className="mb-4 font-serif text-2xl text-gold-700">Rulebook and guidelines</p>
+          <p className="mb-6 text-sm text-ink-muted">
+            Public PDFs at /rulebook. Delegates must acknowledge both before they can register. Only
+            an admin can upload or delete these files.
+          </p>
+          <ConferenceDocForm />
+          <PublishedDocs docs={docs} />
+        </Card>
+      ) : null}
+
+      <Card className={canManageDocs ? "mt-6" : undefined}>
         <p className="mb-4 font-serif text-2xl text-gold-700">Site copy</p>
         <p className="mb-6 text-sm text-ink-muted">
           Homepage hero, about, mission, history, and contact details.
@@ -69,24 +85,6 @@ export default async function AdminCmsPage() {
               <AnnouncementForm editions={editions} announcement={item} />
               <form action={deleteAnnouncementAction} className="mt-2">
                 <input type="hidden" name="id" value={item.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Delete
-                </Button>
-              </form>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="mt-6">
-        <p className="mb-4 font-serif text-2xl text-gold-700">Team</p>
-        <TeamMemberForm editions={editions} />
-        <div className="mt-6 grid gap-4">
-          {team.map((member) => (
-            <div key={member.id} className="border-t border-gold-700/15 pt-4">
-              <TeamMemberForm editions={editions} member={member} />
-              <form action={deleteTeamMemberAction} className="mt-2">
-                <input type="hidden" name="id" value={member.id} />
                 <Button type="submit" variant="ghost" size="sm">
                   Delete
                 </Button>

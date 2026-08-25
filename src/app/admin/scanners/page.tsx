@@ -28,7 +28,7 @@ export default async function AdminScannersPage() {
       <PageHeader
         eyebrow="Staff"
         title="Desk scanners"
-        description="Create a name, email, and password. That person signs in and opens Scan — delegates cannot. Use a laptop webcam now; phones can scan later."
+        description="Create a name, email, and password. Current passwords stay visible on this list. Edit opens a modal. That person signs in and opens Scan — delegates cannot."
       />
       <AdminNav current="/admin/scanners" />
       <div className="grid gap-6 lg:grid-cols-2">

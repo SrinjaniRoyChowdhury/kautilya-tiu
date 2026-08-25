@@ -5,13 +5,13 @@ import {
   addGalleryImageAction,
   saveAnnouncementAction,
   saveGalleryAlbumAction,
-  saveTeamMemberAction,
   updateSiteSettingsAction,
   type FormState,
 } from "@/app/actions/cms";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
-import type { Announcement, Edition, GalleryAlbum, SiteSettings, TeamMember } from "@/types";
+import { toPlainText } from "@/lib/sanitize";
+import type { Announcement, Edition, GalleryAlbum, SiteSettings } from "@/types";
 
 function Feedback({ state }: { state: FormState }) {
   if (state.error) {
@@ -46,15 +46,15 @@ export function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
       <Field label="Tagline" htmlFor="tagline">
         <Input id="tagline" name="tagline" defaultValue={settings.tagline ?? ""} />
       </Field>
-      <Field label="About (HTML)" htmlFor="about_html">
-        <Textarea id="about_html" name="about_html" defaultValue={settings.about_html ?? ""} />
+      <Field label="About" htmlFor="about_html" hint="Plain text. Line breaks are kept.">
+        <Textarea id="about_html" name="about_html" defaultValue={toPlainText(settings.about_html)} />
       </Field>
-      <Field label="Mission (HTML)" htmlFor="mission_html">
-        <Textarea id="mission_html" name="mission_html" defaultValue={settings.mission_html ?? ""} />
+      <Field label="Mission" htmlFor="mission_html" hint="Plain text. Line breaks are kept.">
+        <Textarea id="mission_html" name="mission_html" defaultValue={toPlainText(settings.mission_html)} />
       </Field>
       <div className="sm:col-span-2">
-        <Field label="History (HTML)" htmlFor="history_html">
-          <Textarea id="history_html" name="history_html" defaultValue={settings.history_html ?? ""} />
+        <Field label="History" htmlFor="history_html" hint="Plain text. Line breaks are kept.">
+          <Textarea id="history_html" name="history_html" defaultValue={toPlainText(settings.history_html)} />
         </Field>
       </div>
       <Field label="Contact email" htmlFor="contact_email">
@@ -134,12 +134,12 @@ export function AnnouncementForm({
           defaultValue={announcement?.title}
         />
       </Field>
-      <Field label="Body (HTML)" htmlFor={`ann-body-${announcement?.id ?? "new"}`}>
+      <Field label="Body" htmlFor={`ann-body-${announcement?.id ?? "new"}`} hint="Plain text. Line breaks are kept.">
         <Textarea
           id={`ann-body-${announcement?.id ?? "new"}`}
           name="body_html"
           required
-          defaultValue={announcement?.body_html}
+          defaultValue={toPlainText(announcement?.body_html)}
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -167,80 +167,6 @@ export function AnnouncementForm({
       </div>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : announcement ? "Update notice" : "Add notice"}
-      </Button>
-    </form>
-  );
-}
-
-export function TeamMemberForm({
-  editions,
-  member,
-}: {
-  editions: Edition[];
-  member?: TeamMember;
-}) {
-  const [state, formAction, pending] = useActionState(saveTeamMemberAction, {} as FormState);
-  return (
-    <form action={formAction} className="grid gap-3">
-      <Feedback state={state} />
-      {member ? <input type="hidden" name="id" value={member.id} /> : null}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name" htmlFor={`team-name-${member?.id ?? "new"}`}>
-          <Input
-            id={`team-name-${member?.id ?? "new"}`}
-            name="full_name"
-            required
-            defaultValue={member?.full_name}
-          />
-        </Field>
-        <Field label="Role" htmlFor={`team-role-${member?.id ?? "new"}`}>
-          <Input
-            id={`team-role-${member?.id ?? "new"}`}
-            name="role_title"
-            required
-            defaultValue={member?.role_title}
-          />
-        </Field>
-      </div>
-      <Field label="Bio" htmlFor={`team-bio-${member?.id ?? "new"}`}>
-        <Textarea id={`team-bio-${member?.id ?? "new"}`} name="bio" defaultValue={member?.bio ?? ""} />
-      </Field>
-      <Field
-        label="Photo URL"
-        htmlFor={`team-photo-${member?.id ?? "new"}`}
-        hint="Optional public image URL. File uploads are not required."
-      >
-        <Input
-          id={`team-photo-${member?.id ?? "new"}`}
-          name="photo_url"
-          defaultValue={member?.photo_url ?? ""}
-        />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Edition" htmlFor={`team-edition-${member?.id ?? "new"}`}>
-          <Select
-            id={`team-edition-${member?.id ?? "new"}`}
-            name="edition_id"
-            defaultValue={member?.edition_id ?? ""}
-          >
-            <EditionOptions editions={editions} />
-          </Select>
-        </Field>
-        <Field label="Order" htmlFor={`team-order-${member?.id ?? "new"}`}>
-          <Input
-            id={`team-order-${member?.id ?? "new"}`}
-            name="display_order"
-            type="number"
-            defaultValue={member?.display_order ?? 0}
-          />
-        </Field>
-        <label className="flex items-center gap-2 self-end text-sm">
-          <input type="checkbox" name="published" defaultChecked={member?.published ?? true} />
-          Published
-        </label>
-      </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : member ? "Update member" : "Add member"}
       </Button>
     </form>
   );

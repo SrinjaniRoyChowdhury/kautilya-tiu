@@ -163,8 +163,8 @@ export function RegistrationForm({
                   {closed
                     ? "Closed"
                     : full
-                      ? "No seats remaining"
-                      : `${remaining} of ${committee.capacity} seats remaining`}
+                      ? "No delegations remaining"
+                      : `${remaining} of ${committee.capacity} delegations remaining`}
                 </span>
               </span>
             </label>

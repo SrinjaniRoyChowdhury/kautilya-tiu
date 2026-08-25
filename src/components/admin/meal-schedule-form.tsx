@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import { addMealTypeAction, type OpsState } from "@/app/actions/ops";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
 import type { MealSchedule } from "@/types";
 
 export function MealScheduleForm({
@@ -39,12 +38,9 @@ export function MealScheduleForm({
           </li>
         ))}
       </ul>
-      <form action={formAction} className="flex flex-wrap items-end gap-3">
-        <Field label="Add meal type" htmlFor="name">
-          <Input id="name" name="name" placeholder="Midnight crisis coffee" required />
-        </Field>
+      <form action={formAction}>
         <Button type="submit" variant="secondary" disabled={pending}>
-          {pending ? "Adding…" : "Add for all days"}
+          {pending ? "Saving…" : "Set lunch and evening snacks for all days"}
         </Button>
       </form>
     </div>

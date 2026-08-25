@@ -33,6 +33,9 @@ export function Footer({ settings }: { settings: SiteSettings }) {
           <Link href="/gallery" className="hover:text-gold-400">
             Gallery
           </Link>
+          <Link href="/rulebook" className="hover:text-gold-400">
+            Rulebook
+          </Link>
           <Link href="/login" className="hover:text-gold-400">
             Delegate login
           </Link>

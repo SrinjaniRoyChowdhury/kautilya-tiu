@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       // Proof screenshots are allowed up to 5 MB; leave room for multipart wrapping.
-      bodySizeLimit: "6mb",
+      bodySizeLimit: "16mb",
     },
   },
   async headers() {

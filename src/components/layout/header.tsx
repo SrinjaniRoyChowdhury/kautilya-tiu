@@ -13,6 +13,7 @@ const links = [
   { href: "/editions", label: "Editions" },
   { href: "/team", label: "Team" },
   { href: "/gallery", label: "Gallery" },
+  { href: "/rulebook", label: "Rules" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -27,7 +28,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />

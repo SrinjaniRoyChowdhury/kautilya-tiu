@@ -63,29 +63,41 @@ export async function manualAttendanceAction(
 export async function addMealTypeAction(
   editionId: string,
   _prev: OpsState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<OpsState> {
   const allowed = await hasPermission("edition.manage", editionId);
   if (!allowed) return { error: "You need edition.manage to change meals." };
-  const name = String(formData.get("name") ?? "").trim();
-  if (name.length < 2) return { error: "Enter a meal name." };
   const supabase = await createClient();
-  const { data: meal, error } = await supabase
-    .from("meal_types")
-    .insert({ edition_id: editionId, name, display_order: 50 })
-    .select("id")
-    .maybeSingle();
-  if (error || !meal) return { error: error?.message ?? "Could not add meal." };
-  const { error: schedError } = await supabase.from("meal_schedules").insert(
-    [1, 2, 3].map((day) => ({
-      edition_id: editionId,
-      event_day: day,
-      meal_type_id: meal.id,
-    })),
-  );
-  if (schedError) return { error: schedError.message };
+  const names = ["Lunch", "Evening snacks"] as const;
+  for (const [index, name] of names.entries()) {
+    const { data: existing } = await supabase
+      .from("meal_types")
+      .select("id")
+      .eq("edition_id", editionId)
+      .eq("name", name)
+      .maybeSingle();
+    let mealId = (existing as { id: string } | null)?.id;
+    if (!mealId) {
+      const { data: meal, error } = await supabase
+        .from("meal_types")
+        .insert({ edition_id: editionId, name, display_order: index + 1 })
+        .select("id")
+        .maybeSingle();
+      if (error || !meal) return { error: error?.message ?? "Could not add meal." };
+      mealId = meal.id;
+    }
+    const { error: schedError } = await supabase.from("meal_schedules").upsert(
+      [1, 2, 3].map((day) => ({
+        edition_id: editionId,
+        event_day: day,
+        meal_type_id: mealId,
+      })),
+      { onConflict: "edition_id,event_day,meal_type_id", ignoreDuplicates: true },
+    );
+    if (schedError) return { error: schedError.message };
+  }
   revalidatePath(`/admin/editions/${editionId}`);
   revalidatePath("/scan");
   revalidatePath("/admin/attendance");
-  return { success: `${name} added for all three days.` };
+  return { success: "Lunch and evening snacks are on all three days." };
 }

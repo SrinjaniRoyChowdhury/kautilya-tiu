@@ -35,7 +35,7 @@ export default async function EditEditionPage({ params }: Props) {
       <Card className="mt-6">
         <p className="mb-4 font-serif text-2xl text-gold-700">Meal schedule</p>
         <p className="mb-6 text-sm text-ink-muted">
-          Food desks pick a meal from this list. Adding a type creates it on all three days.
+          Food desks serve lunch and evening snacks only. This list is created on all three days.
         </p>
         <MealScheduleForm editionId={edition.id} meals={meals} />
       </Card>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { RegistrationForm } from "@/components/dashboard/registration-form";
 import { ResendVerification } from "@/components/dashboard/resend-verification";
+import { RulesAcceptance } from "@/components/dashboard/rules-acceptance";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { startRegistrationAction } from "@/app/actions/registrations";
 import { getProfile, getSessionUser } from "@/lib/auth";
@@ -12,6 +13,7 @@ import {
   getMyRegistration,
   getPublicCommittees,
   getRegistrationValues,
+  getConferenceDocuments,
 } from "@/lib/data";
 import { coveringPaymentLocksRegistration } from "@/lib/payments";
 import { isRegistrationOpen } from "@/lib/registration";
@@ -97,6 +99,20 @@ async function RegistrationBody({
         <p className="text-sm text-red-800" role="alert">
           {startError ?? "Could not start registration."}
         </p>
+      </Card>
+    );
+  }
+
+  const docs = await getConferenceDocuments();
+  const published = {
+    rulebook: docs.some((doc) => doc.kind === "rulebook"),
+    guidelines: docs.some((doc) => doc.kind === "guidelines"),
+  };
+
+  if (!registration.accepted_rules_at) {
+    return (
+      <Card>
+        <RulesAcceptance registrationId={registration.id} published={published} />
       </Card>
     );
   }

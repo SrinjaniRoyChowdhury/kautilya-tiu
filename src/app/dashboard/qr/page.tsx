@@ -5,6 +5,7 @@ import { ResendQrEmail } from "@/components/dashboard/resend-qr-email";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import { getActiveEdition, getActiveQrForRegistration, getCommitteesForEdition, getMyRegistration } from "@/lib/data";
+import { formatDelegation } from "@/lib/format";
 import { getActiveQrPayload } from "@/lib/qr-mail";
 
 export const metadata: Metadata = { title: "Credential" };
@@ -57,6 +58,13 @@ export default async function CredentialPage() {
                 {committee.short_name} · {committee.name}
               </p>
             ) : null}
+            {formatDelegation(registration.allocated_slr, registration.allocated_portfolio) ? (
+              <p className="mt-1 text-sm">
+                Allocated delegation: {formatDelegation(registration.allocated_slr, registration.allocated_portfolio)}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-ink-muted">Delegation will appear here after the secretariat allocates it. Your QR stays the same.</p>
+            )}
             {registration.food_preference ? (
               <p className="mt-1 text-sm text-ink-muted">Food: {registration.food_preference}</p>
             ) : null}

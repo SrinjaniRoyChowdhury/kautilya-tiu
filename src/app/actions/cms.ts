@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isStaffUser } from "@/lib/auth";
-import { sanitizeHtml } from "@/lib/sanitize";
+import { toPlainText } from "@/lib/sanitize";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = {
@@ -86,20 +86,20 @@ export async function updateSiteSettingsAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid settings" };
 
   const hero_stats = [
-    { label: parsed.data.stat_label_1, value: parsed.data.stat_value_1 },
-    { label: parsed.data.stat_label_2, value: parsed.data.stat_value_2 },
-    { label: parsed.data.stat_label_3, value: parsed.data.stat_value_3 },
+    { label: parsed.data.stat_label_1 ? toPlainText(parsed.data.stat_label_1) : "", value: parsed.data.stat_value_1 ? toPlainText(parsed.data.stat_value_1) : "" },
+    { label: parsed.data.stat_label_2 ? toPlainText(parsed.data.stat_label_2) : "", value: parsed.data.stat_value_2 ? toPlainText(parsed.data.stat_value_2) : "" },
+    { label: parsed.data.stat_label_3 ? toPlainText(parsed.data.stat_label_3) : "", value: parsed.data.stat_value_3 ? toPlainText(parsed.data.stat_value_3) : "" },
   ].filter((row) => row.label && row.value);
 
   const payload = {
-    society_name: parsed.data.society_name,
-    tagline: parsed.data.tagline || null,
-    about_html: parsed.data.about_html ? sanitizeHtml(parsed.data.about_html) : null,
-    mission_html: parsed.data.mission_html ? sanitizeHtml(parsed.data.mission_html) : null,
-    history_html: parsed.data.history_html ? sanitizeHtml(parsed.data.history_html) : null,
+    society_name: toPlainText(parsed.data.society_name),
+    tagline: parsed.data.tagline ? toPlainText(parsed.data.tagline) : null,
+    about_html: parsed.data.about_html ? toPlainText(parsed.data.about_html) : null,
+    mission_html: parsed.data.mission_html ? toPlainText(parsed.data.mission_html) : null,
+    history_html: parsed.data.history_html ? toPlainText(parsed.data.history_html) : null,
     contact_email: parsed.data.contact_email || null,
-    contact_phone: parsed.data.contact_phone || null,
-    contact_address: parsed.data.contact_address || null,
+    contact_phone: parsed.data.contact_phone ? toPlainText(parsed.data.contact_phone) : null,
+    contact_address: parsed.data.contact_address ? toPlainText(parsed.data.contact_address) : null,
     instagram_url: parsed.data.instagram_url || null,
     linkedin_url: parsed.data.linkedin_url || null,
     hero_stats,
@@ -146,10 +146,12 @@ export async function saveAnnouncementAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid announcement" };
 
   const published = Boolean(parsed.data.published);
+  const body = toPlainText(parsed.data.body_html);
+  if (!body) return { error: "Enter announcement text as plain text." };
   const row = {
     edition_id: parsed.data.edition_id || null,
-    title: parsed.data.title,
-    body_html: sanitizeHtml(parsed.data.body_html),
+    title: toPlainText(parsed.data.title),
+    body_html: body,
     display_order: parsed.data.display_order,
     published,
     published_at: published ? new Date().toISOString() : null,
@@ -314,8 +316,8 @@ export async function saveGalleryAlbumAction(
 
   const row = {
     edition_id: parsed.data.edition_id,
-    title: parsed.data.title,
-    description: parsed.data.description || null,
+    title: toPlainText(parsed.data.title),
+    description: parsed.data.description ? toPlainText(parsed.data.description) : null,
     display_order: parsed.data.display_order,
     published: Boolean(parsed.data.published),
   };
@@ -388,7 +390,7 @@ export async function addGalleryImageAction(
     .insert({
       album_id: parsed.data.album_id,
       storage_key: parsed.data.storage_key,
-      caption: parsed.data.caption || null,
+      caption: parsed.data.caption ? toPlainText(parsed.data.caption) : null,
       display_order: parsed.data.display_order,
     })
     .select("id")

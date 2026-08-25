@@ -1,14 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
+import { isConferenceMeal } from "@/lib/meals";
+import { normalizePortfolios } from "@/lib/sheet";
 import type {
+  AdminParticipant,
   Announcement,
   AuditLog,
   Committee,
+  CommitteeDelegate,
+  ConferenceDocument,
   Edition,
   Payment,
   PaymentInstructions,
   PaymentWithParticipants,
   ConfirmedCredential,
   EventStatus,
+  FoodCollectionRow,
   FoodStat,
   GalleryAlbum,
   GalleryImage,
@@ -114,6 +120,15 @@ export async function getEditionById(id: string): Promise<Edition | null> {
   return (data as Edition | null) ?? null;
 }
 
+function hydrateCommittee(committee: Committee): Committee {
+  const portfolio_config = normalizePortfolios(committee.portfolio_config);
+  return {
+    ...committee,
+    portfolio_config,
+    capacity: portfolio_config.length || committee.capacity,
+  };
+}
+
 export async function getCommitteesForEdition(editionId: string): Promise<Committee[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -124,7 +139,7 @@ export async function getCommitteesForEdition(editionId: string): Promise<Commit
     .eq("edition_id", editionId)
     .is("deleted_at", null)
     .order("display_order", { ascending: true });
-  return attachOccupancy(editionId, (data as Committee[]) ?? []);
+  return attachOccupancy(editionId, ((data as Committee[]) ?? []).map(hydrateCommittee));
 }
 
 export async function getPublicCommittees(editionId: string): Promise<Committee[]> {
@@ -147,7 +162,7 @@ export async function getCommitteeBySlug(
     .is("deleted_at", null)
     .maybeSingle();
   if (!data) return null;
-  const [committee] = await attachOccupancy(editionId, [data as Committee]);
+  const [committee] = await attachOccupancy(editionId, [hydrateCommittee(data as Committee)]);
   return committee ?? null;
 }
 
@@ -182,7 +197,36 @@ export async function getCommitteeById(id: string): Promise<Committee | null> {
     )
     .eq("id", id)
     .maybeSingle();
-  return (data as Committee | null) ?? null;
+  return data ? hydrateCommittee(data as Committee) : null;
+}
+
+export async function getCommitteeDelegates(committeeId: string): Promise<CommitteeDelegate[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("registrations")
+    .select("id, status, allocated_slr, allocated_portfolio, users:user_id (full_name, email)")
+    .eq("committee_id", committeeId)
+    .is("deleted_at", null)
+    .neq("status", "CANCELLED")
+    .order("confirmed_at", { ascending: false, nullsFirst: false });
+  type Row = {
+    id: string;
+    status: CommitteeDelegate["status"];
+    allocated_slr: number | null;
+    allocated_portfolio: string | null;
+    users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+  };
+  return ((data as Row[] | null) ?? []).map((row) => {
+    const user = Array.isArray(row.users) ? row.users[0] : row.users;
+    return {
+      id: row.id,
+      full_name: user?.full_name ?? "Delegate",
+      email: user?.email ?? "",
+      status: row.status,
+      allocated_slr: row.allocated_slr,
+      allocated_portfolio: row.allocated_portfolio,
+    };
+  });
 }
 
 export async function getAllEditionsAdmin(): Promise<Edition[]> {
@@ -199,14 +243,21 @@ export async function getAllEditionsAdmin(): Promise<Edition[]> {
 
 export async function getScannerAssignments(): Promise<ScannerAssignment[]> {
   const supabase = await createClient();
-  const [{ data }, editions] = await Promise.all([
+  const [{ data }, editions, secretsRes] = await Promise.all([
     supabase
       .from("user_roles")
       .select("id, user_id, edition_id, roles(name), users(full_name, email)")
       .order("created_at", { ascending: false }),
     getAllEditionsAdmin(),
+    supabase.from("scanner_secrets").select("user_id, password_plain"),
   ]);
   const editionName = new Map(editions.map((item) => [item.id, item.name]));
+  const secrets = new Map(
+    ((secretsRes.data ?? []) as Array<{ user_id: string; password_plain: string }>).map((row) => [
+      row.user_id,
+      row.password_plain,
+    ]),
+  );
   const rows = (data ?? []) as Array<{
     id: string;
     user_id: string;
@@ -227,6 +278,48 @@ export async function getScannerAssignments(): Promise<ScannerAssignment[]> {
         full_name: user?.full_name ?? "Scanner",
         email: user?.email ?? "",
         edition_name: row.edition_id ? (editionName.get(row.edition_id) ?? null) : null,
+        password_plain: secrets.get(row.user_id) ?? null,
+      },
+    ];
+  });
+}
+
+export async function getEditorAssignments(): Promise<ScannerAssignment[]> {
+  const supabase = await createClient();
+  const [{ data }, secretsRes] = await Promise.all([
+    supabase
+      .from("user_roles")
+      .select("id, user_id, edition_id, roles(name), users(full_name, email)")
+      .order("created_at", { ascending: false }),
+    supabase.from("scanner_secrets").select("user_id, password_plain"),
+  ]);
+  const secrets = new Map(
+    ((secretsRes.data ?? []) as Array<{ user_id: string; password_plain: string }>).map((row) => [
+      row.user_id,
+      row.password_plain,
+    ]),
+  );
+  const rows = (data ?? []) as Array<{
+    id: string;
+    user_id: string;
+    edition_id: string | null;
+    roles: { name: string } | { name: string }[] | null;
+    users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+  }>;
+  return rows.flatMap((row) => {
+    const role = Array.isArray(row.roles) ? row.roles[0] : row.roles;
+    if (role?.name !== "CONTENT_EDITOR") return [];
+    const user = Array.isArray(row.users) ? row.users[0] : row.users;
+    return [
+      {
+        id: row.id,
+        user_id: row.user_id,
+        edition_id: row.edition_id,
+        role_name: role.name,
+        full_name: user?.full_name ?? "Editor",
+        email: user?.email ?? "",
+        edition_name: null,
+        password_plain: secrets.get(row.user_id) ?? null,
       },
     ];
   });
@@ -280,7 +373,7 @@ export async function getMyRegistration(editionId: string): Promise<Registration
   const { data } = await supabase
     .from("registrations")
     .select(
-      "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at",
+      "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio",
     )
     .eq("edition_id", editionId)
     .eq("user_id", user.id)
@@ -402,7 +495,7 @@ export async function getConfirmedCredentials(
   let query = supabase
     .from("registrations")
     .select(
-      `id, edition_id, food_preference,
+      `id, edition_id, food_preference, allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name, name),
        qr_tokens (display_code, status, issued_at)`,
@@ -416,6 +509,8 @@ export async function getConfirmedCredentials(
     id: string;
     edition_id: string;
     food_preference: ConfirmedCredential["food_preference"];
+    allocated_slr: number | null;
+    allocated_portfolio: string | null;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees:
       | { short_name: string; name: string }
@@ -440,6 +535,8 @@ export async function getConfirmedCredentials(
       committee_short_name: committee?.short_name ?? null,
       committee_name: committee?.name ?? null,
       display_code: active?.display_code ?? null,
+      allocated_slr: row.allocated_slr,
+      allocated_portfolio: row.allocated_portfolio,
     };
   });
 }
@@ -533,6 +630,7 @@ export async function getMealSchedules(editionId: string): Promise<MealSchedule[
       };
     })
     .sort((a, b) => a.event_day - b.event_day || a.order - b.order)
+    .filter((row) => isConferenceMeal(row.name))
     .map((row) => ({
       id: row.id,
       edition_id: row.edition_id,
@@ -723,15 +821,24 @@ export async function getGalleryAlbums(publishedOnly = true): Promise<GalleryAlb
   });
 }
 
-export async function getAuditLogs(limit = 100): Promise<AuditLog[]> {
+export async function getAuditLogs(opts?: {
+  action?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Promise<AuditLog[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("audit_logs")
     .select(
       "id, actor_user_id, action, entity, entity_id, old_value, new_value, created_at, users:actor_user_id (full_name, email)",
     )
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(opts?.limit ?? 400);
+  if (opts?.action) query = query.eq("action", opts.action);
+  if (opts?.from) query = query.gte("created_at", opts.from);
+  if (opts?.to) query = query.lte("created_at", opts.to);
+  const { data } = await query;
   type Row = {
     id: string;
     actor_user_id: string | null;
@@ -758,4 +865,199 @@ export async function getAuditLogs(limit = 100): Promise<AuditLog[]> {
       actor_email: actor?.email ?? null,
     };
   });
+}
+
+export async function getPaymentIdsForParticipants(ids: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (!unique.length) return map;
+  const supabase = await createClient();
+  const { data } = await supabase.from("payment_participants").select("id, payment_id").in("id", unique);
+  for (const row of (data as Array<{ id: string; payment_id: string }> | null) ?? []) {
+    if (row.id && row.payment_id) map.set(row.id, row.payment_id);
+  }
+  return map;
+}
+
+export async function getAuditActions(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("audit_logs").select("action").limit(2000);
+  const set = new Set(
+    ((data as Array<{ action: string }> | null) ?? []).map((row) => row.action).filter(Boolean),
+  );
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+export async function getAdminParticipants(editionId?: string | null): Promise<AdminParticipant[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("registrations")
+    .select(
+      `id, edition_id, user_id, status, food_preference,
+       users:user_id (full_name, email),
+       committees:committee_id (short_name)`,
+    )
+    .is("deleted_at", null)
+    .neq("status", "CANCELLED")
+    .order("submitted_at", { ascending: false, nullsFirst: false });
+  if (editionId) query = query.eq("edition_id", editionId);
+  const { data } = await query;
+  type Row = {
+    id: string;
+    edition_id: string;
+    user_id: string;
+    status: AdminParticipant["status"];
+    food_preference: AdminParticipant["food_preference"];
+    users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+    committees: { short_name: string } | { short_name: string }[] | null;
+  };
+  const rows = (data as Row[] | null) ?? [];
+  const ids = rows.map((row) => row.id);
+  const paidIds = new Set<string>();
+  if (ids.length) {
+    const { data: links } = await supabase
+      .from("payment_participants")
+      .select("registration_id, payments (status)")
+      .in("registration_id", ids);
+    type Link = {
+      registration_id: string | null;
+      payments: { status: string } | { status: string }[] | null;
+    };
+    for (const link of (links as Link[] | null) ?? []) {
+      if (!link.registration_id) continue;
+      const pay = link.payments;
+      const statuses = pay ? (Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status]) : [];
+      if (statuses.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW")) {
+        paidIds.add(link.registration_id);
+      }
+    }
+  }
+  return rows.map((row) => {
+    const user = Array.isArray(row.users) ? row.users[0] : row.users;
+    const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const paid =
+      row.status === "CONFIRMED" ||
+      row.status === "PAYMENT_VERIFIED" ||
+      paidIds.has(row.id);
+    return {
+      id: row.id,
+      edition_id: row.edition_id,
+      user_id: row.user_id,
+      full_name: user?.full_name ?? "Delegate",
+      email: user?.email ?? "",
+      status: row.status,
+      committee_short_name: committee?.short_name ?? null,
+      food_preference: row.food_preference,
+      paid,
+    };
+  });
+}
+
+export async function getAdminParticipant(
+  registrationId: string,
+): Promise<AdminParticipant | null> {
+  const rows = await getAdminParticipants();
+  return rows.find((row) => row.id === registrationId) ?? null;
+}
+
+export async function getFoodCollections(
+  editionId: string,
+  eventDay: number,
+): Promise<FoodCollectionRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("food_distribution")
+    .select(
+      `id, collected_at, meal_schedule_id,
+       meal_schedules!inner (event_day, edition_id, meal_types (name)),
+       registrations!inner (
+         users:user_id (full_name, email),
+         committees:committee_id (short_name)
+       )`,
+    )
+    .order("collected_at", { ascending: false });
+  type Row = {
+    id: string;
+    collected_at: string;
+    meal_schedule_id: string;
+    meal_schedules:
+      | {
+          event_day: number;
+          edition_id: string;
+          meal_types: { name: string } | { name: string }[] | null;
+        }
+      | {
+          event_day: number;
+          edition_id: string;
+          meal_types: { name: string } | { name: string }[] | null;
+        }[]
+      | null;
+    registrations:
+      | {
+          users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+          committees: { short_name: string } | { short_name: string }[] | null;
+        }
+      | {
+          users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+          committees: { short_name: string } | { short_name: string }[] | null;
+        }[]
+      | null;
+  };
+  return ((data as Row[] | null) ?? [])
+    .map((row) => {
+      const schedule = Array.isArray(row.meal_schedules) ? row.meal_schedules[0] : row.meal_schedules;
+      const meal = schedule
+        ? Array.isArray(schedule.meal_types)
+          ? schedule.meal_types[0]
+          : schedule.meal_types
+        : null;
+      const registration = Array.isArray(row.registrations) ? row.registrations[0] : row.registrations;
+      const user = registration
+        ? Array.isArray(registration.users)
+          ? registration.users[0]
+          : registration.users
+        : null;
+      const committee = registration
+        ? Array.isArray(registration.committees)
+          ? registration.committees[0]
+          : registration.committees
+        : null;
+      return {
+        id: row.id,
+        meal_schedule_id: row.meal_schedule_id,
+        event_day: schedule?.event_day ?? eventDay,
+        edition_id: schedule && "edition_id" in schedule ? schedule.edition_id : "",
+        meal_name: meal?.name ?? "Meal",
+        full_name: user?.full_name ?? "Delegate",
+        email: user?.email ?? "",
+        committee_short_name: committee?.short_name ?? null,
+        collected_at: row.collected_at,
+      };
+    })
+    .filter(
+      (row) =>
+        isConferenceMeal(row.meal_name) &&
+        row.event_day === eventDay &&
+        row.edition_id === editionId,
+    );
+}
+
+export async function getConferenceDocuments(): Promise<ConferenceDocument[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conference_documents")
+    .select("kind, file_name, storage_key, uploaded_by, created_at, updated_at");
+  return (data as ConferenceDocument[]) ?? [];
+}
+
+export async function getConferenceDocument(
+  kind: ConferenceDocument["kind"],
+): Promise<ConferenceDocument | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conference_documents")
+    .select("kind, file_name, storage_key, uploaded_by, created_at, updated_at")
+    .eq("kind", kind)
+    .maybeSingle();
+  return (data as ConferenceDocument | null) ?? null;
 }

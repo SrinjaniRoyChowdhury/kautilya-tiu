@@ -9,6 +9,8 @@ import { isUuid } from "@/lib/ids";
 import { parseEmailList } from "@/lib/payments";
 import { PAYMENT_LIMIT, PAYMENT_WINDOW_MS, clientKeyFromHeaders, rateLimit } from "@/lib/rate-limit";
 import { MAX_PROOF_BYTES, proofExtension, sniffImageMime } from "@/lib/upload";
+import { isStorageObjectKey } from "@/lib/safe-path";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type PaymentState = {
@@ -212,7 +214,33 @@ export async function updatePaymentInstructionsAction(
     p_code: "edition.manage",
     p_edition_id: editionId,
   });
-  if (!allowed) return { error: "You do not have permission to edit payment instructions." };
+  if (!allowed) return { error: "Only an admin with edition.manage can change payment details." };
+
+  const { data: current } = await supabase
+    .from("payment_instructions")
+    .select("upi_qr_image_key")
+    .eq("edition_id", editionId)
+    .maybeSingle();
+
+  let qrKey = (current as { upi_qr_image_key?: string | null } | null)?.upi_qr_image_key ?? null;
+  const removeQr = String(formData.get("remove_qr") ?? "") === "on";
+  const file = formData.get("upi_qr");
+  if (removeQr) qrKey = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_PROOF_BYTES) return { error: "QR image must be 5 MB or smaller." };
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mime = sniffImageMime(buffer);
+    if (!mime) return { error: "Use JPEG, PNG, or WebP for the payment QR." };
+    const key = `payment-qr/${editionId}.${proofExtension(mime)}`;
+    const admin = createAdminClient();
+    const upload = await admin.storage.from("cms-media").upload(key, buffer, {
+      contentType: mime,
+      upsert: true,
+    });
+    if (upload.error) return { error: "Could not store the payment QR." };
+    qrKey = key;
+  }
+  if (qrKey && !isStorageObjectKey(qrKey)) qrKey = null;
 
   const payload = {
     edition_id: editionId,
@@ -222,12 +250,20 @@ export async function updatePaymentInstructionsAction(
     account_number: String(formData.get("account_number") ?? "").trim() || null,
     ifsc: String(formData.get("ifsc") ?? "").trim() || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
+    upi_qr_image_key: qrKey,
   };
 
   const { error } = await supabase.from("payment_instructions").upsert(payload, {
     onConflict: "edition_id",
   });
   if (error) return { error: error.message };
+  await supabase.rpc("write_audit", {
+    p_action: "payment_instructions.update",
+    p_entity: "payment_instructions",
+    p_entity_id: editionId,
+    p_old: current,
+    p_new: payload,
+  });
   revalidatePath(`/admin/editions/${editionId}`);
   revalidatePath("/dashboard/pay");
   return { success: "Payment instructions saved." };

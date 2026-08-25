@@ -120,6 +120,15 @@ export function PaymentInstructionsCard({
     <div className="grid gap-3">
       <p className="text-xs uppercase tracking-widest text-gold-700">Pay this amount</p>
       <p className="font-serif text-4xl text-gold-700">{formatInrFromMinor(expectedMinor)}</p>
+      {instructions?.upi_qr_image_key ? (
+        // Streamed same-origin QR; not a remote next/image host.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/pay/qr/${instructions.edition_id}`}
+          alt="UPI payment QR"
+          className="h-48 w-48 rounded-sm border border-gold-700/25 bg-parchment-50 object-contain"
+        />
+      ) : null}
       <p className="text-sm text-ink-muted">
         Manual UPI / bank transfer only. No payment gateway. Transfer the expected total, then
         upload the screenshot below.

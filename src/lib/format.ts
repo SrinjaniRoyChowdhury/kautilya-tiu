@@ -57,6 +57,15 @@ export function seatsRemaining(capacity: number, confirmedCount: number): number
   return Math.max(capacity - confirmedCount, 0);
 }
 
+export const delegationsRemaining = seatsRemaining;
+
+export function formatDelegation(slr?: number | null, portfolio?: string | null): string | null {
+  const name = portfolio?.trim();
+  if (!name) return null;
+  if (slr && slr > 0) return `${slr}. ${name}`;
+  return name;
+}
+
 export function formatDateRange(start?: string | null, end?: string | null): string {
   if (!start && !end) return "Dates to be announced";
   const fmt = (iso: string) =>
