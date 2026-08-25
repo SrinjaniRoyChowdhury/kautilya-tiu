@@ -21,6 +21,7 @@ const csp = [
   `connect-src 'self' ${supabaseOrigin} ${supabaseWs}`,
   "media-src 'self' blob: mediastream:",
   "font-src 'self' data:",
+  "frame-src 'self' https://maps.google.com https://www.google.com",
 ].join("; ");
 
 const nextConfig: NextConfig = {

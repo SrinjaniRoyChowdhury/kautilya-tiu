@@ -16,7 +16,7 @@ const items = [
 
 export function AdminNav({ current }: { current: string }) {
   return (
-    <nav className="mb-8 flex flex-wrap gap-2" aria-label="Admin">
+    <nav className="mb-8 flex flex-wrap gap-2 font-heading" aria-label="Admin">
       {items.map((item) => (
         <Link
           key={item.href}
