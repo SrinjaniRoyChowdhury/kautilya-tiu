@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { CreateScannerForm, ScannerList } from "@/components/admin/scanner-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
@@ -30,7 +29,6 @@ export default async function AdminScannersPage() {
         title="Desk scanners"
         description="Create a name, email, and password. Current passwords stay visible on this list. Edit opens a modal. That person signs in and opens Scan — delegates cannot."
       />
-      <AdminNav current="/admin/scanners" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <p className="mb-4 font-serif text-2xl text-gold-700">Add scanner</p>

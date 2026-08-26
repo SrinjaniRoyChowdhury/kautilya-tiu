@@ -136,6 +136,7 @@ export async function createEditionAction(
   }
 
   await seedEditionDefaults(gate.supabase, data.id);
+  await gate.supabase.rpc("ensure_edition_phases", { p_edition_id: data.id });
   await gate.supabase.rpc("write_audit", {
     p_action: "edition.create",
     p_entity: "mun_editions",

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { DeleteParticipantForm, ParticipantPasswordForm } from "@/components/admin/participant-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
@@ -39,9 +38,8 @@ export default async function AdminParticipantPage({
       <PageHeader
         eyebrow="Staff"
         title={participant.full_name}
-        description={`${participant.email}${participant.committee_short_name ? ` · ${participant.committee_short_name}` : ""}`}
+        description={`${participant.email}${participant.committee_short_name ? ` · ${participant.committee_short_name}` : ""}${participant.collective_name ? ` · ${participant.collective_name}` : ""}`}
       />
-      <AdminNav current="/admin/participants" />
       <p className="mb-6">
         <Link href="/admin/participants" className="text-sm text-gold-700 hover:underline">
           Back to participants

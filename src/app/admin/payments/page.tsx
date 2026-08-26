@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminFilters, AdminListShell, AdminPagination } from "@/components/admin/admin-filters";
-import { AdminNav } from "@/components/admin/admin-nav";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
+import { Container, PageHeader } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { hasPermission } from "@/lib/auth";
 import { getAdminPayments, getAllEditionsAdmin } from "@/lib/data";
@@ -62,9 +61,7 @@ export default async function AdminPaymentsPage({
 
   return (
     <AdminListShell
-      header={
-        <h1 className="font-serif text-2xl text-gold-700">Payment queue</h1>
-      }
+      header={<h1 className="font-serif text-xl text-gold-700">Payment queue</h1>}
       footer={
         <AdminPagination
           page={paged.page}
@@ -77,7 +74,6 @@ export default async function AdminPaymentsPage({
       }
       toolbar={
         <>
-          <AdminNav current="/admin/payments" className="mb-0" />
           <div className="flex gap-2 overflow-x-auto pb-1">
             {FILTERS.map((item) => (
               <Link
@@ -125,38 +121,37 @@ export default async function AdminPaymentsPage({
         </>
       }
     >
-      <div className="grid gap-3">
-        {paged.items.length ? (
-          paged.items.map((payment) => (
-            <Link key={payment.id} href={`/admin/payments/${payment.id}`}>
-              <Card className="p-4 hover:bg-parchment-100">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-serif text-xl">{payerName(payment)}</p>
-                    <p className="text-sm text-ink-muted">
-                      {PAYMENT_STATUS_COPY[payment.status].label} · {AMOUNT_FLAG_COPY[payment.amount_flag]} ·{" "}
-                      {formatInrFromMinor(payment.paid_amount_minor ?? 0)} paid /{" "}
-                      {formatInrFromMinor(payment.expected_amount_minor)} expected
-                    </p>
-                    <p className="mt-1 text-sm text-ink-muted">
-                      {payment.proof_image_key ? "Screenshot attached" : "No screenshot"} ·{" "}
-                      {formatDateTime12h(payment.paid_at)}
-                    </p>
-                    <p className="mt-2 text-xs text-ink-muted">
-                      {payment.payment_participants.map(participantEmail).join(", ")}
-                    </p>
-                  </div>
-                  <span className="text-sm text-gold-700">Review</span>
-                </div>
-              </Card>
-            </Link>
-          ))
-        ) : (
-          <Card>
-            <p className="text-ink-muted">No payments in this filter.</p>
-          </Card>
-        )}
-      </div>
+      {paged.items.length ? (
+        <AdminTable columns={["Payer", "Status", "Amount", "Delegates", "When", ""]}>
+          {paged.items.map((payment) => (
+            <tr key={payment.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
+              <td className="px-2 py-1.5 font-medium">{payerName(payment)}</td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {PAYMENT_STATUS_COPY[payment.status].label}
+                {payment.proof_image_key ? " · proof" : ""}
+              </td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {formatInrFromMinor(payment.paid_amount_minor ?? 0)} /{" "}
+                {formatInrFromMinor(payment.expected_amount_minor)}
+                <span className="ml-1 text-xs">{AMOUNT_FLAG_COPY[payment.amount_flag]}</span>
+              </td>
+              <td className="max-w-[14rem] truncate px-2 py-1.5 text-xs text-ink-muted">
+                {payment.payment_participants.map(participantEmail).join(", ")}
+              </td>
+              <td className="whitespace-nowrap px-2 py-1.5 text-xs text-ink-muted">
+                {formatDateTime12h(payment.paid_at)}
+              </td>
+              <td className="px-2 py-1.5 text-right">
+                <Link href={`/admin/payments/${payment.id}`} className="text-gold-700 hover:underline">
+                  Review
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </AdminTable>
+      ) : (
+        <p className="text-sm text-ink-muted">No payments in this filter.</p>
+      )}
     </AdminListShell>
   );
 }

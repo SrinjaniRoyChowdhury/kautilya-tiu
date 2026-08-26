@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useMemo, useTransition } from "react";
-import { Controller, useForm, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
+import { Controller, useForm, useWatch, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { registrationFormAction, type RegistrationState } from "@/app/actions/registrations";
 import {
@@ -14,6 +15,7 @@ import {
   type RegistrationFormValues,
 } from "@/lib/registration";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
+import { PHASE_LABELS } from "@/lib/phases";
 import type {
   Committee,
   FieldSection,
@@ -34,6 +36,9 @@ function defaultValues(
   const out: RegistrationFormValues = {
     committee_id: registration.committee_id ?? preferredCommitteeId ?? "",
     food_preference: registration.food_preference ?? ("" as RegistrationFormValues["food_preference"]),
+    collective_id: registration.collective_id ?? "",
+    delegation_type: registration.delegation_type ?? "SINGLE",
+    partner_email: registration.partner_email ?? "",
   };
   for (const field of fields) {
     const row = byDef.get(field.id);
@@ -53,6 +58,9 @@ function defaultValues(
 function appendValues(fd: FormData, values: RegistrationFormValues, fields: RegistrationFieldDefinition[]) {
   fd.set("committee_id", String(values.committee_id ?? ""));
   fd.set("food_preference", String(values.food_preference ?? ""));
+  fd.set("collective_id", String(values.collective_id ?? ""));
+  fd.set("delegation_type", String(values.delegation_type ?? "SINGLE"));
+  fd.set("partner_email", String(values.partner_email ?? ""));
   for (const field of fields) {
     const raw = values[field.field_key];
     if (field.field_type === "multiselect") {
@@ -72,6 +80,7 @@ export function RegistrationForm({
   fields,
   committees,
   values,
+  collectives,
   preferredCommitteeId,
   paymentLocked = false,
 }: {
@@ -80,6 +89,7 @@ export function RegistrationForm({
   fields: RegistrationFieldDefinition[];
   committees: Committee[];
   values: RegistrationFieldValue[];
+  collectives: { id: string; name: string }[];
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
 }) {
@@ -103,6 +113,9 @@ export function RegistrationForm({
     registration.status !== "CANCELLED";
 
   function dispatch(intent: "draft" | "submit", data: RegistrationFormValues) {
+    const committee = committees.find((item) => item.id === data.committee_id);
+    if (committee?.allows_double_del && !committee.allows_single_del) data.delegation_type = "DOUBLE";
+    if (committee && !committee.allows_double_del) data.delegation_type = "SINGLE";
     const fd = new FormData();
     fd.set("intent", intent);
     fd.set("registration_id", registration.id);
@@ -115,24 +128,27 @@ export function RegistrationForm({
     section,
     fields: fields.filter((field) => field.section === section),
   })).filter((group) => group.fields.length > 0);
+  const collectiveId = String(useWatch({ control: form.control, name: "collective_id" }) ?? "");
+  const selectedCommitteeId = String(useWatch({ control: form.control, name: "committee_id" }) ?? "");
+  const delegationType = String(useWatch({ control: form.control, name: "delegation_type" }) ?? "SINGLE");
+  const selectedCommittee = committees.find((item) => item.id === selectedCommitteeId);
+  const pairLocked = registration.is_pair_lead === false;
 
   return (
     <form
       className="flex flex-col gap-8"
       onSubmit={form.handleSubmit((data) => dispatch("submit", data))}
     >
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
+      {pairLocked ? (
+        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm">
+          You are the second delegate in a double delegation
+          {registration.partner_name ? ` with ${registration.partner_name}` : ""}. Committee and
+          portfolio are shared. Complete your own details and food preference. Payment by either of
+          you confirms both; credentials, attendance, and meals stay individual.
         </p>
       ) : null}
 
-      <fieldset disabled={!editable || busy} className="grid gap-3">
+      <fieldset disabled={!editable || busy || pairLocked} className="grid gap-3">
         <legend className="mb-2 font-serif text-2xl text-gold-700">Committee</legend>
         {committees.map((committee) => {
           const taken = seatsHeld(committee.occupied_count, committee.confirmed_count);
@@ -140,6 +156,9 @@ export function RegistrationForm({
           const remaining = seatsRemaining(committee.capacity, holdingThis ? Math.max(taken - 1, 0) : taken);
           const full = remaining <= 0 && committee.status === "OPEN" && !holdingThis;
           const closed = committee.status !== "OPEN";
+          const phaseLabel = committee.current_phase_kind
+            ? PHASE_LABELS[committee.current_phase_kind]
+            : null;
           return (
             <label
               key={committee.id}
@@ -148,7 +167,7 @@ export function RegistrationForm({
               <input
                 type="radio"
                 value={committee.id}
-                disabled={full || closed}
+                disabled={full || closed || pairLocked}
                 className="mt-1"
                 {...form.register("committee_id")}
               />
@@ -157,7 +176,12 @@ export function RegistrationForm({
                   <span className="font-serif text-xl">
                     {committee.short_name} · {committee.name}
                   </span>
-                  <span className="text-sm text-ink-muted">{formatInrFromMinor(committee.fee_minor)}</span>
+                  <span className="text-sm text-ink-muted">
+                    {formatInrFromMinor(committee.fee_minor)}
+                    {committee.allows_double_del
+                      ? ` · double ${formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}`
+                      : ""}
+                  </span>
                 </span>
                 <span className="mt-1 block text-xs text-ink-muted">
                   {closed
@@ -165,6 +189,7 @@ export function RegistrationForm({
                     : full
                       ? "No delegations remaining"
                       : `${remaining} of ${committee.capacity} delegations remaining`}
+                  {phaseLabel ? ` · ${phaseLabel}` : ""}
                 </span>
               </span>
             </label>
@@ -174,6 +199,46 @@ export function RegistrationForm({
           <p className="text-xs text-red-800" role="alert">
             {String(form.formState.errors.committee_id.message ?? state.fieldErrors?.committee_id ?? "")}
           </p>
+        ) : null}
+      </fieldset>
+
+      <fieldset disabled={!editable || busy || pairLocked} className="grid gap-3">
+        <legend className="font-serif text-2xl text-gold-700">Delegation</legend>
+        {selectedCommittee?.allows_single_del && selectedCommittee.allows_double_del ? (
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" value="SINGLE" {...form.register("delegation_type")} />
+              Single del · {formatInrFromMinor(selectedCommittee.fee_minor)}
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" value="DOUBLE" {...form.register("delegation_type")} />
+              Double del · {formatInrFromMinor(selectedCommittee.double_fee_minor ?? selectedCommittee.fee_minor)}
+            </label>
+          </div>
+        ) : selectedCommittee ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              value={selectedCommittee.allows_double_del && !selectedCommittee.allows_single_del ? "DOUBLE" : "SINGLE"}
+              {...form.register("delegation_type")}
+            />
+            {selectedCommittee.allows_double_del && !selectedCommittee.allows_single_del
+              ? `Double del · ${formatInrFromMinor(selectedCommittee.double_fee_minor ?? selectedCommittee.fee_minor)}`
+              : `Single del · ${formatInrFromMinor(selectedCommittee.fee_minor)}`}
+          </label>
+        ) : (
+          <p className="text-sm text-ink-muted">Select a committee first.</p>
+        )}
+        {delegationType === "DOUBLE" ||
+        (selectedCommittee?.allows_double_del && !selectedCommittee.allows_single_del) ? (
+          <Field
+            label="Partner email"
+            htmlFor="partner_email"
+            hint="They must already have an account. You share one portfolio; each of you gets a separate QR, attendance, and meals."
+            error={form.formState.errors.partner_email?.message as string | undefined}
+          >
+            <Input id="partner_email" type="email" {...form.register("partner_email")} />
+          </Field>
         ) : null}
       </fieldset>
 
@@ -194,6 +259,25 @@ export function RegistrationForm({
         ) : null}
       </fieldset>
 
+      <fieldset disabled={!editable || busy} className="grid gap-3">
+        <legend className="font-serif text-2xl text-gold-700">Collective</legend>
+        <Field
+          label="Are you part of a collective?"
+          htmlFor="collective_id"
+          hint="School, contingent, or named group. Institution is optional if you select one."
+          error={form.formState.errors.collective_id?.message as string | undefined}
+        >
+          <Select id="collective_id" {...form.register("collective_id")}>
+            <option value="">No — registering independently</option>
+            {collectives.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </fieldset>
+
       {grouped.map((group) => (
         <fieldset key={group.section} disabled={!editable || busy} className="grid gap-4">
           <legend className="font-serif text-2xl text-gold-700">{SECTION_LABELS[group.section]}</legend>
@@ -203,6 +287,7 @@ export function RegistrationForm({
               field={field}
               control={form.control}
               register={form.register}
+              optional={field.field_key === "institution" && Boolean(collectiveId)}
               error={
                 (form.formState.errors[field.field_key]?.message as string | undefined) ??
                 state.fieldErrors?.[field.field_key]
@@ -213,18 +298,21 @@ export function RegistrationForm({
       ))}
 
       {editable ? (
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={busy}>
-            {busy ? "Working…" : registration.status === "DRAFT" ? "Submit registration" : "Update submission"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy}
-            onClick={() => dispatch("draft", form.getValues())}
-          >
-            Save draft
-          </Button>
+        <div>
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={busy}>
+              {busy ? "Working…" : registration.status === "DRAFT" ? "Submit registration" : "Update submission"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => dispatch("draft", form.getValues())}
+            >
+              Save draft
+            </Button>
+          </div>
+          <ActionFeedback error={state.error} success={state.success} />
         </div>
       ) : (
         <p className="text-sm text-ink-muted">
@@ -242,14 +330,16 @@ function DynamicField({
   control,
   register,
   error,
+  optional = false,
 }: {
   field: RegistrationFieldDefinition;
   control: Control<RegistrationFormValues>;
   register: UseFormRegister<RegistrationFormValues>;
   error?: string;
+  optional?: boolean;
 }) {
   const options = Array.isArray(field.options) ? field.options.map(String) : [];
-  const hint = field.required ? undefined : "Optional";
+  const hint = field.required && !optional ? undefined : "Optional";
 
   if (field.field_type === "boolean") {
     return (

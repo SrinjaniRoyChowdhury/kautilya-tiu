@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminFilters, AdminListShell, AdminPagination } from "@/components/admin/admin-filters";
-import { AdminNav } from "@/components/admin/admin-nav";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
+import { Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminParticipants, getAllEditionsAdmin } from "@/lib/data";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
@@ -43,16 +42,14 @@ export default async function AdminParticipantsPage({
     getAdminParticipants(editionId || null),
   ]);
   const visible = rows.filter((row) =>
-    matchesQuery(q, row.full_name, row.email, row.committee_short_name, row.status),
+    matchesQuery(q, row.full_name, row.email, row.committee_short_name, row.status, row.collective_name),
   );
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, edition: editionId };
 
   return (
     <AdminListShell
-      header={
-        <h1 className="font-serif text-2xl text-gold-700">Participants</h1>
-      }
+      header={<h1 className="font-serif text-xl text-gold-700">Participants</h1>}
       footer={
         <AdminPagination
           page={paged.page}
@@ -65,7 +62,6 @@ export default async function AdminParticipantsPage({
       }
       toolbar={
         <>
-          <AdminNav current="/admin/participants" className="mb-0" />
           {editions.length > 1 ? (
             <div className="flex flex-wrap gap-2">
               <Link href={adminListHref("/admin/participants", { q }, 1)} className="text-sm text-gold-700 hover:underline">
@@ -88,35 +84,33 @@ export default async function AdminParticipantsPage({
         </>
       }
     >
-      <div className="grid gap-3">
-        {paged.items.length ? (
-          paged.items.map((row) => (
-            <Link key={row.id} href={`/admin/participants/${row.id}`}>
-              <Card className="p-4 hover:bg-parchment-100">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-serif text-xl">{row.full_name}</p>
-                    <p className="text-sm text-ink-muted">
-                      {row.email}
-                      {row.committee_short_name ? ` · ${row.committee_short_name}` : ""}
-                      {row.food_preference ? ` · ${row.food_preference}` : ""}
-                    </p>
-                    <p className="mt-1 text-sm">
-                      {STATUS_COPY[row.status] ?? row.status}
-                      {row.paid ? " · Paid / in review" : " · Not paid"}
-                    </p>
-                  </div>
-                  <span className="text-sm text-gold-700">Open</span>
-                </div>
-              </Card>
-            </Link>
-          ))
-        ) : (
-          <Card>
-            <p className="text-ink-muted">No participants match this search.</p>
-          </Card>
-        )}
-      </div>
+      {paged.items.length ? (
+        <AdminTable columns={["Name", "Email", "Committee", "Collective", "Delegation", "Status", ""]}>
+          {paged.items.map((row) => (
+            <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
+              <td className="px-2 py-1.5 font-medium">{row.full_name}</td>
+              <td className="px-2 py-1.5 text-ink-muted">{row.email}</td>
+              <td className="px-2 py-1.5 text-ink-muted">{row.committee_short_name ?? "—"}</td>
+              <td className="px-2 py-1.5 text-ink-muted">{row.collective_name ?? "—"}</td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {row.delegation_type === "DOUBLE" ? "Double" : "Single"}
+                {row.partner_email ? ` · ${row.partner_email}` : ""}
+              </td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {STATUS_COPY[row.status] ?? row.status}
+                {row.paid ? " · paid" : ""}
+              </td>
+              <td className="px-2 py-1.5 text-right">
+                <Link href={`/admin/participants/${row.id}`} className="text-gold-700 hover:underline">
+                  Open
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </AdminTable>
+      ) : (
+        <p className="text-sm text-ink-muted">No participants match this search.</p>
+      )}
     </AdminListShell>
   );
 }

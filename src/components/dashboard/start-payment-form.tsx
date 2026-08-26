@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { DelegateEmailPicker } from "@/components/dashboard/delegate-email-picker";
 import { startPaymentAction, type PaymentState } from "@/app/actions/payments";
 
@@ -17,11 +18,6 @@ export function StartPaymentForm({
 
   return (
     <form action={formAction} className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <label className="flex items-start gap-2 text-sm">
         <input
           type="checkbox"
@@ -44,6 +40,7 @@ export function StartPaymentForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Starting…" : "Continue to payment details"}
       </Button>
+      <ActionFeedback error={state.error} />
     </form>
   );
 }

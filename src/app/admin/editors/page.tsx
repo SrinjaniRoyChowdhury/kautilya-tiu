@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { CreateEditorForm, EditorList } from "@/components/admin/editor-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
@@ -30,7 +29,6 @@ export default async function AdminEditorsPage() {
         title="Content editors"
         description="Create a name, email, and password. They can edit public site copy and committee details. Current passwords stay visible on this list."
       />
-      <AdminNav current="/admin/editors" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <p className="mb-4 font-serif text-2xl text-gold-700">Add editor</p>

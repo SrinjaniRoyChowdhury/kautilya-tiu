@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { formatInrFromMinor } from "@/lib/format";
@@ -21,7 +20,6 @@ export default async function AdminCommitteesPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Committees" />
-      <AdminNav current="/admin/committees" />
       {canCreate ? (
         <div className="mb-6">
           <Link

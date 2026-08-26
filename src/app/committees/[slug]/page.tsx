@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
+import { PHASE_LABELS } from "@/lib/phases";
 import { toPlainText } from "@/lib/sanitize";
 import { seatsHeld } from "@/lib/registration";
 import { getActiveEdition, getCommitteeBySlug } from "@/lib/data";
@@ -72,10 +73,18 @@ export default async function CommitteeDetailPage({ params }: Props) {
           ) : null}
         </article>
         <Card className="h-fit space-y-3">
-          <p className="text-sm text-ink-muted">Fee</p>
+          <p className="text-sm text-ink-muted">
+            {committee.current_phase_kind ? `${PHASE_LABELS[committee.current_phase_kind]} · ` : ""}
+            Fee
+          </p>
           <p className="font-serif text-3xl text-gold-700">
             {formatInrFromMinor(committee.fee_minor)}
           </p>
+          {committee.allows_double_del ? (
+            <p className="text-sm text-ink-muted">
+              Double del {formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}
+            </p>
+          ) : null}
           <p className="text-sm text-ink-muted">
             {remaining} of {committee.capacity} delegations remaining
           </p>

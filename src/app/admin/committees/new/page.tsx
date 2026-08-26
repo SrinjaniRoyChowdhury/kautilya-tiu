@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { CommitteeForm } from "@/components/admin/forms";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getAllEditionsAdmin } from "@/lib/data";
 
@@ -17,7 +16,6 @@ export default async function NewCommitteePage() {
         title="New committee"
         description="Save the committee first, then upload the portfolio matrix on the next screen."
       />
-      <AdminNav current="/admin/committees" />
       <Card>
         {editions.length ? (
           <CommitteeForm editions={editions} defaultEditionId={defaultEditionId} />

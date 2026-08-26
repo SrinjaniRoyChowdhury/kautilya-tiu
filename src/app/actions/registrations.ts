@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getFieldDefinitions } from "@/lib/data";
+import { isUuid } from "@/lib/ids";
 import { buildRegistrationSchema } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
@@ -27,6 +27,12 @@ const RPC_MESSAGES: Record<string, string> = {
   COMMITTEE_FULL: "That committee has no delegations remaining. Choose another committee.",
   COMMITTEE_REQUIRED: "Select a committee.",
   FOOD_REQUIRED: "Select a food preference.",
+  PARTNER_REQUIRED: "Enter the signed-up email of your double-delegation partner.",
+  PARTNER_SELF: "The partner email cannot be your own.",
+  PARTNER_NOT_SIGNED_UP: "That partner has no account yet. They must sign up first.",
+  PARTNER_BUSY: "That partner already has a registration that cannot be paired.",
+  PARTNER_ALREADY_PAIRED: "That partner is already in another double delegation.",
+  DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
 };
 
 function rpcMessage(error: { message?: string } | null): string {
@@ -54,7 +60,7 @@ export async function startRegistrationAction(editionId: string): Promise<Regist
       const existing = await supabase
         .from("registrations")
         .select(
-          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at",
+          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead",
         )
         .eq("edition_id", editionId)
         .eq("user_id", user.id)
@@ -107,6 +113,9 @@ function parseFormPayload(formData: FormData, fields: RegistrationFieldDefinitio
   const raw: Record<string, unknown> = {
     committee_id: String(formData.get("committee_id") ?? ""),
     food_preference: String(formData.get("food_preference") ?? ""),
+    collective_id: String(formData.get("collective_id") ?? ""),
+    delegation_type: String(formData.get("delegation_type") ?? "SINGLE"),
+    partner_email: String(formData.get("partner_email") ?? ""),
   };
   for (const field of fields) {
     if (field.field_type === "multiselect") {
@@ -158,7 +167,7 @@ async function runSave(
     }
   } else {
     const committee = String(raw.committee_id ?? "");
-    if (committee && !z.string().uuid().safeParse(committee).success) {
+    if (committee && !isUuid(committee)) {
       return { error: "Select a valid committee", fieldErrors: { committee_id: "Select a committee" } };
     }
   }
@@ -176,9 +185,19 @@ async function runSave(
     p_committee_id: committeeId,
     p_food_preference: foodPref,
     p_values: payload,
+    p_delegation_type: String(raw.delegation_type ?? "SINGLE") === "DOUBLE" ? "DOUBLE" : "SINGLE",
+    p_partner_email: String(raw.partner_email ?? "").trim() || null,
   });
 
   if (error) return { error: rpcMessage(error) };
+
+  const collectiveRaw = String(raw.collective_id ?? "").trim();
+  const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
+  const { error: collectiveError } = await supabase
+    .from("registrations")
+    .update({ collective_id: collectiveId })
+    .eq("id", registrationId);
+  if (collectiveError) return { error: collectiveError.message };
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/register");

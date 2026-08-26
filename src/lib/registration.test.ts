@@ -21,14 +21,55 @@ describe("isRegistrationOpen", () => {
 });
 
 describe("buildRegistrationSchema", () => {
+  const committee = "11111111-1111-4111-8111-111111111111";
+  const collective = "22222222-2222-4222-8222-222222222222";
+  const institutionField = {
+    id: "field-institution",
+    edition_id: "edition",
+    field_key: "institution",
+    label: "Institution / College",
+    field_type: "text" as const,
+    required: true,
+    options: null,
+    validation: { min: 2, max: 120 },
+    display_order: 1,
+    section: "PERSONAL" as const,
+  };
+
   it("requires food preference and a committee", () => {
     const schema = buildRegistrationSchema([]);
     const parsed = schema.safeParse({ committee_id: "not-uuid", food_preference: "VEG" });
     expect(parsed.success).toBe(false);
     expect(
       schema.safeParse({
-        committee_id: "11111111-1111-4111-8111-111111111111",
+        committee_id: committee,
         food_preference: "VEG",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("requires an institution unless a collective is selected", () => {
+    const schema = buildRegistrationSchema([institutionField]);
+    expect(
+      schema.safeParse({
+        committee_id: committee,
+        food_preference: "VEG",
+        institution: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        committee_id: committee,
+        food_preference: "VEG",
+        institution: "",
+        collective_id: collective,
+      }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({
+        committee_id: committee,
+        food_preference: "VEG",
+        institution: "TIU",
       }).success,
     ).toBe(true);
   });

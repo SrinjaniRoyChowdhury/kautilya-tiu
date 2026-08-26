@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { slugify } from "@/lib/format";
 import { hasPermission, isStaffUser } from "@/lib/auth";
-import { isUuid } from "@/lib/ids";
+import { hexId, isUuid } from "@/lib/ids";
+import { rupeesFromForm } from "@/lib/phases";
 import { toPlainText } from "@/lib/sanitize";
 import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,13 +20,15 @@ export type FormState = {
 const MAX_PORTFOLIO_BYTES = 2 * 1024 * 1024;
 
 const committeeSchema = z.object({
-  edition_id: z.string().uuid(),
+  edition_id: hexId,
   name: z.string().trim().min(2).max(120),
   short_name: z.string().trim().min(2).max(16),
   slug: z.string().trim().max(40).optional().or(z.literal("")),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   rules_url: z.string().url().optional().or(z.literal("")),
-  fee_rupees: z.coerce.number().min(0).max(100000),
+  fee_rupees: z.coerce.number().min(0).max(100000).optional(),
+  allows_single_del: z.coerce.boolean().optional(),
+  allows_double_del: z.coerce.boolean().optional(),
   status: z.enum(["OPEN", "CLOSED", "HIDDEN"]),
   display_order: z.coerce.number().int().min(0).max(999),
   eb_json: z.string().optional().or(z.literal("")),
@@ -86,6 +89,36 @@ async function requireCommitteeManager() {
   return { supabase, allowed: Boolean(allowed) };
 }
 
+async function upsertCommitteeFees(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  committeeId: string,
+  editionId: string,
+  formData: FormData,
+  fallbackRupees: number,
+) {
+  await supabase.rpc("ensure_edition_phases", { p_edition_id: editionId });
+  const { data: phases } = await supabase
+    .from("registration_phases")
+    .select("id, kind, is_active")
+    .eq("edition_id", editionId);
+  let activeSingle = rupeesFromForm(fallbackRupees);
+  for (const phase of (phases as Array<{ id: string; kind: string; is_active: boolean }> | null) ?? []) {
+    const single = rupeesFromForm(formData.get(`fee_${phase.kind}_single`), rupeesFromForm(fallbackRupees));
+    const double = rupeesFromForm(formData.get(`fee_${phase.kind}_double`), single);
+    await supabase.from("committee_phase_fees").upsert(
+      {
+        committee_id: committeeId,
+        phase_id: phase.id,
+        single_fee_minor: single,
+        double_fee_minor: double,
+      },
+      { onConflict: "committee_id,phase_id" },
+    );
+    if (phase.is_active) activeSingle = single;
+  }
+  await supabase.from("committees").update({ fee_minor: activeSingle }).eq("id", committeeId);
+}
+
 function revalidateCommittee(committeeId?: string) {
   revalidatePath("/committees");
   revalidatePath("/admin/committees");
@@ -103,7 +136,7 @@ export async function createCommitteeAction(
   if (!gate.allowed) return { error: "You do not have permission to manage committees." };
 
   const parsed = committeeSchema.safeParse({
-    edition_id: formData.get("edition_id"),
+    edition_id: String(formData.get("edition_id") ?? ""),
     name: formData.get("name"),
     short_name: formData.get("short_name"),
     slug: formData.get("slug"),
@@ -116,6 +149,13 @@ export async function createCommitteeAction(
     portfolio_config: String(formData.get("portfolio_config") ?? ""),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
+
+  const allowsSingle = formData.get("allows_single_del") === "on";
+  const allowsDouble = formData.get("allows_double_del") === "on";
+  if (!allowsSingle && !allowsDouble) {
+    return { error: "A committee must allow single delegation, double delegation, or both." };
+  }
+  const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
   const portfolios = await portfoliosFromForm(formData);
   if (portfolios.error) return { error: portfolios.error };
@@ -134,7 +174,9 @@ export async function createCommitteeAction(
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
       capacity: portfolios.rows.length,
-      fee_minor: Math.round(parsed.data.fee_rupees * 100),
+      fee_minor: rupeesFromForm(fallbackRupees),
+      allows_single_del: allowsSingle,
+      allows_double_del: allowsDouble,
       status: parsed.data.status,
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
@@ -145,6 +187,7 @@ export async function createCommitteeAction(
 
   if (error || !data) return { error: error?.message ?? "Could not create committee" };
 
+  await upsertCommitteeFees(gate.supabase, data.id, parsed.data.edition_id, formData, fallbackRupees);
   await gate.supabase.rpc("write_audit", {
     p_action: "committee.create",
     p_entity: "committees",
@@ -166,7 +209,7 @@ export async function updateCommitteeAction(
   if (!gate.allowed) return { error: "You do not have permission to manage committees." };
 
   const parsed = committeeSchema.safeParse({
-    edition_id: formData.get("edition_id"),
+    edition_id: String(formData.get("edition_id") ?? ""),
     name: formData.get("name"),
     short_name: formData.get("short_name"),
     slug: formData.get("slug"),
@@ -178,6 +221,13 @@ export async function updateCommitteeAction(
     eb_json: formData.get("eb_json"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
+
+  const allowsSingle = formData.get("allows_single_del") === "on";
+  const allowsDouble = formData.get("allows_double_del") === "on";
+  if (!allowsSingle && !allowsDouble) {
+    return { error: "A committee must allow single delegation, double delegation, or both." };
+  }
+  const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
   const slug = parsed.data.slug
     ? slugify(parsed.data.slug)
@@ -192,7 +242,9 @@ export async function updateCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
-      fee_minor: Math.round(parsed.data.fee_rupees * 100),
+      fee_minor: rupeesFromForm(fallbackRupees),
+      allows_single_del: allowsSingle,
+      allows_double_del: allowsDouble,
       status: parsed.data.status,
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
@@ -201,12 +253,14 @@ export async function updateCommitteeAction(
 
   if (error) return { error: error.message };
 
+  await upsertCommitteeFees(gate.supabase, committeeId, parsed.data.edition_id, formData, fallbackRupees);
+
   await gate.supabase.rpc("write_audit", {
     p_action: "committee.update",
     p_entity: "committees",
     p_entity_id: committeeId,
     p_old: null,
-    p_new: { name: parsed.data.name, fee_rupees: parsed.data.fee_rupees },
+    p_new: { name: parsed.data.name },
   });
 
   revalidateCommittee(committeeId);
@@ -282,7 +336,7 @@ export async function assignDelegationAction(
 
   const { data: registration, error: foundError } = await admin
     .from("registrations")
-    .select("id, committee_id")
+    .select("id, committee_id, partner_registration_id")
     .eq("id", registrationId)
     .maybeSingle();
   if (foundError || !registration || registration.committee_id !== committeeId) {
@@ -295,6 +349,13 @@ export async function assignDelegationAction(
     .eq("id", registrationId)
     .eq("committee_id", committeeId);
   if (error) return { error: error.message };
+  if (registration.partner_registration_id) {
+    const { error: partnerError } = await admin
+      .from("registrations")
+      .update({ allocated_slr: slr, allocated_portfolio: portfolio })
+      .eq("id", registration.partner_registration_id);
+    if (partnerError) return { error: partnerError.message };
+  }
 
   const supabase = await createClient();
   await supabase.rpc("write_audit", {

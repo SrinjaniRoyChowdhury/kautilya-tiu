@@ -14,6 +14,7 @@ import {
   getPublicCommittees,
   getRegistrationValues,
   getConferenceDocuments,
+  getCollectives,
 } from "@/lib/data";
 import { coveringPaymentLocksRegistration } from "@/lib/payments";
 import { isRegistrationOpen } from "@/lib/registration";
@@ -117,10 +118,11 @@ async function RegistrationBody({
     );
   }
 
-  const [fields, committees, values] = await Promise.all([
+  const [fields, committees, values, collectives] = await Promise.all([
     getFieldDefinitions(edition.id),
     getPublicCommittees(edition.id),
     getRegistrationValues(registration.id),
+    getCollectives(),
   ]);
   const covering = await getCoveringPaymentForRegistration(registration.id);
   const preferred = committees.find((item) => item.slug === committeeSlug);
@@ -136,6 +138,7 @@ async function RegistrationBody({
         fields={fields}
         committees={visible}
         values={values}
+        collectives={collectives}
         preferredCommitteeId={preferred?.id}
         paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
       />

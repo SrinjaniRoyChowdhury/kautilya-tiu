@@ -2,10 +2,12 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { createEditionAction, updateEditionAction, type FormState } from "@/app/actions/editions";
 import { createCommitteeAction, updateCommitteeAction } from "@/app/actions/committees";
-import type { Committee, Edition } from "@/types";
+import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
+import type { Committee, CommitteePhaseFee, Edition } from "@/types";
 
 function toLocalInput(iso?: string | null) {
   if (!iso) return "";
@@ -23,16 +25,6 @@ export function EditionForm({ edition }: { edition?: Edition }) {
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-      {state.error ? (
-        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Name" htmlFor="name">
         <Input id="name" name="name" required defaultValue={edition?.name} />
       </Field>
@@ -87,6 +79,7 @@ export function EditionForm({ edition }: { edition?: Edition }) {
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : edition ? "Save edition" : "Create edition"}
         </Button>
+        <ActionFeedback error={state.error} success={state.success} />
       </div>
     </form>
   );
@@ -96,29 +89,24 @@ export function CommitteeForm({
   editions,
   committee,
   defaultEditionId,
+  fees = [],
 }: {
   editions: Pick<Edition, "id" | "name">[];
   committee?: Committee;
   defaultEditionId?: string;
+  fees?: CommitteePhaseFee[];
 }) {
   const action = committee
     ? updateCommitteeAction.bind(null, committee.id)
     : createCommitteeAction;
   const [state, formAction, pending] = useActionState(action, {} as FormState);
   const ebDefault = committee?.eb_json?.map((m) => `${m.name} | ${m.title}`).join("\n") ?? "";
+  const feeByKind = Object.fromEntries(
+    fees.filter((row) => row.kind).map((row) => [row.kind, row]),
+  ) as Record<string, CommitteePhaseFee>;
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-      {state.error ? (
-        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Edition" htmlFor="edition_id">
         <Select
           id="edition_id"
@@ -144,21 +132,6 @@ export function CommitteeForm({
       <Field label="Slug" htmlFor="slug">
         <Input id="slug" name="slug" defaultValue={committee?.slug} />
       </Field>
-      <Field
-        label="Fee (₹)"
-        htmlFor="fee_rupees"
-        hint="Stored internally as paise. Changing this does not rewrite old registrations."
-      >
-        <Input
-          id="fee_rupees"
-          name="fee_rupees"
-          type="number"
-          min={0}
-          step="1"
-          required
-          defaultValue={committee ? committee.fee_minor / 100 : 1500}
-        />
-      </Field>
       <Field label="Status" htmlFor="status">
         <Select id="status" name="status" defaultValue={committee?.status ?? "OPEN"}>
           <option value="OPEN">Open</option>
@@ -166,6 +139,76 @@ export function CommitteeForm({
           <option value="HIDDEN">Hidden</option>
         </Select>
       </Field>
+      <fieldset className="sm:col-span-2 grid gap-2">
+        <legend className="text-sm font-medium">Delegation type</legend>
+        <p className="text-xs text-ink-muted">
+          Double delegation uses one portfolio for two people. Fees for double del are set per phase
+          below.
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="allows_single_del"
+            defaultChecked={committee?.allows_single_del ?? true}
+            className="h-4 w-4"
+          />
+          Allow single delegation
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="allows_double_del"
+            defaultChecked={committee?.allows_double_del ?? false}
+            className="h-4 w-4"
+          />
+          Allow double delegation
+        </label>
+      </fieldset>
+      <div className="sm:col-span-2 overflow-x-auto">
+        <p className="mb-2 text-sm font-medium">Fees by registration phase (₹)</p>
+        <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
+          <thead>
+            <tr className="border-b border-gold-700/25 text-xs uppercase tracking-wide text-gold-700">
+              <th className="px-2 py-1.5">Phase</th>
+              <th className="px-2 py-1.5">Single del</th>
+              <th className="px-2 py-1.5">Double del</th>
+            </tr>
+          </thead>
+          <tbody>
+            {PHASE_KINDS.map((kind) => {
+              const row = feeByKind[kind];
+              const fallback = committee ? committee.fee_minor / 100 : 1500;
+              return (
+                <tr key={kind} className="border-b border-gold-700/10">
+                  <td className="px-2 py-1.5">{PHASE_LABELS[kind]}</td>
+                  <td className="px-2 py-1.5">
+                    <Input
+                      name={`fee_${kind}_single`}
+                      type="number"
+                      min={0}
+                      step="1"
+                      required
+                      defaultValue={row ? row.single_fee_minor / 100 : fallback}
+                      className="h-9 py-1.5"
+                    />
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Input
+                      name={`fee_${kind}_double`}
+                      type="number"
+                      min={0}
+                      step="1"
+                      required
+                      defaultValue={row ? row.double_fee_minor / 100 : fallback}
+                      className="h-9 py-1.5"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <Field label="Display order" htmlFor="display_order">
         <Input
           id="display_order"
@@ -189,6 +232,7 @@ export function CommitteeForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : committee ? "Save committee" : "Create committee"}
         </Button>
+        <ActionFeedback error={state.error} success={state.success} />
       </div>
     </form>
   );

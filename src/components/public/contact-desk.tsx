@@ -236,7 +236,7 @@ export function ContactDesk({
             </Link>
           </div>
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {members.slice(0, 4).map((member) => (
+            {members.map((member) => (
               <li key={member.id} className="flex items-center gap-3">
                 <Initials name={member.full_name} />
                 <div>

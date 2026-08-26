@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { DelegateEmailPicker } from "@/components/dashboard/delegate-email-picker";
 import { Field, Input, Select } from "@/components/ui/field";
 import {
@@ -85,26 +86,7 @@ function TransferDateTimeField() {
 }
 
 function Alert({ state }: { state: PaymentState }) {
-  if (!state.error && !state.success && !state.warning) return null;
-  return (
-    <div className="grid gap-2">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
-      {state.warning ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.warning}
-        </p>
-      ) : null}
-    </div>
-  );
+  return <ActionFeedback error={state.error} success={state.success} warning={state.warning} />;
 }
 
 export function PaymentInstructionsCard({
@@ -184,8 +166,6 @@ export function PaymentParticipants({
 
   return (
     <div className="grid gap-4">
-      <Alert state={addState} />
-      <Alert state={correctState} />
       <ul className="grid gap-3">
         {participants.map((row) => (
           <li key={row.id} className="rounded-sm border border-gold-700/20 px-3 py-3">
@@ -209,6 +189,7 @@ export function PaymentParticipants({
                 <Button type="submit" size="sm" disabled={correctPending}>
                   Update
                 </Button>
+                <Alert state={correctState} />
               </form>
             ) : null}
           </li>
@@ -224,6 +205,7 @@ export function PaymentParticipants({
           <Button type="submit" variant="secondary" disabled={addPending}>
             {addPending ? "Adding…" : "Add participants"}
           </Button>
+          <Alert state={addState} />
         </form>
       ) : null}
     </div>
@@ -263,7 +245,6 @@ export function PaymentProofForm({
 
   return (
     <form action={formAction} className="grid gap-4">
-      <Alert state={state} />
       {payment.rejection_reason ? (
         <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="status">
           Previous rejection: {payment.rejection_reason}. Upload a new screenshot for a fresh
@@ -307,6 +288,7 @@ export function PaymentProofForm({
       <Button type="submit" disabled={pending}>
         {pending ? "Uploading…" : "Submit proof"}
       </Button>
+      <Alert state={state} />
     </form>
   );
 }

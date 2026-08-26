@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import {
   createEditorAction,
@@ -16,16 +17,6 @@ export function CreateEditorForm() {
 
   return (
     <form action={action} className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Full name" htmlFor="editor_full_name">
         <Input id="editor_full_name" name="full_name" required autoComplete="name" />
       </Field>
@@ -42,6 +33,7 @@ export function CreateEditorForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create editor login"}
       </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }
@@ -160,16 +152,6 @@ function EditEditorModal({
       >
         <p className="font-serif text-2xl text-gold-700">Edit editor</p>
         <form action={formAction} className="mt-4 grid gap-3">
-          {state.error ? (
-            <p className="text-sm text-red-800" role="alert">
-              {state.error}
-            </p>
-          ) : null}
-          {state.success ? (
-            <p className="text-sm" role="status">
-              {state.success}
-            </p>
-          ) : null}
           <Field label="Full name" htmlFor={`editor-name-${userId}`}>
             <Input id={`editor-name-${userId}`} name="full_name" defaultValue={fullName} required />
           </Field>
@@ -197,6 +179,7 @@ function EditEditorModal({
               Close
             </Button>
           </div>
+          <ActionFeedback error={state.error} success={state.success} />
         </form>
       </div>
     </div>
@@ -208,14 +191,10 @@ function RemoveEditorButton({ assignmentId }: { assignmentId: string }) {
   const [state, formAction, pending] = useActionState(action, {} as EditorState);
   return (
     <form action={formAction}>
-      {state.error ? (
-        <p className="mb-2 text-xs text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <Button type="submit" variant="ghost" size="sm" disabled={pending}>
         {pending ? "Removing…" : "Remove access"}
       </Button>
+      <ActionFeedback error={state.error} className="text-xs" />
     </form>
   );
 }

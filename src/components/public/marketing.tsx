@@ -96,7 +96,12 @@ export function CommitteeCard({
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-700">
           {committee.short_name}
         </p>
-        <p className="text-sm text-ink-muted">{formatInrFromMinor(committee.fee_minor)}</p>
+          <p className="text-sm text-ink-muted">{formatInrFromMinor(committee.fee_minor)}</p>
+          {committee.allows_double_del ? (
+            <p className="text-xs text-ink-muted">
+              Double {formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}
+            </p>
+          ) : null}
       </div>
       <h3 className="mt-2 font-serif text-2xl text-ink">{committee.name}</h3>
       <p className="mt-3 line-clamp-3 flex-1 text-sm text-ink-muted">

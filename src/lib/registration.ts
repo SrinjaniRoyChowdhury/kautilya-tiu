@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { hexId } from "@/lib/ids";
 import type { FieldSection, RegistrationFieldDefinition } from "@/types";
 
 export const SECTION_LABELS: Record<FieldSection, string> = {
@@ -90,18 +91,47 @@ function fieldSchema(def: RegistrationFieldDefinition): ZodType {
 
 export function buildRegistrationSchema(fields: RegistrationFieldDefinition[]) {
   const shape: Record<string, ZodType> = {
-    committee_id: z.string().uuid("Select a committee"),
+    committee_id: hexId,
     food_preference: z.enum(["VEG", "NON_VEG"], { error: "Select a food preference" }),
+    collective_id: z.union([hexId, z.literal("")]).optional(),
+    delegation_type: z.enum(["SINGLE", "DOUBLE"]).optional(),
+    partner_email: z.union([z.literal(""), z.string().trim().email("Enter a valid partner email")]).optional(),
   };
   for (const field of fields) {
-    shape[field.field_key] = fieldSchema(field);
+    const def =
+      field.field_key === "institution" ? { ...field, required: false } : field;
+    shape[field.field_key] = fieldSchema(def);
   }
-  return z.object(shape);
+  return z.object(shape).superRefine((data, ctx) => {
+    const collective = String(data.collective_id ?? "").trim();
+    const institution = String(data.institution ?? "").trim();
+    const inst = fields.find((field) => field.field_key === "institution");
+    if (inst?.required && !collective && institution.length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["institution"],
+        message: "Enter your institution, or select a collective.",
+      });
+    }
+    if (String(data.delegation_type ?? "SINGLE") === "DOUBLE") {
+      const email = String(data.partner_email ?? "").trim();
+      if (!email) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["partner_email"],
+          message: "Enter your partner's signed-up email.",
+        });
+      }
+    }
+  });
 }
 
 export type RegistrationFormValues = {
   committee_id: string;
   food_preference: "VEG" | "NON_VEG";
+  collective_id?: string;
+  delegation_type?: "SINGLE" | "DOUBLE";
+  partner_email?: string;
   [key: string]: unknown;
 };
 

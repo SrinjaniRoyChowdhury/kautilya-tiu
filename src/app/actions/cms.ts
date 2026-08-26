@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isStaffUser } from "@/lib/auth";
+import { hexId, isUuid, optionalHexId } from "@/lib/ids";
 import { toPlainText } from "@/lib/sanitize";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,6 +38,7 @@ function revalidatePublic() {
   revalidatePath("/contact");
   revalidatePath("/gallery");
   revalidatePath("/admin/cms");
+  revalidatePath("/admin/team");
 }
 
 const settingsSchema = z.object({
@@ -120,8 +122,8 @@ export async function updateSiteSettingsAction(
 }
 
 const announcementSchema = z.object({
-  id: z.string().uuid().optional().or(z.literal("")),
-  edition_id: z.string().uuid().optional().or(z.literal("")),
+  id: optionalHexId,
+  edition_id: optionalHexId,
   title: z.string().trim().min(2).max(160),
   body_html: z.string().trim().min(1).max(8000),
   display_order: z.coerce.number().int().min(0).max(999),
@@ -136,8 +138,8 @@ export async function saveAnnouncementAction(
   if (!gate.allowed) return { error: "You need cms.manage to edit announcements." };
 
   const parsed = announcementSchema.safeParse({
-    id: formData.get("id"),
-    edition_id: formData.get("edition_id"),
+    id: String(formData.get("id") ?? ""),
+    edition_id: String(formData.get("edition_id") ?? ""),
     title: formData.get("title"),
     body_html: formData.get("body_html"),
     display_order: formData.get("display_order"),
@@ -195,7 +197,7 @@ export async function deleteAnnouncementAction(formData: FormData): Promise<void
   const gate = await requireCms();
   if (!gate.allowed) return;
   const id = String(formData.get("id") ?? "");
-  if (!z.string().uuid().safeParse(id).success) return;
+  if (!isUuid(id)) return;
   await gate.supabase.from("announcements").delete().eq("id", id);
   await gate.supabase.rpc("write_audit", {
     p_action: "cms.announcement.delete",
@@ -207,16 +209,20 @@ export async function deleteAnnouncementAction(formData: FormData): Promise<void
   revalidatePublic();
 }
 
-const teamSchema = z.object({
-  id: z.string().uuid().optional().or(z.literal("")),
-  edition_id: z.string().uuid().optional().or(z.literal("")),
-  full_name: z.string().trim().min(2).max(120),
-  role_title: z.string().trim().min(2).max(120),
-  bio: z.string().trim().max(2000).optional().or(z.literal("")),
-  photo_url: optionalUrl,
-  display_order: z.coerce.number().int().min(0).max(999),
-  published: z.coerce.boolean().optional(),
-});
+const teamSchema = z
+  .object({
+    id: optionalHexId,
+    section: z.enum(["CORE", "USG"]),
+    full_name: z.string().trim().max(160),
+    role_title: z.string().trim().min(2).max(120),
+    display_order: z.coerce.number().int().min(0).max(999),
+    published: z.coerce.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.section === "CORE" && data.full_name.length < 2) {
+      ctx.addIssue({ code: "custom", message: "Name is required for core officers.", path: ["full_name"] });
+    }
+  });
 
 export async function saveTeamMemberAction(
   _prev: FormState,
@@ -226,23 +232,20 @@ export async function saveTeamMemberAction(
   if (!gate.allowed) return { error: "You need cms.manage to edit the team." };
 
   const parsed = teamSchema.safeParse({
-    id: formData.get("id"),
-    edition_id: formData.get("edition_id"),
+    id: String(formData.get("id") ?? ""),
+    section: String(formData.get("section") ?? "CORE"),
     full_name: formData.get("full_name"),
     role_title: formData.get("role_title"),
-    bio: formData.get("bio"),
-    photo_url: formData.get("photo_url"),
     display_order: formData.get("display_order"),
     published: formData.get("published") === "on",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid team member" };
 
   const row = {
-    edition_id: parsed.data.edition_id || null,
+    edition_id: null,
+    section: parsed.data.section,
     full_name: parsed.data.full_name,
     role_title: parsed.data.role_title,
-    bio: parsed.data.bio || null,
-    photo_url: parsed.data.photo_url || null,
     display_order: parsed.data.display_order,
     published: Boolean(parsed.data.published),
   };
@@ -255,7 +258,7 @@ export async function saveTeamMemberAction(
       p_entity: "cms_team_members",
       p_entity_id: parsed.data.id,
       p_old: null,
-      p_new: { full_name: row.full_name },
+      p_new: { section: row.section, role_title: row.role_title, full_name: row.full_name },
     });
   } else {
     const { data, error } = await gate.supabase.from("cms_team_members").insert(row).select("id").single();
@@ -265,19 +268,23 @@ export async function saveTeamMemberAction(
       p_entity: "cms_team_members",
       p_entity_id: data.id,
       p_old: null,
-      p_new: { full_name: row.full_name },
+      p_new: { section: row.section, role_title: row.role_title, full_name: row.full_name },
     });
   }
   revalidatePublic();
-  return { success: "Team member saved." };
+  return { success: parsed.data.section === "USG" ? "Department saved." : "Officer saved." };
 }
 
-export async function deleteTeamMemberAction(formData: FormData): Promise<void> {
+export async function deleteTeamMemberAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const gate = await requireCms();
-  if (!gate.allowed) return;
+  if (!gate.allowed) return { error: "You need cms.manage to edit the team." };
   const id = String(formData.get("id") ?? "");
-  if (!z.string().uuid().safeParse(id).success) return;
-  await gate.supabase.from("cms_team_members").delete().eq("id", id);
+  if (!isUuid(id)) return { error: "Missing team member." };
+  const { error } = await gate.supabase.from("cms_team_members").delete().eq("id", id);
+  if (error) return { error: error.message };
   await gate.supabase.rpc("write_audit", {
     p_action: "cms.team.delete",
     p_entity: "cms_team_members",
@@ -286,11 +293,12 @@ export async function deleteTeamMemberAction(formData: FormData): Promise<void> 
     p_new: null,
   });
   revalidatePublic();
+  return { success: "Removed." };
 }
 
 const albumSchema = z.object({
-  id: z.string().uuid().optional().or(z.literal("")),
-  edition_id: z.string().uuid(),
+  id: optionalHexId,
+  edition_id: hexId,
   title: z.string().trim().min(2).max(160),
   description: z.string().trim().max(2000).optional().or(z.literal("")),
   display_order: z.coerce.number().int().min(0).max(999),
@@ -305,8 +313,8 @@ export async function saveGalleryAlbumAction(
   if (!gate.allowed) return { error: "You need cms.manage to edit the gallery." };
 
   const parsed = albumSchema.safeParse({
-    id: formData.get("id"),
-    edition_id: formData.get("edition_id"),
+    id: String(formData.get("id") ?? ""),
+    edition_id: String(formData.get("edition_id") ?? ""),
     title: formData.get("title"),
     description: formData.get("description"),
     display_order: formData.get("display_order"),
@@ -351,7 +359,7 @@ export async function deleteGalleryAlbumAction(formData: FormData): Promise<void
   const gate = await requireCms();
   if (!gate.allowed) return;
   const id = String(formData.get("id") ?? "");
-  if (!z.string().uuid().safeParse(id).success) return;
+  if (!isUuid(id)) return;
   await gate.supabase.from("gallery_albums").delete().eq("id", id);
   await gate.supabase.rpc("write_audit", {
     p_action: "cms.gallery.album.delete",
@@ -364,7 +372,7 @@ export async function deleteGalleryAlbumAction(formData: FormData): Promise<void
 }
 
 const imageSchema = z.object({
-  album_id: z.string().uuid(),
+  album_id: hexId,
   storage_key: z.string().trim().url().max(500),
   caption: z.string().optional().or(z.literal("")),
   display_order: z.coerce.number().int().min(0).max(999),
@@ -378,7 +386,7 @@ export async function addGalleryImageAction(
   if (!gate.allowed) return { error: "You need cms.manage to edit the gallery." };
 
   const parsed = imageSchema.safeParse({
-    album_id: formData.get("album_id"),
+    album_id: String(formData.get("album_id") ?? ""),
     storage_key: formData.get("storage_key"),
     caption: formData.get("caption"),
     display_order: formData.get("display_order") || 0,
@@ -412,7 +420,7 @@ export async function deleteGalleryImageAction(formData: FormData): Promise<void
   const gate = await requireCms();
   if (!gate.allowed) return;
   const id = String(formData.get("id") ?? "");
-  if (!z.string().uuid().safeParse(id).success) return;
+  if (!isUuid(id)) return;
   await gate.supabase.from("gallery_images").delete().eq("id", id);
   await gate.supabase.rpc("write_audit", {
     p_action: "cms.gallery.image.delete",

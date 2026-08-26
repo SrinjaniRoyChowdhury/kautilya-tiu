@@ -113,14 +113,28 @@ begin
     2026,
     '2026',
     'The Arithmetic of Power',
-    '2026-11-13',
-    '2026-11-15',
+    '2026-11-20',
+    '2026-11-22',
     '2026-08-01 00:00:00+05:30',
     '2026-11-01 23:59:00+05:30',
     'PUBLISHED',
     true,
     v_admin_id
   ) on conflict (id) do nothing;
+
+  insert into public.mun_editions (
+    name, year, slug, start_date, end_date, status, is_public_active, created_by
+  )
+  select
+    'Kautilya MUN 2025',
+    2025,
+    '2025',
+    '2025-10-31',
+    '2025-11-02',
+    'ARCHIVED',
+    false,
+    v_admin_id
+  where not exists (select 1 from public.mun_editions where slug = '2025');
 
   insert into public.committees (
     edition_id, name, short_name, slug, description, capacity,
@@ -206,6 +220,10 @@ begin
     )
   on conflict (edition_id, short_name) do nothing;
 
+  update public.committees
+  set allows_double_del = true
+  where edition_id = v_edition_id and short_name = 'UNSC';
+
   insert into public.registration_field_definitions (
     edition_id, field_key, label, field_type, required, options, validation, display_order, section
   ) values
@@ -252,12 +270,23 @@ begin
       2
     );
 
-  insert into public.cms_team_members (edition_id, full_name, role_title, bio, display_order, published)
+  insert into public.cms_team_members (edition_id, section, full_name, role_title, display_order, published)
   values
-    (null, 'Secretariat', 'Secretary-General', 'Overall conference direction, external representation, and final authority on rules of procedure.', 1, true),
-    (null, 'Directorate', 'Director-General', 'Committee pedagogy, crisis notes, and dais briefing.', 2, true),
-    (null, 'Finance & Ops', 'USG Administration', 'Registrations, payments, venue logistics, attendance, and food.', 3, true),
-    (null, 'Delegate Affairs', 'USG Delegate Experience', 'Allocations, correspondence, and on-ground helpdesks.', 4, true);
+    (null, 'CORE', 'Nilanjana & Pratik', 'Secretary-General', 10, true),
+    (null, 'CORE', 'Chirag', 'Deputy Secretary-General', 20, true),
+    (null, 'CORE', 'Vaishnavi', 'Director-General', 30, true),
+    (null, 'CORE', 'Swapnil', 'Chief of Staff', 40, true),
+    (null, 'CORE', 'Bipul & Sirsantika', U&'Charg\00E9 d\2019Affaires', 50, true),
+    (null, 'CORE', 'Pritam', 'Equity Officer', 60, true),
+    (null, 'USG', '', 'Delegate Affairs', 110, true),
+    (null, 'USG', '', 'Logistics & Operations', 120, true),
+    (null, 'USG', '', 'Hospitality', 130, true),
+    (null, 'USG', '', 'Marketing & External Outreach', 140, true),
+    (null, 'USG', '', 'Media, Design & Creatives', 150, true),
+    (null, 'USG', '', 'Communications & Documentation', 160, true),
+    (null, 'USG', '', 'Finance & Sponsorships', 170, true),
+    (null, 'USG', '', 'Administration & Management', 180, true),
+    (null, 'USG', '', 'Executive Board & Committee Affairs', 190, true);
 
   insert into public.payment_instructions (
     edition_id, upi_id, bank_name, account_name, account_number, ifsc, notes

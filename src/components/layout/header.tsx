@@ -20,6 +20,11 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 type Props = {
   societyName: string;
   email: string | null;
@@ -37,6 +42,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
   );
   const [open, setOpen] = useState(false);
   const hideForIntro = pathname === "/" && !introDone;
+  const onAdmin = pathname.startsWith("/admin");
 
   return (
     <header
@@ -59,19 +65,29 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm text-ink-muted hover:text-gold-700"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {links.map((link) => {
+            const active = isActivePath(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "border-b-2 pb-0.5 text-sm hover:text-gold-700",
+                  active
+                    ? "border-gold-700 font-medium text-gold-700"
+                    : "border-transparent text-ink-muted",
+                )}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
           {email ? (
+            onAdmin ? null : (
             <>
               {isStaff ? (
                 <Link href="/admin" className="text-sm text-gold-700 hover:underline">
@@ -92,6 +108,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                 </button>
               </form>
             </>
+            )
           ) : (
             <>
               <Link href="/login" className="text-sm text-ink-muted hover:text-gold-700">
@@ -122,17 +139,27 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
       {open ? (
         <div id="mobile-nav" className="border-t border-gold-700/15 px-4 py-4 lg:hidden">
           <nav className="flex flex-col gap-3" aria-label="Mobile">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-base text-ink"
-                onClick={() => setOpen(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {links.map((link) => {
+              const active = isActivePath(pathname, link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "w-fit border-b-2 pb-0.5 text-base",
+                    active
+                      ? "border-gold-700 font-medium text-gold-700"
+                      : "border-transparent text-ink",
+                  )}
+                  onClick={() => setOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
             {email ? (
+              onAdmin ? null : (
               <>
                 <Link href="/dashboard" onClick={() => setOpen(false)}>
                   Dashboard
@@ -151,6 +178,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                   <button type="submit">Sign out</button>
                 </form>
               </>
+              )
             ) : (
               <>
                 <Link href="/login" onClick={() => setOpen(false)}>

@@ -17,7 +17,12 @@ import { createClient } from "@/lib/supabase/server";
 const signupSchema = z.object({
   full_name: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
   email: z.string().trim().email("Enter a valid email"),
-  phone: z.string().trim().max(20).optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Enter a valid phone number")
+    .max(20, "Phone number is too long")
+    .regex(/^[+]?[0-9]{8,15}$/, "Use digits only, 8–15 numbers. A leading + is allowed."),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -71,7 +76,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     options: {
       data: {
         full_name: parsed.data.full_name,
-        phone: parsed.data.phone || undefined,
+        phone: parsed.data.phone,
       },
       emailRedirectTo: `${origin}/auth/confirm`,
     },
