@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { updatePaymentInstructionsAction, type PaymentState } from "@/app/actions/payments";
 import type { PaymentInstructions } from "@/types";
@@ -18,16 +19,6 @@ export function PaymentInstructionsForm({
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-      {state.error ? (
-        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="UPI ID" htmlFor="upi_id">
         <Input id="upi_id" name="upi_id" defaultValue={instructions?.upi_id ?? ""} />
       </Field>
@@ -75,6 +66,7 @@ export function PaymentInstructionsForm({
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save payment instructions"}
         </Button>
+        <ActionFeedback error={state.error} success={state.success} />
       </div>
     </form>
   );

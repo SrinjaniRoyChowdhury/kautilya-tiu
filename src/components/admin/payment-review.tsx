@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Textarea } from "@/components/ui/field";
 import {
   rejectPaymentAction,
@@ -25,7 +26,6 @@ export function PaymentReviewActions({
   const reject = rejectPaymentAction.bind(null, payment.id);
   const [verifyState, verifyAction, verifyPending] = useActionState(verify, {} as AdminPaymentState);
   const [rejectState, rejectAction, rejectPending] = useActionState(reject, {} as AdminPaymentState);
-  const state = verifyState.success || verifyState.error ? verifyState : rejectState;
   const closed = payment.status === "VERIFIED" || payment.status === "CANCELLED";
   const difference =
     payment.paid_amount_minor != null
@@ -34,16 +34,6 @@ export function PaymentReviewActions({
 
   return (
     <div className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-xs uppercase tracking-widest text-gold-700">Expected</dt>
@@ -100,6 +90,7 @@ export function PaymentReviewActions({
             <Button type="submit" disabled={verifyPending || rejectPending}>
               {verifyPending ? "Verifying…" : "Verify payment"}
             </Button>
+            <ActionFeedback error={verifyState.error} success={verifyState.success} />
           </form>
         </div>
       ) : null}
@@ -116,6 +107,7 @@ export function PaymentReviewActions({
           <Button type="submit" variant="secondary" disabled={verifyPending || rejectPending}>
             {rejectPending ? "Rejecting…" : "Reject"}
           </Button>
+          <ActionFeedback error={rejectState.error} success={rejectState.success} />
         </form>
       ) : null}
     </div>

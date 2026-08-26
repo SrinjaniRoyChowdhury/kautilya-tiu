@@ -5,10 +5,13 @@ import type {
   AdminParticipant,
   Announcement,
   AuditLog,
+  Collective,
   Committee,
   CommitteeDelegate,
+  CommitteePhaseFee,
   ConferenceDocument,
   Edition,
+  EditionExpense,
   Payment,
   PaymentInstructions,
   PaymentWithParticipants,
@@ -24,6 +27,7 @@ import type {
   Registration,
   RegistrationFieldDefinition,
   RegistrationFieldValue,
+  RegistrationPhase,
   SiteSettings,
   TeamMember,
   ScannerAssignment,
@@ -120,6 +124,12 @@ export async function getEditionById(id: string): Promise<Edition | null> {
   return (data as Edition | null) ?? null;
 }
 
+const COMMITTEE_SELECT =
+  "id, edition_id, name, short_name, slug, description, rules_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order, allows_single_del, allows_double_del";
+
+const REGISTRATION_SELECT =
+  "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
+
 function hydrateCommittee(committee: Committee): Committee {
   const portfolio_config = normalizePortfolios(committee.portfolio_config);
   return {
@@ -133,13 +143,13 @@ export async function getCommitteesForEdition(editionId: string): Promise<Commit
   const supabase = await createClient();
   const { data } = await supabase
     .from("committees")
-    .select(
-      "id, edition_id, name, short_name, slug, description, rules_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order",
-    )
+    .select(COMMITTEE_SELECT)
     .eq("edition_id", editionId)
     .is("deleted_at", null)
     .order("display_order", { ascending: true });
-  return attachOccupancy(editionId, ((data as Committee[]) ?? []).map(hydrateCommittee));
+  return attachCurrentFees(
+    await attachOccupancy(editionId, ((data as Committee[]) ?? []).map(hydrateCommittee)),
+  );
 }
 
 export async function getPublicCommittees(editionId: string): Promise<Committee[]> {
@@ -154,15 +164,15 @@ export async function getCommitteeBySlug(
   const supabase = await createClient();
   const { data } = await supabase
     .from("committees")
-    .select(
-      "id, edition_id, name, short_name, slug, description, rules_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order",
-    )
+    .select(COMMITTEE_SELECT)
     .eq("edition_id", editionId)
     .eq("slug", slug)
     .is("deleted_at", null)
     .maybeSingle();
   if (!data) return null;
-  const [committee] = await attachOccupancy(editionId, [hydrateCommittee(data as Committee)]);
+  const [committee] = await attachCurrentFees(
+    await attachOccupancy(editionId, [hydrateCommittee(data as Committee)]),
+  );
   return committee ?? null;
 }
 
@@ -182,7 +192,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("cms_team_members")
-    .select("id, full_name, role_title, bio, photo_url, display_order")
+    .select("id, section, full_name, role_title, bio, photo_url, display_order")
     .eq("published", true)
     .order("display_order", { ascending: true });
   return (data as TeamMember[]) ?? [];
@@ -192,19 +202,19 @@ export async function getCommitteeById(id: string): Promise<Committee | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("committees")
-    .select(
-      "id, edition_id, name, short_name, slug, description, rules_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order",
-    )
+    .select(COMMITTEE_SELECT)
     .eq("id", id)
     .maybeSingle();
-  return data ? hydrateCommittee(data as Committee) : null;
+  return data ? (await attachCurrentFees([hydrateCommittee(data as Committee)]))[0] ?? null : null;
 }
 
 export async function getCommitteeDelegates(committeeId: string): Promise<CommitteeDelegate[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("registrations")
-    .select("id, status, allocated_slr, allocated_portfolio, users:user_id (full_name, email)")
+    .select(
+      "id, status, allocated_slr, allocated_portfolio, pair_id, is_pair_lead, partner_email, users:user_id (full_name, email)",
+    )
     .eq("committee_id", committeeId)
     .is("deleted_at", null)
     .neq("status", "CANCELLED")
@@ -214,9 +224,12 @@ export async function getCommitteeDelegates(committeeId: string): Promise<Commit
     status: CommitteeDelegate["status"];
     allocated_slr: number | null;
     allocated_portfolio: string | null;
+    pair_id: string | null;
+    is_pair_lead: boolean;
+    partner_email: string | null;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
   };
-  return ((data as Row[] | null) ?? []).map((row) => {
+  const mapped = ((data as Row[] | null) ?? []).map((row) => {
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     return {
       id: row.id,
@@ -225,7 +238,15 @@ export async function getCommitteeDelegates(committeeId: string): Promise<Commit
       status: row.status,
       allocated_slr: row.allocated_slr,
       allocated_portfolio: row.allocated_portfolio,
+      pair_id: row.pair_id,
+      is_pair_lead: row.is_pair_lead,
+      partner_name: row.partner_email,
     };
+  });
+  return mapped.map((row) => {
+    if (!row.pair_id) return row;
+    const partner = mapped.find((item) => item.pair_id === row.pair_id && item.id !== row.id);
+    return { ...row, partner_name: partner ? partner.full_name : row.partner_name };
   });
 }
 
@@ -350,6 +371,43 @@ async function attachOccupancy(editionId: string, committees: Committee[]): Prom
   }
 }
 
+async function attachCurrentFees(committees: Committee[]): Promise<Committee[]> {
+  if (!committees.length) return committees;
+  const supabase = await createClient();
+  const editionIds = [...new Set(committees.map((item) => item.edition_id))];
+  const ids = committees.map((item) => item.id);
+  const [{ data: phases }, { data: fees }] = await Promise.all([
+    supabase
+      .from("registration_phases")
+      .select("id, edition_id, kind, is_active")
+      .in("edition_id", editionIds),
+    supabase
+      .from("committee_phase_fees")
+      .select("committee_id, phase_id, single_fee_minor, double_fee_minor")
+      .in("committee_id", ids),
+  ]);
+  const active = new Map(
+    ((phases as RegistrationPhase[] | null) ?? [])
+      .filter((phase) => phase.is_active)
+      .map((phase) => [phase.edition_id, phase]),
+  );
+  const feeRows = (fees as CommitteePhaseFee[] | null) ?? [];
+  return committees.map((committee) => {
+    const phase = active.get(committee.edition_id);
+    const row = feeRows.find(
+      (item) => item.committee_id === committee.id && item.phase_id === phase?.id,
+    );
+    return {
+      ...committee,
+      current_phase_kind: phase?.kind ?? null,
+      fee_minor: row?.single_fee_minor ?? committee.fee_minor,
+      double_fee_minor: row?.double_fee_minor ?? committee.fee_minor,
+      allows_single_del: committee.allows_single_del ?? true,
+      allows_double_del: committee.allows_double_del ?? false,
+    };
+  });
+}
+
 export async function getFieldDefinitions(
   editionId: string,
 ): Promise<RegistrationFieldDefinition[]> {
@@ -372,15 +430,24 @@ export async function getMyRegistration(editionId: string): Promise<Registration
   if (!user) return null;
   const { data } = await supabase
     .from("registrations")
-    .select(
-      "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio",
-    )
+    .select(REGISTRATION_SELECT)
     .eq("edition_id", editionId)
     .eq("user_id", user.id)
     .neq("status", "CANCELLED")
     .is("deleted_at", null)
     .maybeSingle();
-  return (data as Registration | null) ?? null;
+  return withPartnerName((data as Registration | null) ?? null);
+}
+
+async function withPartnerName(row: Registration | null): Promise<Registration | null> {
+  if (!row?.partner_email) return row;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("users")
+    .select("full_name")
+    .eq("email", row.partner_email)
+    .maybeSingle();
+  return { ...row, partner_name: (data as { full_name: string } | null)?.full_name ?? row.partner_email };
 }
 
 export async function getRegistrationValues(
@@ -498,6 +565,7 @@ export async function getConfirmedCredentials(
       `id, edition_id, food_preference, allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name, name),
+       collectives:collective_id (name),
        qr_tokens (display_code, status, issued_at)`,
     )
     .eq("status", "CONFIRMED")
@@ -516,6 +584,7 @@ export async function getConfirmedCredentials(
       | { short_name: string; name: string }
       | { short_name: string; name: string }[]
       | null;
+    collectives: { name: string } | { name: string }[] | null;
     qr_tokens:
       | { display_code: string; status: string; issued_at: string }[]
       | { display_code: string; status: string; issued_at: string }
@@ -524,6 +593,7 @@ export async function getConfirmedCredentials(
   return ((data as Row[] | null) ?? []).map((row) => {
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
     const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
     const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
     return {
@@ -537,6 +607,7 @@ export async function getConfirmedCredentials(
       display_code: active?.display_code ?? null,
       allocated_slr: row.allocated_slr,
       allocated_portfolio: row.allocated_portfolio,
+      collective_name: collective?.name ?? null,
     };
   });
 }
@@ -787,7 +858,7 @@ export async function getTeamMembersAdmin(): Promise<TeamMember[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("cms_team_members")
-    .select("id, edition_id, full_name, role_title, bio, photo_url, display_order, published")
+    .select("id, edition_id, section, full_name, role_title, bio, photo_url, display_order, published")
     .order("display_order", { ascending: true });
   return (data as TeamMember[]) ?? [];
 }
@@ -893,9 +964,10 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
   let query = supabase
     .from("registrations")
     .select(
-      `id, edition_id, user_id, status, food_preference,
+      `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
        users:user_id (full_name, email),
-       committees:committee_id (short_name)`,
+       committees:committee_id (short_name),
+       collectives:collective_id (name)`,
     )
     .is("deleted_at", null)
     .neq("status", "CANCELLED")
@@ -908,8 +980,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     user_id: string;
     status: AdminParticipant["status"];
     food_preference: AdminParticipant["food_preference"];
+    delegation_type: AdminParticipant["delegation_type"];
+    partner_email: string | null;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
+    collectives: { name: string } | { name: string }[] | null;
   };
   const rows = (data as Row[] | null) ?? [];
   const ids = rows.map((row) => row.id);
@@ -935,6 +1010,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
   return rows.map((row) => {
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
     const paid =
       row.status === "CONFIRMED" ||
       row.status === "PAYMENT_VERIFIED" ||
@@ -949,6 +1025,9 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       committee_short_name: committee?.short_name ?? null,
       food_preference: row.food_preference,
       paid,
+      collective_name: collective?.name ?? null,
+      delegation_type: row.delegation_type ?? "SINGLE",
+      partner_email: row.partner_email,
     };
   });
 }
@@ -1060,4 +1139,65 @@ export async function getConferenceDocument(
     .eq("kind", kind)
     .maybeSingle();
   return (data as ConferenceDocument | null) ?? null;
+}
+
+export async function getCollectives(): Promise<Collective[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("collectives")
+    .select("id, name, created_at, updated_at")
+    .order("name", { ascending: true });
+  return (data as Collective[]) ?? [];
+}
+
+export async function getRegistrationPhases(editionId: string): Promise<RegistrationPhase[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("registration_phases")
+    .select("id, edition_id, kind, is_active")
+    .eq("edition_id", editionId)
+    .order("kind", { ascending: true });
+  const order = { EARLY_BIRD: 0, PHASE_1: 1, PHASE_2: 2 };
+  return ((data as RegistrationPhase[] | null) ?? []).sort(
+    (a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9),
+  );
+}
+
+export async function getCommitteeFeeRows(committeeId: string): Promise<CommitteePhaseFee[]> {
+  const supabase = await createClient();
+  const { data: feeData } = await supabase
+    .from("committee_phase_fees")
+    .select("id, committee_id, phase_id, single_fee_minor, double_fee_minor")
+    .eq("committee_id", committeeId);
+  const rows = (feeData as CommitteePhaseFee[] | null) ?? [];
+  if (!rows.length) return [];
+  const { data: phases } = await supabase
+    .from("registration_phases")
+    .select("id, kind")
+    .in(
+      "id",
+      rows.map((row) => row.phase_id),
+    );
+  const kindById = new Map(
+    ((phases as Array<{ id: string; kind: CommitteePhaseFee["kind"] }> | null) ?? []).map((phase) => [
+      phase.id,
+      phase.kind,
+    ]),
+  );
+  return rows.map((row) => ({ ...row, kind: kindById.get(row.phase_id) }));
+}
+
+export async function getEditionExpenses(editionId: string): Promise<EditionExpense[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("edition_expenses")
+    .select("id, edition_id, title, category, amount_minor, incurred_on, notes, created_at")
+    .eq("edition_id", editionId)
+    .order("incurred_on", { ascending: false });
+  return (data as EditionExpense[]) ?? [];
+}
+
+export async function getEditionExpenseTotal(editionId: string): Promise<number> {
+  const rows = await getEditionExpenses(editionId);
+  return rows.reduce((sum, row) => sum + (row.amount_minor ?? 0), 0);
 }

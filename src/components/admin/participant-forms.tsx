@@ -7,6 +7,7 @@ import {
   type ParticipantAdminState,
 } from "@/app/actions/participants";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import type { AdminParticipant } from "@/types";
 
@@ -15,16 +16,6 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   return (
     <form action={formAction} className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field
         label="New password"
         htmlFor="password"
@@ -35,6 +26,7 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Update password"}
       </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }
@@ -51,17 +43,13 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
   }
   return (
     <form action={formAction} className="grid gap-3">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <p className="text-sm text-ink-muted">
         Removes {participant.full_name} from this edition. Only allowed before payment.
       </p>
       <Button type="submit" variant="secondary" disabled={pending}>
         {pending ? "Deleting…" : "Delete unpaid participant"}
       </Button>
+      <ActionFeedback error={state.error} />
     </form>
   );
 }

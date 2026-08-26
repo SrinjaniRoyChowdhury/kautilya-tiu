@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { PaymentReviewActions } from "@/components/admin/payment-review";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
@@ -36,7 +35,6 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Staff" title={copy.label} description={copy.detail} />
-      <AdminNav current="/admin/payments" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">Payer</p>

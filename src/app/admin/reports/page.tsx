@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getAllEditionsAdmin, getCommitteesForEdition } from "@/lib/data";
 import { canExportKind, REPORT_KINDS, type ReportKind } from "@/lib/reports";
@@ -10,7 +9,7 @@ export const metadata: Metadata = { title: "Reports" };
 const COPY: Record<ReportKind, { title: string; detail: string }> = {
   participants: {
     title: "Participants",
-    detail: "Name, email, committee, registration status, food preference, fee.",
+    detail: "Name, email, committee, collective, registration status, food preference, fee.",
   },
   payments: {
     title: "Payments",
@@ -69,7 +68,6 @@ export default async function AdminReportsPage({
         title="Reports"
         description="CSV for operations lists, and Excel for each committee's SLR, portfolio, and delegate."
       />
-      <AdminNav current="/admin/reports" />
       {editions.length > 1 ? (
         <div className="mb-6 flex flex-wrap gap-2">
           {editions.map((item) => (

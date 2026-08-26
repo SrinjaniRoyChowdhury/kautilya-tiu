@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { DelegationMatrix, PortfolioUploadForm } from "@/components/admin/delegation-matrix";
 import { CommitteeForm } from "@/components/admin/forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
-import { getAllEditionsAdmin, getCommitteeById, getCommitteeDelegates } from "@/lib/data";
+import { getAllEditionsAdmin, getCommitteeById, getCommitteeDelegates, getCommitteeFeeRows } from "@/lib/data";
 import { canDownloadCommitteeAllocations } from "@/lib/reports";
 
 type Props = { params: Promise<{ id: string }> };
@@ -14,10 +13,11 @@ export const metadata: Metadata = { title: "Edit committee" };
 
 export default async function EditCommitteePage({ params }: Props) {
   const { id } = await params;
-  const [committee, editions, delegates] = await Promise.all([
+  const [committee, editions, delegates, fees] = await Promise.all([
     getCommitteeById(id),
     getAllEditionsAdmin(),
     getCommitteeDelegates(id),
+    getCommitteeFeeRows(id),
   ]);
   if (!committee) notFound();
   const canDownload = await canDownloadCommitteeAllocations(committee.edition_id);
@@ -30,7 +30,6 @@ export default async function EditCommitteePage({ params }: Props) {
         title={committee.name}
         description={`${committee.portfolio_config.length} delegations in this committee. Allocating a portfolio does not issue a new QR.`}
       />
-      <AdminNav current="/admin/committees" />
       {canDownload ? (
         <p className="mb-6">
           <a
@@ -42,7 +41,7 @@ export default async function EditCommitteePage({ params }: Props) {
         </p>
       ) : null}
       <Card>
-        <CommitteeForm editions={editions} committee={committee} />
+        <CommitteeForm editions={editions} committee={committee} fees={fees} />
       </Card>
       {canEdit ? (
         <>

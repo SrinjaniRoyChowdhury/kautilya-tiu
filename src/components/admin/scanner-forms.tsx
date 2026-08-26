@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import {
   createScannerAction,
@@ -17,16 +18,6 @@ export function CreateScannerForm({ editions }: { editions: Edition[] }) {
 
   return (
     <form action={action} className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Full name" htmlFor="full_name">
         <Input id="full_name" name="full_name" required autoComplete="name" />
       </Field>
@@ -60,6 +51,7 @@ export function CreateScannerForm({ editions }: { editions: Edition[] }) {
       <Button type="submit" disabled={pending}>
         {pending ? "Creating…" : "Create scanner login"}
       </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }
@@ -191,16 +183,6 @@ function EditScannerModal({
       >
         <p className="font-serif text-2xl text-gold-700">Edit scanner</p>
         <form action={formAction} className="mt-4 grid gap-3">
-          {state.error ? (
-            <p className="text-sm text-red-800" role="alert">
-              {state.error}
-            </p>
-          ) : null}
-          {state.success ? (
-            <p className="text-sm" role="status">
-              {state.success}
-            </p>
-          ) : null}
           <Field label="Full name" htmlFor={`name-${userId}`}>
             <Input id={`name-${userId}`} name="full_name" defaultValue={fullName} required />
           </Field>
@@ -228,6 +210,7 @@ function EditScannerModal({
               Close
             </Button>
           </div>
+          <ActionFeedback error={state.error} success={state.success} />
         </form>
       </div>
     </div>
@@ -239,14 +222,10 @@ function RemoveScannerButton({ assignmentId, label }: { assignmentId: string; la
   const [state, formAction, pending] = useActionState(action, {} as ScannerState);
   return (
     <form action={formAction}>
-      {state.error ? (
-        <p className="mb-2 text-xs text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <Button type="submit" variant="ghost" size="sm" disabled={pending}>
         {pending ? "Removing…" : label}
       </Button>
+      <ActionFeedback error={state.error} className="text-xs" />
     </form>
   );
 }

@@ -1,5 +1,3 @@
-import type { TeamMember } from "@/types";
-
 export const APP_NAME = "Kautilya MUN";
 
 export const STAFF_ROLES = [
@@ -14,40 +12,7 @@ export const STAFF_ROLES = [
 
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
-export const HARDCODED_TEAM: TeamMember[] = [
-  {
-    id: "secretariat",
-    full_name: "To be announced",
-    role_title: "Secretary-General",
-    bio: "Secretariat",
-    photo_url: null,
-    display_order: 1,
-  },
-  {
-    id: "directorate",
-    full_name: "To be announced",
-    role_title: "Director-General",
-    bio: "Directorate",
-    photo_url: null,
-    display_order: 2,
-  },
-  {
-    id: "finance-ops",
-    full_name: "To be announced",
-    role_title: "USG Administration",
-    bio: "Finance & Ops",
-    photo_url: null,
-    display_order: 3,
-  },
-  {
-    id: "delegate-affairs",
-    full_name: "To be announced",
-    role_title: "USG Delegate Experience",
-    bio: "Delegate Affairs",
-    photo_url: null,
-    display_order: 4,
-  },
-];
+export { HARDCODED_TEAM } from "@/lib/team";
 
 export const DEFAULT_REGISTRATION_FIELDS = [
   {

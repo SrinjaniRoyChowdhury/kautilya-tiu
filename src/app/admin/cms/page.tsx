@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { deleteAnnouncementAction, deleteGalleryAlbumAction, deleteGalleryImageAction } from "@/app/actions/cms";
-import { AdminNav } from "@/components/admin/admin-nav";
 import {
   ConferenceDocForm,
   PublishedDocs,
@@ -54,7 +54,6 @@ export default async function AdminCmsPage() {
         title="Content"
         description="Changes go live on the public site without a deploy. Paste plain text only — HTML tags are stripped."
       />
-      <AdminNav current="/admin/cms" />
 
       {canManageDocs ? (
         <Card>
@@ -71,7 +70,12 @@ export default async function AdminCmsPage() {
       <Card className={canManageDocs ? "mt-6" : undefined}>
         <p className="mb-4 font-serif text-2xl text-gold-700">Site copy</p>
         <p className="mb-6 text-sm text-ink-muted">
-          Homepage hero, about, mission, history, and contact details.
+          Homepage hero, about, mission, history, and contact details. Edit names, designations, and
+          USG departments on{" "}
+          <Link href="/admin/team" className="text-gold-700 hover:underline">
+            Team
+          </Link>
+          .
         </p>
         <SiteSettingsForm settings={settings} />
       </Card>

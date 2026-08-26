@@ -44,6 +44,36 @@ export type Portfolio = {
   name: string;
 };
 
+export type RegistrationPhaseKind = "EARLY_BIRD" | "PHASE_1" | "PHASE_2";
+export type DelegationType = "SINGLE" | "DOUBLE";
+
+export type RegistrationPhase = {
+  id: string;
+  edition_id: string;
+  kind: RegistrationPhaseKind;
+  is_active: boolean;
+};
+
+export type CommitteePhaseFee = {
+  id?: string;
+  committee_id: string;
+  phase_id: string;
+  kind?: RegistrationPhaseKind;
+  single_fee_minor: number;
+  double_fee_minor: number;
+};
+
+export type EditionExpense = {
+  id: string;
+  edition_id: string;
+  title: string;
+  category: string | null;
+  amount_minor: number;
+  incurred_on: string;
+  notes: string | null;
+  created_at?: string;
+};
+
 export type Committee = {
   id: string;
   edition_id: string;
@@ -56,6 +86,10 @@ export type Committee = {
   confirmed_count: number;
   occupied_count?: number;
   fee_minor: number;
+  double_fee_minor?: number;
+  current_phase_kind?: RegistrationPhaseKind | null;
+  allows_single_del?: boolean;
+  allows_double_del?: boolean;
   eb_json: EbMember[];
   portfolio_config: Portfolio[];
   status: CommitteeStatus;
@@ -116,6 +150,20 @@ export type Registration = {
   accepted_rules_at?: string | null;
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
+  collective_id?: string | null;
+  delegation_type?: DelegationType;
+  partner_email?: string | null;
+  partner_registration_id?: string | null;
+  pair_id?: string | null;
+  is_pair_lead?: boolean;
+  partner_name?: string | null;
+};
+
+export type Collective = {
+  id: string;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type ConferenceDocument = {
@@ -137,6 +185,9 @@ export type AdminParticipant = {
   committee_short_name: string | null;
   food_preference: FoodPreference | null;
   paid: boolean;
+  collective_name?: string | null;
+  delegation_type?: DelegationType | null;
+  partner_email?: string | null;
 };
 
 export type FoodCollectionRow = {
@@ -168,9 +219,12 @@ export type Announcement = {
   display_order?: number;
 };
 
+export type TeamSection = "CORE" | "USG";
+
 export type TeamMember = {
   id: string;
   edition_id?: string | null;
+  section?: TeamSection;
   full_name: string;
   role_title: string;
   bio: string | null;
@@ -244,6 +298,9 @@ export type CommitteeDelegate = {
   status: RegistrationStatus;
   allocated_slr: number | null;
   allocated_portfolio: string | null;
+  pair_id?: string | null;
+  is_pair_lead?: boolean;
+  partner_name?: string | null;
 };
 
 export type PaymentStatus =
@@ -329,6 +386,7 @@ export type ConfirmedCredential = {
   display_code: string | null;
   allocated_slr: number | null;
   allocated_portfolio: string | null;
+  collective_name?: string | null;
 };
 
 export type MealSchedule = {

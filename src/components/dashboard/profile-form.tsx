@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { updateProfileAction, type RegistrationState } from "@/app/actions/registrations";
 import type { Profile } from "@/types";
@@ -10,16 +11,6 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const [state, action, pending] = useActionState(updateProfileAction, {} as RegistrationState);
   return (
     <form action={action} className="flex max-w-md flex-col gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Full name" htmlFor="full_name" error={state.fieldErrors?.full_name}>
         <Input id="full_name" name="full_name" defaultValue={profile.full_name} required />
       </Field>
@@ -30,6 +21,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save profile"}
       </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }

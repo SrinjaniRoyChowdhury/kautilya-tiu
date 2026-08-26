@@ -41,7 +41,8 @@ async function participantRows(editionId: string) {
     .select(
       `status, food_preference, expected_fee_minor, submitted_at, confirmed_at,
        users:user_id (full_name, email, phone),
-       committees:committee_id (short_name, name)`,
+       committees:committee_id (short_name, name),
+       collectives:collective_id (name)`,
     )
     .eq("edition_id", editionId)
     .is("deleted_at", null)
@@ -54,12 +55,14 @@ async function participantRows(editionId: string) {
     confirmed_at: string | null;
     users: { full_name: string; email: string; phone: string | null } | { full_name: string; email: string; phone: string | null }[] | null;
     committees: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
+    collectives: { name: string } | { name: string }[] | null;
   };
   const headers = [
     "full_name",
     "email",
     "phone",
     "committee",
+    "collective",
     "status",
     "food_preference",
     "expected_fee_inr",
@@ -69,11 +72,13 @@ async function participantRows(editionId: string) {
   const rows = ((data as Row[] | null) ?? []).map((row) => {
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
     return [
       user?.full_name ?? "",
       user?.email ?? "",
       user?.phone ?? "",
       committee?.short_name ?? "",
+      collective?.name ?? "",
       row.status,
       row.food_preference ?? "",
       rupees(row.expected_fee_minor),

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getAllEditionsAdmin } from "@/lib/data";
 
@@ -11,7 +10,6 @@ export default async function AdminEditionsPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Editions" />
-      <AdminNav current="/admin/editions" />
       <div className="mb-6">
         <Link
           href="/admin/editions/new"

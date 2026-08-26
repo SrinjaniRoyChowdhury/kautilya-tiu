@@ -9,26 +9,13 @@ import {
   type FormState,
 } from "@/app/actions/cms";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { toPlainText } from "@/lib/sanitize";
 import type { Announcement, Edition, GalleryAlbum, SiteSettings } from "@/types";
 
 function Feedback({ state }: { state: FormState }) {
-  if (state.error) {
-    return (
-      <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-        {state.error}
-      </p>
-    );
-  }
-  if (state.success) {
-    return (
-      <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-        {state.success}
-      </p>
-    );
-  }
-  return null;
+  return <ActionFeedback error={state.error} success={state.success} />;
 }
 
 export function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
@@ -37,9 +24,6 @@ export function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
-      <div className="sm:col-span-2">
-        <Feedback state={state} />
-      </div>
       <Field label="Society name" htmlFor="society_name">
         <Input id="society_name" name="society_name" required defaultValue={settings.society_name} />
       </Field>
@@ -96,6 +80,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSettings }) {
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save site copy"}
         </Button>
+        <Feedback state={state} />
       </div>
     </form>
   );
@@ -124,7 +109,6 @@ export function AnnouncementForm({
   const [state, formAction, pending] = useActionState(saveAnnouncementAction, {} as FormState);
   return (
     <form action={formAction} className="grid gap-3">
-      <Feedback state={state} />
       {announcement ? <input type="hidden" name="id" value={announcement.id} /> : null}
       <Field label="Title" htmlFor={`ann-title-${announcement?.id ?? "new"}`}>
         <Input
@@ -165,9 +149,12 @@ export function AnnouncementForm({
           Published
         </label>
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : announcement ? "Update notice" : "Add notice"}
-      </Button>
+      <div>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : announcement ? "Update notice" : "Add notice"}
+        </Button>
+        <Feedback state={state} />
+      </div>
     </form>
   );
 }
@@ -182,7 +169,6 @@ export function GalleryAlbumForm({
   const [state, formAction, pending] = useActionState(saveGalleryAlbumAction, {} as FormState);
   return (
     <form action={formAction} className="grid gap-3">
-      <Feedback state={state} />
       {album ? <input type="hidden" name="id" value={album.id} /> : null}
       <Field label="Title" htmlFor={`album-title-${album?.id ?? "new"}`}>
         <Input
@@ -227,9 +213,12 @@ export function GalleryAlbumForm({
           Published
         </label>
       </div>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : album ? "Update album" : "Add album"}
-      </Button>
+      <div>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : album ? "Update album" : "Add album"}
+        </Button>
+        <Feedback state={state} />
+      </div>
     </form>
   );
 }
@@ -239,19 +228,17 @@ export function GalleryImageForm({ albumId }: { albumId: string }) {
   return (
     <form action={formAction} className="mt-4 grid gap-3 sm:grid-cols-3">
       <input type="hidden" name="album_id" value={albumId} />
-      <div className="sm:col-span-3">
-        <Feedback state={state} />
-      </div>
       <Field label="Image URL" htmlFor={`img-url-${albumId}`}>
         <Input id={`img-url-${albumId}`} name="storage_key" required placeholder="https://" />
       </Field>
       <Field label="Caption" htmlFor={`img-cap-${albumId}`}>
         <Input id={`img-cap-${albumId}`} name="caption" />
       </Field>
-      <div className="flex items-end">
+      <div className="flex flex-col items-start justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Adding…" : "Add image"}
         </Button>
+        <Feedback state={state} />
       </div>
     </form>
   );

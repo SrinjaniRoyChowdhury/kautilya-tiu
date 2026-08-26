@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getDashboardKpis } from "@/lib/analytics";
 import { hasPermission } from "@/lib/auth";
-import { getAllEditionsAdmin } from "@/lib/data";
+import { getAllEditionsAdmin, getEditionExpenseTotal } from "@/lib/data";
 import { formatInrFromMinor } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Admin" };
@@ -52,6 +51,8 @@ export default async function AdminHomePage({
         food: canFood,
       })
     : null;
+  const expensesTotal = edition && canPay ? await getEditionExpenseTotal(edition.id) : 0;
+  const revenue = kpis?.payment?.paidVerifiedMinor ?? 0;
 
   return (
     <Container className="py-12">
@@ -60,7 +61,6 @@ export default async function AdminHomePage({
         title="Admin portal"
         description="Edition-scoped registration, payment, attendance, and food counts. Cards only appear for permissions you hold."
       />
-      <AdminNav current="/admin" />
       {extraActive ? (
         <p className="mb-6 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
           More than one edition is flagged public-active. The public site will still work; pick one
@@ -123,6 +123,18 @@ export default async function AdminHomePage({
             </ul>
             <Link href="/admin/payments" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
               Open queue
+            </Link>
+          </Card>
+        ) : null}
+        {kpis?.payment ? (
+          <Card>
+            <p className="text-xs uppercase tracking-widest text-gold-700">Accounts</p>
+            <p className="mt-2 font-serif text-3xl text-gold-700">{formatInrFromMinor(revenue - expensesTotal)}</p>
+            <p className="mt-1 text-sm text-ink-muted">Balance (verified revenue − expenses)</p>
+            <p className="mt-3 text-sm">Revenue {formatInrFromMinor(revenue)}</p>
+            <p className="text-sm text-ink-muted">Expenses {formatInrFromMinor(expensesTotal)}</p>
+            <Link href="/admin/expenses" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
+              Open expenses
             </Link>
           </Card>
         ) : null}

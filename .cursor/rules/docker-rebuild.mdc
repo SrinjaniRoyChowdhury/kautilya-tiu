@@ -1,0 +1,17 @@
+---
+description: Rebuild and restart Docker after app or schema changes so they are live
+alwaysApply: true
+---
+
+# Docker rebuild after changes
+
+After code, SQL, or env changes that the running stack must pick up, rebuild and restart Docker before treating the work as done. Do this without waiting to be asked.
+
+```
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+- App source is bind-mounted, but `.next` is a volume — rebuild/restart so Next actually serves the new code.
+- If Postgres/PostgREST schema changed, also restart `supabase_rest_kautilya` (or `npx supabase stop` / `npx supabase start` if the DB stack is down).
+- Do not `db:reset` unless the user asked.
+- Confirm `kautilya-app-1` is healthy and http://localhost:3000/api/health returns 200.

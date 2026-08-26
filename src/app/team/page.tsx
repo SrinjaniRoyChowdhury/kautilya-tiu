@@ -1,26 +1,21 @@
 import type { Metadata } from "next";
-import { Card, Container, PageHeader } from "@/components/ui/card";
-import { HARDCODED_TEAM } from "@/lib/constants";
+import { SecretariatRoster } from "@/components/public/secretariat";
+import { Container } from "@/components/ui/card";
+import { getTeamMembers } from "@/lib/data";
+import { EVENT_EDITION, EVENT_NAME, resolvePublicRoster } from "@/lib/team";
 
-export const metadata: Metadata = { title: "Team" };
+export const metadata: Metadata = {
+  title: "Team",
+  description: `Secretariat of ${EVENT_NAME} ${EVENT_EDITION}, the annual Model United Nations conference of Techno India University.`,
+};
 
-export default function TeamPage() {
+export default async function TeamPage() {
+  const members = await getTeamMembers();
+  const { core, usgs } = resolvePublicRoster(members);
+
   return (
-    <Container className="py-12">
-      <PageHeader
-        eyebrow="Secretariat"
-        title="Team"
-        description="The rotating student secretariat that runs the conference."
-      />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {HARDCODED_TEAM.map((member) => (
-          <Card key={member.id}>
-            <p className="text-xs uppercase tracking-widest text-gold-700">{member.bio}</p>
-            <h2 className="mt-2 font-serif text-2xl">{member.role_title}</h2>
-            <p className="mt-3 text-sm text-ink-muted">{member.full_name}</p>
-          </Card>
-        ))}
-      </div>
+    <Container className="py-12 sm:py-16">
+      <SecretariatRoster core={core} usgs={usgs} />
     </Container>
   );
 }

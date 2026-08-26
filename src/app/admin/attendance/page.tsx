@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdminNav } from "@/components/admin/admin-nav";
 import { ManualAttendanceForm } from "@/components/admin/manual-attendance-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
@@ -61,7 +60,6 @@ export default async function AdminAttendancePage({
         title="Venue"
         description="Check-ins for the selected day, meal collection counts, and manual corrections."
       />
-      <AdminNav current="/admin/attendance" />
       <div className="mb-6 flex flex-wrap gap-2">
         {[1, 2, 3].map((item) => (
           <Link

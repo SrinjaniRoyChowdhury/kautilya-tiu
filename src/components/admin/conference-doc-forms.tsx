@@ -7,6 +7,7 @@ import {
   type DocsState,
 } from "@/app/actions/docs";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import { DOC_LABELS, type DocKind } from "@/lib/docs";
 import type { ConferenceDocument } from "@/types";
@@ -15,16 +16,6 @@ export function ConferenceDocForm() {
   const [state, action, pending] = useActionState(uploadConferenceDocAction, {} as DocsState);
   return (
     <form action={action} className="grid gap-4 sm:grid-cols-2">
-      {state.error ? (
-        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Document" htmlFor="kind">
         <Select id="kind" name="kind" defaultValue="rulebook" required>
           <option value="rulebook">Rulebook</option>
@@ -38,6 +29,7 @@ export function ConferenceDocForm() {
         <Button type="submit" disabled={pending}>
           {pending ? "Publishing…" : "Upload PDF"}
         </Button>
+        <ActionFeedback error={state.error} success={state.success} />
       </div>
     </form>
   );
@@ -48,14 +40,10 @@ export function DeleteConferenceDocButton({ kind }: { kind: DocKind }) {
   return (
     <form action={action} className="inline">
       <input type="hidden" name="kind" value={kind} />
-      {state.error ? (
-        <p className="mb-2 text-xs text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
       <Button type="submit" variant="ghost" size="sm" disabled={pending}>
         {pending ? "Removing…" : `Delete ${DOC_LABELS[kind]}`}
       </Button>
+      <ActionFeedback error={state.error} className="text-xs" />
     </form>
   );
 }

@@ -3,22 +3,13 @@
 import { useActionState } from "react";
 import { manualAttendanceAction, type OpsState } from "@/app/actions/ops";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 
 export function ManualAttendanceForm() {
   const [state, formAction, pending] = useActionState(manualAttendanceAction, {} as OpsState);
   return (
     <form action={formAction} className="grid gap-4">
-      {state.error ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Delegate email" htmlFor="email">
         <Input id="email" name="email" type="email" required />
       </Field>
@@ -42,6 +33,7 @@ export function ManualAttendanceForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save correction"}
       </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }

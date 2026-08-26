@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { assignDelegationAction, uploadCommitteePortfoliosAction, type FormState } from "@/app/actions/committees";
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import type { CommitteeDelegate, Portfolio } from "@/types";
 
@@ -12,23 +13,16 @@ export function PortfolioUploadForm({ committeeId }: { committeeId: string }) {
   const [state, formAction, pending] = useActionState(action, {} as FormState);
   return (
     <form action={formAction} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-      {state.error ? (
-        <p className="sm:col-span-2 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p className="sm:col-span-2 rounded-sm bg-parchment-200 px-3 py-2 text-sm" role="status">
-          {state.success}
-        </p>
-      ) : null}
       <Field label="Upload portfolio Excel" htmlFor="matrix-file" hint="SLR No. and Portfolio columns. Delegation count is the row count.">
         <Input id="matrix-file" name="portfolio_file" type="file" accept=".xlsx,.xls,.csv,text/csv" required />
       </Field>
       <div className="flex flex-wrap items-end gap-3">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Uploading…" : "Upload matrix"}
-        </Button>
+        <div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Uploading…" : "Upload matrix"}
+          </Button>
+          <ActionFeedback error={state.error} success={state.success} />
+        </div>
         <Link href="/admin/committees/portfolio-template" prefetch={false} className="mb-2 text-sm text-gold-700 hover:underline">
           Download empty template
         </Link>
@@ -72,8 +66,8 @@ export function DelegationMatrix({
                     committeeId={committeeId}
                     slr={slr}
                     portfolio={row.name}
-                    currentId={assigned?.id ?? ""}
-                    delegates={delegates}
+            currentId={assigned?.id ?? ""}
+            delegates={delegates.filter((item) => item.is_pair_lead !== false || !item.pair_id)}
                   />
                 </td>
               </tr>
@@ -108,16 +102,17 @@ function AssignRow({
         <option value="">Unassigned</option>
         {delegates.map((delegate) => (
           <option key={delegate.id} value={delegate.id}>
-            {delegate.full_name}
+            {delegate.partner_name ? `${delegate.full_name} + ${delegate.partner_name}` : delegate.full_name}
             {delegate.allocated_slr && delegate.allocated_slr !== slr ? ` (now ${delegate.allocated_slr})` : ""}
           </option>
         ))}
       </Select>
-      <Button type="submit" variant="secondary" size="sm" disabled={pending || slr < 1}>
-        {pending ? "Saving…" : "Assign"}
-      </Button>
-      {state.error ? <span className="text-xs text-red-800">{state.error}</span> : null}
-      {state.success ? <span className="text-xs text-ink-muted">{state.success}</span> : null}
+      <div>
+        <Button type="submit" variant="secondary" size="sm" disabled={pending || slr < 1}>
+          {pending ? "Saving…" : "Assign"}
+        </Button>
+        <ActionFeedback error={state.error} success={state.success} className="text-xs" />
+      </div>
     </form>
   );
 }
