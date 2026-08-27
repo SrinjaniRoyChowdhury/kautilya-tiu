@@ -91,6 +91,7 @@ export type Committee = {
   allows_single_del?: boolean;
   allows_double_del?: boolean;
   eb_json: EbMember[];
+  logo_url?: string | null;
   portfolio_config: Portfolio[];
   status: CommitteeStatus;
   display_order: number;

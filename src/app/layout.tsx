@@ -3,6 +3,8 @@ import { Montserrat, Poppins } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getProfile, getRoleNames, getSessionUser, hasScanAccess } from "@/lib/auth";
+import { isOperatorOnly } from "@/lib/roles";
+import { staffHomePath } from "@/lib/staff-access";
 import { getSiteSettings } from "@/lib/data";
 import "./globals.css";
 
@@ -42,6 +44,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     hasScanAccess(),
   ]);
 
+  const scannerOnly = isOperatorOnly(roles);
+
   return (
     <html
       lang="en"
@@ -51,11 +55,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <Header
           societyName={settings.society_name}
           email={profile?.email ?? user?.email ?? null}
-          isStaff={roles.length > 0}
+          showAdmin={roles.length > 0 && !scannerOnly}
+          adminHref={staffHomePath(roles)}
           canScan={canScan}
         />
         <main className="flex-1">{children}</main>
-        <Footer settings={settings} />
+        {scannerOnly ? null : <Footer settings={settings} />}
       </body>
     </html>
   );

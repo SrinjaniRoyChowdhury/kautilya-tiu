@@ -15,7 +15,7 @@ export default async function ScanPage() {
   ]);
 
   return (
-    <Container className="py-12">
+    <Container className="py-6 sm:py-12">
       <PageHeader
         eyebrow="Venue"
         title="Scanner"

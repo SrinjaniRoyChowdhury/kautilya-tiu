@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { EditionForm } from "@/components/admin/forms";
 import { PhaseActivateList } from "@/components/admin/phase-forms";
 import { PaymentInstructionsForm } from "@/components/admin/payment-instructions-form";
 import { MealScheduleForm } from "@/components/admin/meal-schedule-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
+import { hasPermission } from "@/lib/auth";
 import { getEditionById, getMealSchedules, getPaymentInstructions, getRegistrationPhases } from "@/lib/data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -12,6 +13,7 @@ type Props = { params: Promise<{ id: string }> };
 export const metadata: Metadata = { title: "Edit edition" };
 
 export default async function EditEditionPage({ params }: Props) {
+  if (!(await hasPermission("edition.manage"))) redirect("/admin/editions");
   const { id } = await params;
   const edition = await getEditionById(id);
   if (!edition) notFound();

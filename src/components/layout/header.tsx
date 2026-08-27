@@ -28,11 +28,12 @@ function isActivePath(pathname: string, href: string) {
 type Props = {
   societyName: string;
   email: string | null;
-  isStaff: boolean;
+  showAdmin: boolean;
+  adminHref?: string;
   canScan: boolean;
 };
 
-export function Header({ societyName, email, isStaff, canScan }: Props) {
+export function Header({ societyName, email, showAdmin, adminHref = "/admin", canScan }: Props) {
   const pathname = usePathname();
   syncHomeIntroPath(pathname);
   const introDone = useSyncExternalStore(
@@ -43,6 +44,8 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
   const [open, setOpen] = useState(false);
   const hideForIntro = pathname === "/" && !introDone;
   const onAdmin = pathname.startsWith("/admin");
+  const onScan = pathname.startsWith("/scan");
+  const showDashboard = showAdmin || !canScan;
 
   return (
     <header
@@ -64,6 +67,7 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
           </span>
         </Link>
 
+        {!onScan ? (
         <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary">
           {links.map((link) => {
             const active = isActivePath(pathname, link.href);
@@ -84,13 +88,14 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
             );
           })}
         </nav>
+        ) : null}
 
         <div className="hidden items-center gap-3 lg:flex">
           {email ? (
             onAdmin ? null : (
             <>
-              {isStaff ? (
-                <Link href="/admin" className="text-sm font-semibold text-gold-700 hover:underline">
+              {showAdmin ? (
+                <Link href={adminHref} className="text-sm font-semibold text-gold-700 hover:underline">
                   Admin
                 </Link>
               ) : null}
@@ -99,9 +104,11 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                   Scan
                 </Link>
               ) : null}
+              {showDashboard ? (
               <Link href="/dashboard" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
                 Dashboard
               </Link>
+              ) : null}
               <form action={logoutAction}>
                 <button type="submit" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
                   Sign out
@@ -139,7 +146,8 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
       {open ? (
         <div id="mobile-nav" className="border-t border-gold-700/15 px-4 py-4 lg:hidden">
           <nav className="flex flex-col gap-3" aria-label="Mobile">
-            {links.map((link) => {
+            {!onScan
+              ? links.map((link) => {
               const active = isActivePath(pathname, link.href);
               return (
                 <Link
@@ -157,15 +165,18 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                   {link.label}
                 </Link>
               );
-            })}
+            })
+              : null}
             {email ? (
               onAdmin ? null : (
               <>
+                {showDashboard ? (
                 <Link href="/dashboard" className="font-semibold" onClick={() => setOpen(false)}>
                   Dashboard
                 </Link>
-                {isStaff ? (
-                  <Link href="/admin" className="font-semibold" onClick={() => setOpen(false)}>
+                ) : null}
+                {showAdmin ? (
+                  <Link href={adminHref} className="font-semibold" onClick={() => setOpen(false)}>
                     Admin
                   </Link>
                 ) : null}

@@ -13,7 +13,8 @@ import {
 } from "@/components/admin/cms-forms";
 import { Button } from "@/components/ui/button";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { hasPermission, getRoleNames } from "@/lib/auth";
+import { isLimitedStaff } from "@/lib/staff-access";
 import {
   getAllEditionsAdmin,
   getAnnouncementsAdmin,
@@ -25,8 +26,10 @@ import {
 export const metadata: Metadata = { title: "CMS" };
 
 export default async function AdminCmsPage() {
-  const allowed = await hasPermission("cms.manage");
-  if (!allowed) {
+  const roles = await getRoleNames();
+  const canEdit = await hasPermission("cms.manage");
+  const readOnly = !canEdit;
+  if (!canEdit && !isLimitedStaff(roles)) {
     return (
       <Container className="py-12">
         <PageHeader
@@ -70,18 +73,49 @@ export default async function AdminCmsPage() {
       <Card className={canManageDocs ? "mt-6" : undefined}>
         <p className="mb-4 font-serif text-2xl text-gold-700">Site copy</p>
         <p className="mb-6 text-sm text-ink-muted">
-          Homepage hero, about, mission, history, and contact details. Edit names, designations, and
-          USG departments on{" "}
-          <Link href="/admin/team" className="text-gold-700 hover:underline">
-            Team
-          </Link>
-          .
+          Homepage hero, about, mission, history, and contact details.
+          {canEdit && !readOnly ? (
+            <>
+              {" "}
+              Edit names, designations, and USG departments on{" "}
+              <Link href="/admin/team" className="text-gold-700 hover:underline">
+                Team
+              </Link>
+              .
+            </>
+          ) : null}
         </p>
-        <SiteSettingsForm settings={settings} />
+        {readOnly ? (
+          <dl className="grid gap-3 text-sm">
+            <div>
+              <dt className="text-ink-muted">Society</dt>
+              <dd>{settings.society_name}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-muted">Tagline</dt>
+              <dd>{settings.tagline || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-muted">Contact</dt>
+              <dd>{settings.contact_email || "—"}</dd>
+            </div>
+          </dl>
+        ) : (
+          <SiteSettingsForm settings={settings} />
+        )}
       </Card>
 
       <Card className="mt-6">
         <p className="mb-4 font-serif text-2xl text-gold-700">Announcements</p>
+        {readOnly ? (
+          <ul className="grid gap-2 text-sm">
+            {announcements.map((item) => (
+              <li key={item.id}>{item.title}</li>
+            ))}
+            {announcements.length ? null : <li className="text-ink-muted">None published.</li>}
+          </ul>
+        ) : (
+          <>
         <AnnouncementForm editions={editions} />
         <div className="mt-6 grid gap-4">
           {announcements.map((item) => (
@@ -96,10 +130,21 @@ export default async function AdminCmsPage() {
             </div>
           ))}
         </div>
+          </>
+        )}
       </Card>
 
       <Card className="mt-6">
         <p className="mb-4 font-serif text-2xl text-gold-700">Gallery</p>
+        {readOnly ? (
+          <ul className="grid gap-2 text-sm">
+            {albums.map((album) => (
+              <li key={album.id}>{album.title}</li>
+            ))}
+            {albums.length ? null : <li className="text-ink-muted">No albums.</li>}
+          </ul>
+        ) : (
+          <>
         <p className="mb-6 text-sm text-ink-muted">
           Albums need an edition. Add images as public URLs — no paid storage pipeline.
         </p>
@@ -133,6 +178,8 @@ export default async function AdminCmsPage() {
             </div>
           ))}
         </div>
+          </>
+        )}
       </Card>
     </Container>
   );

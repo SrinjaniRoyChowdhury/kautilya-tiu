@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ManualAttendanceForm } from "@/components/admin/manual-attendance-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { getRoleNames, hasPermission } from "@/lib/auth";
+import { isLimitedStaff } from "@/lib/staff-access";
 import {
   eventDayFromEdition,
   getActiveEdition,
@@ -29,16 +30,17 @@ export default async function AdminAttendancePage({
     null;
   const defaultDay = eventDayFromEdition(edition?.start_date);
   const eventDay = day ? Number(day) : defaultDay;
-  const [canView, canCorrect, roll, food, collections] = await Promise.all([
-    hasPermission("attendance.scan", edition?.id),
+  const readOnly = isLimitedStaff(await getRoleNames());
+  const canScanAtt = await hasPermission("attendance.scan", edition?.id);
+  const canManage = await hasPermission("edition.manage");
+  const canFood = edition ? await hasPermission("food.scan", edition.id) : false;
+  const canView = canScanAtt || canManage || readOnly;
+  const showFood = canFood || readOnly;
+  const [canCorrect, roll, food, collections] = await Promise.all([
     hasPermission("attendance.correct", edition?.id),
-    edition ? getAttendanceRoll(edition.id, eventDay) : Promise.resolve([]),
-    edition && (await hasPermission("food.scan", edition.id))
-      ? getFoodStats(edition.id)
-      : Promise.resolve([]),
-    edition && (await hasPermission("food.scan", edition.id))
-      ? getFoodCollections(edition.id, eventDay)
-      : Promise.resolve([]),
+    edition && canView ? getAttendanceRoll(edition.id, eventDay) : Promise.resolve([]),
+    edition && showFood ? getFoodStats(edition.id) : Promise.resolve([]),
+    edition && showFood ? getFoodCollections(edition.id, eventDay) : Promise.resolve([]),
   ]);
 
   if (!canView && food.length === 0) {
@@ -58,7 +60,11 @@ export default async function AdminAttendancePage({
       <PageHeader
         eyebrow="Staff"
         title="Venue"
-        description="Check-ins for the selected day, meal collection counts, and manual corrections."
+        description={
+          canCorrect
+            ? "Check-ins for the selected day, meal collection counts, and manual corrections."
+            : "Check-ins for the selected day and meal collection counts."
+        }
       />
       <div className="mb-6 flex flex-wrap gap-2">
         {[1, 2, 3].map((item) => (

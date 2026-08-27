@@ -27,9 +27,18 @@ export function CreateCollectiveForm() {
   );
 }
 
-export function CollectiveList({ rows }: { rows: Collective[] }) {
+export function CollectiveList({ rows, readOnly = false }: { rows: Collective[]; readOnly?: boolean }) {
   if (!rows.length) {
     return <p className="text-sm text-ink-muted">No collectives yet.</p>;
+  }
+  if (readOnly) {
+    return (
+      <ul className="grid gap-2 text-sm">
+        {rows.map((row) => (
+          <li key={row.id}>{row.name}</li>
+        ))}
+      </ul>
+    );
   }
   return (
     <ul className="grid gap-4">

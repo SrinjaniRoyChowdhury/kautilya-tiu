@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
+import { hasPermission } from "@/lib/auth";
 import { getAllEditionsAdmin } from "@/lib/data";
 
 export const metadata: Metadata = { title: "Editions" };
 
 export default async function AdminEditionsPage() {
   const editions = await getAllEditionsAdmin();
+  const canEdit = await hasPermission("edition.manage");
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Editions" />
+      {canEdit ? (
       <div className="mb-6">
         <Link
           href="/admin/editions/new"
@@ -18,10 +21,10 @@ export default async function AdminEditionsPage() {
           New edition
         </Link>
       </div>
+      ) : null}
       <div className="grid gap-3">
         {editions.map((edition) => (
-          <Link key={edition.id} href={`/admin/editions/${edition.id}`}>
-            <Card className="flex flex-wrap items-center justify-between gap-3 hover:bg-parchment-100">
+          <Card key={edition.id} className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-serif text-xl">{edition.name}</p>
                 <p className="text-sm text-ink-muted">
@@ -29,9 +32,14 @@ export default async function AdminEditionsPage() {
                   {edition.is_public_active ? " · public active" : ""}
                 </p>
               </div>
-              <span className="text-sm text-gold-700">Edit</span>
+              {canEdit ? (
+                <Link href={`/admin/editions/${edition.id}`} className="text-sm text-gold-700 hover:underline">
+                  Edit
+                </Link>
+              ) : (
+                <span className="text-sm text-ink-muted">{edition.theme || "—"}</span>
+              )}
             </Card>
-          </Link>
         ))}
       </div>
     </Container>

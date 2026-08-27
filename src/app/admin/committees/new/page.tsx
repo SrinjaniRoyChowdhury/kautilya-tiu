@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { CommitteeForm } from "@/components/admin/forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
+import { hasPermission } from "@/lib/auth";
 import { getAllEditionsAdmin } from "@/lib/data";
 
 export const metadata: Metadata = { title: "New committee" };
 
 export default async function NewCommitteePage() {
+  const allowed = await hasPermission("committee.manage");
+  if (!allowed) redirect("/admin/committees");
   const editions = await getAllEditionsAdmin();
   const defaultEditionId = editions.find((e) => e.is_public_active)?.id ?? editions[0]?.id;
 

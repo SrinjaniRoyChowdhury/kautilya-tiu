@@ -126,7 +126,7 @@ export async function getEditionById(id: string): Promise<Edition | null> {
 }
 
 const COMMITTEE_SELECT =
-  "id, edition_id, name, short_name, slug, description, rules_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order, allows_single_del, allows_double_del";
+  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order, allows_single_del, allows_double_del";
 
 const REGISTRATION_SELECT =
   "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";

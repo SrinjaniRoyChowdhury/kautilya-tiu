@@ -143,7 +143,7 @@ export default async function AdminPaymentsPage({
               </td>
               <td className="px-2 py-1.5 text-right">
                 <Link href={`/admin/payments/${payment.id}`} className="text-gold-700 hover:underline">
-                  Review
+                  Open
                 </Link>
               </td>
             </tr>

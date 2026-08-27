@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getDashboardKpis } from "@/lib/analytics";
-import { hasPermission } from "@/lib/auth";
+import { getRoleNames, hasPermission } from "@/lib/auth";
 import { getAllEditionsAdmin, getEditionExpenseTotal } from "@/lib/data";
 import { formatInrFromMinor } from "@/lib/format";
+import { isLimitedStaff, staffNavItems } from "@/lib/staff-access";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -35,20 +36,27 @@ export default async function AdminHomePage({
     editions[0] ??
     null;
   const extraActive = editions.filter((item) => item.is_public_active).length > 1;
+  const roles = await getRoleNames();
+  const limited = isLimitedStaff(roles);
+  const allowedHrefs = new Set(staffNavItems(roles).map((item) => item.href));
 
-  const [canReg, canPay, canAtt, canFood] = await Promise.all([
+  const [canReg, canPay, canAtt, canFood, canCms, canEdition, canQr, canVerify] = await Promise.all([
     hasPermission("registration.view", edition?.id),
     hasPermission("payment.view", edition?.id),
     hasPermission("attendance.scan", edition?.id),
     hasPermission("food.scan", edition?.id),
+    hasPermission("cms.manage"),
+    hasPermission("edition.manage"),
+    hasPermission("qr.regenerate"),
+    hasPermission("payment.verify", edition?.id),
   ]);
 
   const kpis = edition
     ? await getDashboardKpis(edition.id, {
         registration: canReg,
         payment: canPay,
-        attendance: canAtt,
-        food: canFood,
+        attendance: canAtt || limited,
+        food: canFood || limited,
       })
     : null;
   const expensesTotal = edition && canPay ? await getEditionExpenseTotal(edition.id) : 0;
@@ -122,7 +130,7 @@ export default async function AdminHomePage({
               ))}
             </ul>
             <Link href="/admin/payments" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
-              Open queue
+              {canVerify ? "Open queue" : "View queue"}
             </Link>
           </Card>
         ) : null}
@@ -204,29 +212,38 @@ export default async function AdminHomePage({
       ) : null}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {allowedHrefs.has("/admin/editions") ? (
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">Editions</p>
           <p className="mt-2 font-serif text-4xl text-gold-700">{editions.length}</p>
           <Link href="/admin/editions" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
-            Manage
+            {canEdition ? "Manage" : "View"}
           </Link>
         </Card>
+        ) : null}
+        {allowedHrefs.has("/admin/credentials") ? (
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">Credentials</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Regenerate a lost or leaked QR. The previous token fails immediately.
+            {canQr
+              ? "Regenerate a lost or leaked QR. The previous token fails immediately."
+              : "Confirmed delegates and their current QR codes."}
           </p>
           <Link href="/admin/credentials" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
             Open list
           </Link>
         </Card>
+        ) : null}
+        {allowedHrefs.has("/admin/cms") ? (
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">CMS</p>
           <p className="mt-2 text-sm text-ink-muted">Homepage, about, announcements, gallery.</p>
           <Link href="/admin/cms" className="mt-3 inline-block text-sm text-gold-700 hover:underline">
-            Edit content
+            {canCms ? "Edit content" : "View content"}
           </Link>
         </Card>
+        ) : null}
+        {allowedHrefs.has("/admin/reports") ? (
         <Card>
           <p className="text-xs uppercase tracking-widest text-gold-700">Reports</p>
           <p className="mt-2 text-sm text-ink-muted">CSV exports for participants, payments, attendance, food.</p>
@@ -234,6 +251,7 @@ export default async function AdminHomePage({
             Download
           </Link>
         </Card>
+        ) : null}
       </div>
     </Container>
   );

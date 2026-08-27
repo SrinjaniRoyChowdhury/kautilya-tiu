@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { createEditionAction, updateEditionAction, type FormState } from "@/app/actions/editions";
-import { createCommitteeAction, updateCommitteeAction } from "@/app/actions/committees";
+import { createCommitteeAction, updateCommitteeAction, updateCommitteeContentAction } from "@/app/actions/committees";
 import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
 import type { Committee, CommitteePhaseFee, Edition } from "@/types";
 
@@ -90,28 +90,70 @@ export function CommitteeForm({
   committee,
   defaultEditionId,
   fees = [],
+  mode = "full",
 }: {
   editions: Pick<Edition, "id" | "name">[];
   committee?: Committee;
   defaultEditionId?: string;
   fees?: CommitteePhaseFee[];
+  mode?: "full" | "content" | "view";
 }) {
-  const action = committee
-    ? updateCommitteeAction.bind(null, committee.id)
-    : createCommitteeAction;
+  const contentOnly = mode === "content";
+  const readOnly = mode === "view";
+  const action = contentOnly
+    ? updateCommitteeContentAction.bind(null, committee?.id ?? "")
+    : committee
+      ? updateCommitteeAction.bind(null, committee.id)
+      : createCommitteeAction;
   const [state, formAction, pending] = useActionState(action, {} as FormState);
   const ebDefault = committee?.eb_json?.map((m) => `${m.name} | ${m.title}`).join("\n") ?? "";
   const feeByKind = Object.fromEntries(
     fees.filter((row) => row.kind).map((row) => [row.kind, row]),
   ) as Record<string, CommitteePhaseFee>;
 
+  if (contentOnly && committee) {
+    return (
+      <form action={readOnly ? undefined : formAction} className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Field label="Full name" htmlFor="name">
+            <Input id="name" name="name" required defaultValue={committee.name} disabled={readOnly} />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Logo URL" htmlFor="logo_url" hint="Public image URL. Leave blank to hide.">
+            <Input id="logo_url" name="logo_url" type="url" defaultValue={committee.logo_url ?? ""} disabled={readOnly} />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
+            <Textarea id="description" name="description" defaultValue={committee.description ?? ""} disabled={readOnly} />
+          </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <Field label="Executive board" htmlFor="eb_json" hint="One per line: Name | Title">
+            <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} disabled={readOnly} />
+          </Field>
+        </div>
+        {readOnly ? null : (
+          <div className="sm:col-span-2">
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving…" : "Save public details"}
+            </Button>
+            <ActionFeedback error={state.error} success={state.success} />
+          </div>
+        )}
+      </form>
+    );
+  }
+
   return (
-    <form action={formAction} className="grid gap-4 sm:grid-cols-2">
+      <form action={readOnly ? undefined : formAction} className="grid gap-4 sm:grid-cols-2">
       <Field label="Edition" htmlFor="edition_id">
         <Select
           id="edition_id"
           name="edition_id"
           required
+          disabled={readOnly}
           defaultValue={committee?.edition_id ?? defaultEditionId}
         >
           {editions.map((edition) => (
@@ -122,18 +164,18 @@ export function CommitteeForm({
         </Select>
       </Field>
       <Field label="Short name" htmlFor="short_name" hint="e.g. UNSC">
-        <Input id="short_name" name="short_name" required defaultValue={committee?.short_name} />
+        <Input id="short_name" name="short_name" required defaultValue={committee?.short_name} disabled={readOnly} />
       </Field>
       <div className="sm:col-span-2">
         <Field label="Full name" htmlFor="name">
-          <Input id="name" name="name" required defaultValue={committee?.name} />
+          <Input id="name" name="name" required defaultValue={committee?.name} disabled={readOnly} />
         </Field>
       </div>
       <Field label="Slug" htmlFor="slug">
-        <Input id="slug" name="slug" defaultValue={committee?.slug} />
+        <Input id="slug" name="slug" defaultValue={committee?.slug} disabled={readOnly} />
       </Field>
       <Field label="Status" htmlFor="status">
-        <Select id="status" name="status" defaultValue={committee?.status ?? "OPEN"}>
+        <Select id="status" name="status" defaultValue={committee?.status ?? "OPEN"} disabled={readOnly}>
           <option value="OPEN">Open</option>
           <option value="CLOSED">Closed</option>
           <option value="HIDDEN">Hidden</option>
@@ -150,6 +192,7 @@ export function CommitteeForm({
             type="checkbox"
             name="allows_single_del"
             defaultChecked={committee?.allows_single_del ?? true}
+            disabled={readOnly}
             className="h-4 w-4"
           />
           Allow single delegation
@@ -159,6 +202,7 @@ export function CommitteeForm({
             type="checkbox"
             name="allows_double_del"
             defaultChecked={committee?.allows_double_del ?? false}
+            disabled={readOnly}
             className="h-4 w-4"
           />
           Allow double delegation
@@ -188,6 +232,7 @@ export function CommitteeForm({
                       min={0}
                       step="1"
                       required
+                      disabled={readOnly}
                       defaultValue={row ? row.single_fee_minor / 100 : fallback}
                       className="h-9 py-1.5"
                     />
@@ -199,6 +244,7 @@ export function CommitteeForm({
                       min={0}
                       step="1"
                       required
+                      disabled={readOnly}
                       defaultValue={row ? row.double_fee_minor / 100 : fallback}
                       className="h-9 py-1.5"
                     />
@@ -214,26 +260,32 @@ export function CommitteeForm({
           id="display_order"
           name="display_order"
           type="number"
+          disabled={readOnly}
           defaultValue={committee?.display_order ?? 0}
         />
       </Field>
+      <Field label="Logo URL" htmlFor="logo_url" hint="Public image URL. Leave blank to hide.">
+        <Input id="logo_url" name="logo_url" type="url" defaultValue={committee?.logo_url ?? ""} disabled={readOnly} />
+      </Field>
       <Field label="Rules URL" htmlFor="rules_url">
-        <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} />
+        <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} disabled={readOnly} />
       </Field>
       <div className="sm:col-span-2">
         <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
-          <Textarea id="description" name="description" defaultValue={committee?.description ?? ""} />
+          <Textarea id="description" name="description" defaultValue={committee?.description ?? ""} disabled={readOnly} />
         </Field>
       </div>
       <Field label="Executive board" htmlFor="eb_json" hint="One per line: Name | Title">
-        <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} />
+        <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} disabled={readOnly} />
       </Field>
+      {readOnly ? null : (
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : committee ? "Save committee" : "Create committee"}
         </Button>
         <ActionFeedback error={state.error} success={state.success} />
       </div>
+      )}
     </form>
   );
 }

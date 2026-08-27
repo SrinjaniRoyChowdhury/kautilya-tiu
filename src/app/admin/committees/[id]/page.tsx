@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { DelegationMatrix, PortfolioUploadForm } from "@/components/admin/delegation-matrix";
 import { CommitteeForm } from "@/components/admin/forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { hasPermission, getRoleNames } from "@/lib/auth";
+import { isReadOnlyStaff } from "@/lib/staff-access";
 import { getAllEditionsAdmin, getCommitteeById, getCommitteeDelegates, getCommitteeFeeRows } from "@/lib/data";
 import { canDownloadCommitteeAllocations } from "@/lib/reports";
 
@@ -22,13 +23,22 @@ export default async function EditCommitteePage({ params }: Props) {
   if (!committee) notFound();
   const canDownload = await canDownloadCommitteeAllocations(committee.edition_id);
   const canEdit = await hasPermission("committee.manage", committee.edition_id);
+  const canContent = await hasPermission("committee.content", committee.edition_id);
+  const readOnly = isReadOnlyStaff(await getRoleNames());
+  const mode = canEdit ? "full" : canContent && !readOnly ? "content" : "view";
 
   return (
     <Container className="py-12">
       <PageHeader
         eyebrow="Admin"
         title={committee.name}
-        description={`${committee.portfolio_config.length} delegations in this committee. Allocating a portfolio does not issue a new QR.`}
+        description={
+          canEdit
+            ? `${committee.portfolio_config.length} delegations in this committee. Allocating a portfolio does not issue a new QR.`
+            : mode === "content"
+              ? "Public name, description, logo, and executive board."
+              : `${committee.short_name} · ${committee.status}`
+        }
       />
       {canDownload ? (
         <p className="mb-6">
@@ -41,7 +51,7 @@ export default async function EditCommitteePage({ params }: Props) {
         </p>
       ) : null}
       <Card>
-        <CommitteeForm editions={editions} committee={committee} fees={fees} />
+        <CommitteeForm editions={editions} committee={committee} fees={fees} mode={mode} />
       </Card>
       {canEdit ? (
         <>

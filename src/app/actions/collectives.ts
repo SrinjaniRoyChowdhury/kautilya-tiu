@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { isStaffUser } from "@/lib/auth";
+import { hasPermission, isStaffUser } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,6 +25,7 @@ export async function createCollectiveAction(
   formData: FormData,
 ): Promise<CollectiveState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
+  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
   const supabase = await createClient();
@@ -52,6 +53,7 @@ export async function updateCollectiveAction(
   formData: FormData,
 ): Promise<CollectiveState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
+  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
   if (!isUuid(id)) return { error: "Missing collective." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
@@ -82,6 +84,7 @@ export async function deleteCollectiveAction(
   void _prev;
   void _formData;
   if (!(await isStaffUser())) return { error: "Staff only." };
+  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
   if (!isUuid(id)) return { error: "Missing collective." };
   const supabase = await createClient();
   const { error } = await supabase.from("collectives").delete().eq("id", id);

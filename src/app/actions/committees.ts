@@ -26,6 +26,7 @@ const committeeSchema = z.object({
   slug: z.string().trim().max(40).optional().or(z.literal("")),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   rules_url: z.string().url().optional().or(z.literal("")),
+  logo_url: z.string().url().optional().or(z.literal("")),
   fee_rupees: z.coerce.number().min(0).max(100000).optional(),
   allows_single_del: z.coerce.boolean().optional(),
   allows_double_del: z.coerce.boolean().optional(),
@@ -142,6 +143,7 @@ export async function createCommitteeAction(
     slug: formData.get("slug"),
     description: formData.get("description"),
     rules_url: formData.get("rules_url"),
+    logo_url: formData.get("logo_url"),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
@@ -173,6 +175,7 @@ export async function createCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
+      logo_url: parsed.data.logo_url || null,
       capacity: portfolios.rows.length,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
@@ -215,6 +218,7 @@ export async function updateCommitteeAction(
     slug: formData.get("slug"),
     description: formData.get("description"),
     rules_url: formData.get("rules_url"),
+    logo_url: formData.get("logo_url"),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
@@ -242,6 +246,7 @@ export async function updateCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
+      logo_url: parsed.data.logo_url || null,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
@@ -265,6 +270,56 @@ export async function updateCommitteeAction(
 
   revalidateCommittee(committeeId);
   return { success: "Committee saved. Existing registrations keep their snapshotted fee." };
+}
+
+const contentSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  description: z.string().trim().max(4000).optional().or(z.literal("")),
+  logo_url: z.string().url().optional().or(z.literal("")),
+  eb_json: z.string().optional().or(z.literal("")),
+});
+
+export async function updateCommitteeContentAction(
+  committeeId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!isUuid(committeeId)) return { error: "Missing committee." };
+  const canContent = await hasPermission("committee.content");
+  const canManage = await hasPermission("committee.manage");
+  if (!canContent && !canManage) {
+    return { error: "You can only edit committee name, description, logo, and executive board." };
+  }
+
+  const parsed = contentSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description"),
+    logo_url: formData.get("logo_url"),
+    eb_json: formData.get("eb_json"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("committees")
+    .update({
+      name: parsed.data.name,
+      description: parsed.data.description ? toPlainText(parsed.data.description) : null,
+      logo_url: parsed.data.logo_url || null,
+      eb_json: parseEb(parsed.data.eb_json),
+    })
+    .eq("id", committeeId);
+  if (error) return { error: error.message };
+
+  await admin.rpc("write_audit", {
+    p_action: "committee.content_update",
+    p_entity: "committees",
+    p_entity_id: committeeId,
+    p_old: null,
+    p_new: { name: parsed.data.name },
+  });
+  revalidateCommittee(committeeId);
+  return { success: "Committee public details saved." };
 }
 
 export async function uploadCommitteePortfoliosAction(

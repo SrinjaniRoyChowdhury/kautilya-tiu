@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { hasPermission, getRoleNames } from "@/lib/auth";
+import { isContentEditorOnly, isReadOnlyStaff } from "@/lib/staff-access";
 import { formatInrFromMinor } from "@/lib/format";
 import { getAllEditionsAdmin, getCommitteesForEdition } from "@/lib/data";
 import { canDownloadCommitteeAllocations } from "@/lib/reports";
@@ -16,6 +17,9 @@ export default async function AdminCommitteesPage() {
   const editionName = Object.fromEntries(editions.map((e) => [e.id, e.name]));
   const canCreate = await hasPermission("committee.manage");
   const canDownload = await canDownloadCommitteeAllocations();
+  const roles = await getRoleNames();
+  const readOnly = isReadOnlyStaff(roles);
+  const contentOnly = isContentEditorOnly(roles);
 
   return (
     <Container className="py-12">
@@ -38,9 +42,15 @@ export default async function AdminCommitteesPage() {
                 {committee.short_name} · {committee.name}
               </p>
               <p className="text-sm text-ink-muted">
-                {editionName[committee.edition_id]} · {formatInrFromMinor(committee.fee_minor)} ·{" "}
-                {committee.confirmed_count}/{committee.portfolio_config.length || committee.capacity}{" "}
-                delegations · {committee.status}
+                {editionName[committee.edition_id]}
+                {contentOnly ? null : (
+                  <>
+                    {" "}
+                    · {formatInrFromMinor(committee.fee_minor)} ·{" "}
+                    {committee.confirmed_count}/{committee.portfolio_config.length || committee.capacity}{" "}
+                    delegations · {committee.status}
+                  </>
+                )}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -53,7 +63,7 @@ export default async function AdminCommitteesPage() {
                 </a>
               ) : null}
               <Link href={`/admin/committees/${committee.id}`} className="text-sm text-gold-700 hover:underline">
-                Edit
+                {readOnly ? "View" : contentOnly ? "Edit public details" : "Edit"}
               </Link>
             </div>
           </Card>

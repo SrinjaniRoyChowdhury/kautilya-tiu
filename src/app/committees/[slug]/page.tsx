@@ -32,6 +32,14 @@ export default async function CommitteeDetailPage({ params }: Props) {
       <PageHeader eyebrow={committee.short_name} title={committee.name} />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <article>
+          {committee.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={committee.logo_url}
+              alt=""
+              className="mb-6 max-h-28 w-auto rounded-sm border border-gold-700/20 bg-parchment-100 object-contain"
+            />
+          ) : null}
           <p className="whitespace-pre-wrap text-ink-muted leading-7">
             {toPlainText(committee.description) || "A full briefing will be published with the study guide."}
           </p>
