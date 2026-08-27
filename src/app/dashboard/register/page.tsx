@@ -17,7 +17,7 @@ import {
   getCollectives,
 } from "@/lib/data";
 import { coveringPaymentLocksRegistration } from "@/lib/payments";
-import { isRegistrationOpen } from "@/lib/registration";
+import { isRegistrationOpen, needsConferenceRulesAcceptance } from "@/lib/registration";
 import type { Edition } from "@/types";
 
 export const metadata: Metadata = { title: "Registration" };
@@ -72,21 +72,21 @@ async function RegistrationBody({
   committeeSlug?: string;
 }) {
   const windowState = isRegistrationOpen(edition);
-  if (windowState !== "open") {
-    return (
-      <Card>
-        <p className="text-ink-muted">
-          {windowState === "not_open"
-            ? "Registration has not opened yet."
-            : "Registration is closed for this edition."}
-        </p>
-      </Card>
-    );
-  }
-
   let startError: string | null = null;
   let registration = await getMyRegistration(edition.id);
+
   if (!registration) {
+    if (windowState !== "open") {
+      return (
+        <Card>
+          <p className="text-ink-muted">
+            {windowState === "not_open"
+              ? "Registration has not opened yet."
+              : "Registration is closed for this edition."}
+          </p>
+        </Card>
+      );
+    }
     try {
       registration = await startRegistrationAction(edition.id);
     } catch (error) {
@@ -110,7 +110,10 @@ async function RegistrationBody({
     guidelines: docs.some((doc) => doc.kind === "guidelines"),
   };
 
-  if (!registration.accepted_rules_at) {
+  const covering = await getCoveringPaymentForRegistration(registration.id);
+  const paymentConfirmed = covering?.status === "VERIFIED" || registration.status === "CONFIRMED" || registration.status === "PAYMENT_VERIFIED";
+
+  if (needsConferenceRulesAcceptance(registration) && windowState === "open" && !paymentConfirmed) {
     return (
       <Card>
         <RulesAcceptance registrationId={registration.id} published={published} />
@@ -124,7 +127,6 @@ async function RegistrationBody({
     getRegistrationValues(registration.id),
     getCollectives(),
   ]);
-  const covering = await getCoveringPaymentForRegistration(registration.id);
   const preferred = committees.find((item) => item.slug === committeeSlug);
   const visible = committees.filter(
     (item) => item.status === "OPEN" || item.id === registration.committee_id,

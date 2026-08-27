@@ -16,6 +16,14 @@ export const PRE_PAYMENT_STATUSES = [
   "PAYMENT_REJECTED",
 ] as const;
 
+export function needsConferenceRulesAcceptance(registration: {
+  status: string;
+  accepted_rules_at?: string | null;
+}): boolean {
+  if (registration.accepted_rules_at) return false;
+  return registration.status === "DRAFT";
+}
+
 export function isRegistrationOpen(edition: {
   registration_open_at: string | null;
   registration_close_at: string | null;

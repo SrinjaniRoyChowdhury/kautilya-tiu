@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRegistrationSchema, isRegistrationOpen, seatsHeld } from "./registration";
+import { buildRegistrationSchema, isRegistrationOpen, needsConferenceRulesAcceptance, seatsHeld } from "./registration";
 
 describe("isRegistrationOpen", () => {
   const base = {
@@ -72,6 +72,22 @@ describe("buildRegistrationSchema", () => {
         institution: "TIU",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("needsConferenceRulesAcceptance", () => {
+  it("asks only when first starting a draft", () => {
+    expect(needsConferenceRulesAcceptance({ status: "DRAFT", accepted_rules_at: null })).toBe(true);
+    expect(
+      needsConferenceRulesAcceptance({
+        status: "DRAFT",
+        accepted_rules_at: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toBe(false);
+    expect(needsConferenceRulesAcceptance({ status: "PAYMENT_VERIFIED", accepted_rules_at: null })).toBe(
+      false,
+    );
+    expect(needsConferenceRulesAcceptance({ status: "CONFIRMED", accepted_rules_at: null })).toBe(false);
   });
 });
 

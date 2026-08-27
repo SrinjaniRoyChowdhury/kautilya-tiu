@@ -60,7 +60,7 @@ export async function startRegistrationAction(editionId: string): Promise<Regist
       const existing = await supabase
         .from("registrations")
         .select(
-          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead",
+          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead",
         )
         .eq("edition_id", editionId)
         .eq("user_id", user.id)

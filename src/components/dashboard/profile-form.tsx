@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
@@ -18,6 +19,13 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <Input id="phone" name="phone" type="tel" defaultValue={profile.phone ?? ""} />
       </Field>
       <p className="text-sm text-ink-muted">{profile.email}</p>
+      <p className="text-sm text-ink-muted">
+        To change password, contact{" "}
+        <Link href="/contact" className="text-gold-700 hover:underline">
+          helpdesk
+        </Link>
+        .
+      </p>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save profile"}
       </Button>
