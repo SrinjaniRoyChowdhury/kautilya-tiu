@@ -4,6 +4,7 @@ import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/com
 import { Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminParticipants, getAllEditionsAdmin } from "@/lib/data";
+import { formatDelegation } from "@/lib/format";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
 
 export const metadata: Metadata = { title: "Participants" };
@@ -42,7 +43,16 @@ export default async function AdminParticipantsPage({
     getAdminParticipants(editionId || null),
   ]);
   const visible = rows.filter((row) =>
-    matchesQuery(q, row.full_name, row.email, row.committee_short_name, row.status, row.collective_name),
+    matchesQuery(
+      q,
+      row.full_name,
+      row.email,
+      row.committee_short_name,
+      row.status,
+      row.collective_name,
+      row.allocated_portfolio,
+      row.display_code,
+    ),
   );
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, edition: editionId };
@@ -85,12 +95,15 @@ export default async function AdminParticipantsPage({
       }
     >
       {paged.items.length ? (
-        <AdminTable columns={["Name", "Email", "Committee", "Collective", "Delegation", "Status", ""]}>
+        <AdminTable columns={["Name", "Email", "Committee", "Allotment", "Collective", "Delegation", "Status", "QR", ""]}>
           {paged.items.map((row) => (
             <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
               <td className="px-2 py-1.5 font-medium">{row.full_name}</td>
               <td className="px-2 py-1.5 text-ink-muted">{row.email}</td>
               <td className="px-2 py-1.5 text-ink-muted">{row.committee_short_name ?? "—"}</td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {formatDelegation(row.allocated_slr, row.allocated_portfolio) ?? ""}
+              </td>
               <td className="px-2 py-1.5 text-ink-muted">{row.collective_name ?? "—"}</td>
               <td className="px-2 py-1.5 text-ink-muted">
                 {row.delegation_type === "DOUBLE" ? "Double" : "Single"}
@@ -100,6 +113,7 @@ export default async function AdminParticipantsPage({
                 {STATUS_COPY[row.status] ?? row.status}
                 {row.paid ? " · paid" : ""}
               </td>
+              <td className="px-2 py-1.5 font-mono text-sm tracking-wider">{row.display_code ?? ""}</td>
               <td className="px-2 py-1.5 text-right">
                 <Link href={`/admin/participants/${row.id}`} className="text-gold-700 hover:underline">
                   Open

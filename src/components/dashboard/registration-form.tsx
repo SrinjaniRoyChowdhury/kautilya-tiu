@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { Controller, useForm, useWatch, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { NameSuggestInput } from "@/components/ui/name-suggest";
 import { registrationFormAction, type RegistrationState } from "@/app/actions/registrations";
 import {
   buildRegistrationSchema,
@@ -81,6 +82,7 @@ export function RegistrationForm({
   committees,
   values,
   collectives,
+  institutions,
   preferredCommitteeId,
   paymentLocked = false,
 }: {
@@ -90,6 +92,7 @@ export function RegistrationForm({
   committees: Committee[];
   values: RegistrationFieldValue[];
   collectives: { id: string; name: string }[];
+  institutions: { id: string; name: string }[];
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
 }) {
@@ -264,17 +267,22 @@ export function RegistrationForm({
         <Field
           label="Are you part of a collective?"
           htmlFor="collective_id"
-          hint="School, contingent, or named group. Institution is optional if you select one."
+          hint="Start typing to filter collectives. Leave blank if you are registering independently. Institution is optional if you pick one."
           error={form.formState.errors.collective_id?.message as string | undefined}
         >
-          <Select id="collective_id" {...form.register("collective_id")}>
-            <option value="">No — registering independently</option>
-            {collectives.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </Select>
+          <Controller
+            name="collective_id"
+            control={form.control}
+            render={({ field }) => (
+              <CatalogIdSuggest
+                id="collective_id"
+                items={collectives}
+                selectedId={String(field.value ?? "")}
+                onSelectId={field.onChange}
+                placeholder="Type a collective name"
+              />
+            )}
+          />
         </Field>
       </fieldset>
 
@@ -287,6 +295,7 @@ export function RegistrationForm({
               field={field}
               control={form.control}
               register={form.register}
+              institutions={institutions}
               optional={field.field_key === "institution" && Boolean(collectiveId)}
               error={
                 (form.formState.errors[field.field_key]?.message as string | undefined) ??
@@ -325,21 +334,93 @@ export function RegistrationForm({
   );
 }
 
+function CatalogIdSuggest({
+  id,
+  items,
+  selectedId,
+  onSelectId,
+  placeholder,
+}: {
+  id: string;
+  items: { id: string; name: string }[];
+  selectedId: string;
+  onSelectId: (id: string) => void;
+  placeholder?: string;
+}) {
+  const selected = items.find((item) => item.id === selectedId);
+  const [text, setText] = useState(selected?.name ?? "");
+  useEffect(() => {
+    if (selectedId) {
+      const name = items.find((item) => item.id === selectedId)?.name;
+      if (name) setText(name);
+    }
+  }, [items, selectedId]);
+  return (
+    <div>
+    <NameSuggestInput
+      id={id}
+      items={items}
+      value={text}
+      placeholder={placeholder}
+      onChange={(next, match) => {
+        setText(next);
+        onSelectId(match?.id ?? "");
+      }}
+    />
+    {text.trim() && !selectedId ? (
+      <p className="mt-1 text-xs text-ink-muted">
+        No matching collective. Leave this blank if you are registering independently.
+      </p>
+    ) : null}
+    </div>
+  );
+}
+
 function DynamicField({
   field,
   control,
   register,
   error,
   optional = false,
+  institutions = [],
 }: {
   field: RegistrationFieldDefinition;
   control: Control<RegistrationFormValues>;
   register: UseFormRegister<RegistrationFormValues>;
   error?: string;
   optional?: boolean;
+  institutions?: { id: string; name: string }[];
 }) {
   const options = Array.isArray(field.options) ? field.options.map(String) : [];
-  const hint = field.required && !optional ? undefined : "Optional";
+  const hint =
+    field.field_key === "institution"
+      ? optional
+        ? "Optional because you selected a collective. Type to search, or enter any name."
+        : "Type to search suggested institutions. You can enter a name that is not on the list."
+      : field.required && !optional
+        ? undefined
+        : "Optional";
+
+  if (field.field_key === "institution") {
+    return (
+      <Field label={field.label} htmlFor={field.field_key} error={error} hint={hint}>
+        <Controller
+          name={field.field_key}
+          control={control}
+          render={({ field: rhf }) => (
+            <NameSuggestInput
+              id={field.field_key}
+              items={institutions}
+              value={String(rhf.value ?? "")}
+              maxLength={120}
+              placeholder="Start typing your institution"
+              onChange={(text) => rhf.onChange(text)}
+            />
+          )}
+        />
+      </Field>
+    );
+  }
 
   if (field.field_type === "boolean") {
     return (

@@ -167,6 +167,8 @@ export type Collective = {
   updated_at?: string;
 };
 
+export type Institution = Collective;
+
 export type ConferenceDocument = {
   kind: "rulebook" | "guidelines";
   file_name: string;
@@ -189,6 +191,9 @@ export type AdminParticipant = {
   collective_name?: string | null;
   delegation_type?: DelegationType | null;
   partner_email?: string | null;
+  allocated_slr?: number | null;
+  allocated_portfolio?: string | null;
+  display_code?: string | null;
 };
 
 export type FoodCollectionRow = {

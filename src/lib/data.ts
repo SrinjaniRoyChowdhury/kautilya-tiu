@@ -22,6 +22,7 @@ import type {
   FoodStat,
   GalleryAlbum,
   GalleryImage,
+  Institution,
   MealSchedule,
   AttendanceRow,
   QrToken,
@@ -964,9 +965,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     .from("registrations")
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
+       allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name),
-       collectives:collective_id (name)`,
+       collectives:collective_id (name),
+       qr_tokens (display_code, status, issued_at)`,
     )
     .is("deleted_at", null)
     .neq("status", "CANCELLED")
@@ -981,9 +984,15 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     food_preference: AdminParticipant["food_preference"];
     delegation_type: AdminParticipant["delegation_type"];
     partner_email: string | null;
+    allocated_slr: number | null;
+    allocated_portfolio: string | null;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
+    qr_tokens:
+      | { display_code: string; status: string; issued_at: string }[]
+      | { display_code: string; status: string; issued_at: string }
+      | null;
   };
   const rows = (data as Row[] | null) ?? [];
   const ids = rows.map((row) => row.id);
@@ -1010,6 +1019,8 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
     const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
+    const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
+    const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
     const paid =
       row.status === "CONFIRMED" ||
       row.status === "PAYMENT_VERIFIED" ||
@@ -1027,6 +1038,9 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       collective_name: collective?.name ?? null,
       delegation_type: row.delegation_type ?? "SINGLE",
       partner_email: row.partner_email,
+      allocated_slr: row.allocated_slr,
+      allocated_portfolio: row.allocated_portfolio,
+      display_code: active?.display_code ?? null,
     };
   });
 }
@@ -1147,6 +1161,15 @@ export async function getCollectives(): Promise<Collective[]> {
     .select("id, name, created_at, updated_at")
     .order("name", { ascending: true });
   return (data as Collective[]) ?? [];
+}
+
+export async function getInstitutions(): Promise<Institution[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("institutions")
+    .select("id, name, created_at, updated_at")
+    .order("name", { ascending: true });
+  return (data as Institution[]) ?? [];
 }
 
 export async function getRegistrationPhases(editionId: string): Promise<RegistrationPhase[]> {

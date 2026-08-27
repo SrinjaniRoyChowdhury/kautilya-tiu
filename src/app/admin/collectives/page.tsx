@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { CollectiveList, CreateCollectiveForm } from "@/components/admin/collective-forms";
+import {
+  CollectiveList,
+  CreateCollectiveForm,
+  CreateInstitutionForm,
+  InstitutionList,
+} from "@/components/admin/collective-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getRoleNames, hasPermission } from "@/lib/auth";
-import { getCollectives } from "@/lib/data";
+import { getCollectives, getInstitutions } from "@/lib/data";
 import { isLimitedStaff } from "@/lib/staff-access";
 
 export const metadata: Metadata = { title: "Collectives" };
@@ -18,24 +23,34 @@ export default async function AdminCollectivesPage() {
     );
   }
 
-  const rows = await getCollectives();
+  const [collectives, institutions] = await Promise.all([getCollectives(), getInstitutions()]);
 
   return (
     <Container className="py-8">
       <PageHeader
-        title="Collectives"
-        description="Named groups such as a school contingent. Delegates can pick one while registering. Institution becomes optional if they belong to a collective."
+        title="Collectives and institutions"
+        description="Suggested names for registration. Delegates type to filter these lists. They can still enter an institution that is not on the list."
       />
       <div className="grid gap-6 lg:grid-cols-2">
         {canEdit ? (
-        <Card>
-          <p className="mb-4 font-serif text-2xl text-gold-700">Add collective</p>
-          <CreateCollectiveForm />
-        </Card>
+          <Card>
+            <p className="mb-4 font-serif text-2xl text-gold-700">Add collective</p>
+            <CreateCollectiveForm />
+          </Card>
         ) : null}
         <Card>
           <p className="mb-4 font-serif text-2xl text-gold-700">Current collectives</p>
-          <CollectiveList rows={rows} readOnly={!canEdit} />
+          <CollectiveList rows={collectives} readOnly={readOnly} />
+        </Card>
+        {canEdit ? (
+          <Card>
+            <p className="mb-4 font-serif text-2xl text-gold-700">Add institution</p>
+            <CreateInstitutionForm />
+          </Card>
+        ) : null}
+        <Card>
+          <p className="mb-4 font-serif text-2xl text-gold-700">Current institutions</p>
+          <InstitutionList rows={institutions} readOnly={readOnly} />
         </Card>
       </div>
     </Container>
