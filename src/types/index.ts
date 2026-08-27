@@ -267,6 +267,7 @@ export type AuditLog = {
 export type Profile = {
   id: string;
   email: string;
+  username?: string | null;
   full_name: string;
   phone: string | null;
   email_verified_at: string | null;
@@ -289,6 +290,20 @@ export type ScannerAssignment = {
   email: string;
   edition_name: string | null;
   password_plain?: string | null;
+};
+
+export type StaffAccount = {
+  user_id: string;
+  assignment_ids: string[];
+  full_name: string;
+  username: string | null;
+  email: string;
+  password_plain: string | null;
+  kind: "scanner" | "editor" | "delegate_affairs" | "viewer";
+  role_names: string[];
+  desk: "attendance" | "food" | "both" | null;
+  edition_id: string | null;
+  edition_name: string | null;
 };
 
 export type CommitteeDelegate = {

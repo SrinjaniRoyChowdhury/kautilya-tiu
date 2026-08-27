@@ -21,6 +21,8 @@ services:
       - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-http://host.docker.internal:54321}
     restart: unless-stopped
     healthcheck:
       test:

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isConferenceMeal } from "@/lib/meals";
 import { normalizePortfolios } from "@/lib/sheet";
+import { deskFromRoleNames, kindFromRoleNames } from "@/lib/username";
 import type {
   AdminParticipant,
   Announcement,
@@ -30,7 +31,7 @@ import type {
   RegistrationPhase,
   SiteSettings,
   TeamMember,
-  ScannerAssignment,
+  StaffAccount,
 } from "@/types";
 
 const fallbackSettings: SiteSettings = {
@@ -262,12 +263,12 @@ export async function getAllEditionsAdmin(): Promise<Edition[]> {
   return (data as Edition[]) ?? [];
 }
 
-export async function getScannerAssignments(): Promise<ScannerAssignment[]> {
+export async function getManagedStaffAccounts(): Promise<StaffAccount[]> {
   const supabase = await createClient();
   const [{ data }, editions, secretsRes] = await Promise.all([
     supabase
       .from("user_roles")
-      .select("id, user_id, edition_id, roles(name), users(full_name, email)")
+      .select("id, user_id, edition_id, roles(name), users(full_name, email, username)")
       .order("created_at", { ascending: false }),
     getAllEditionsAdmin(),
     supabase.from("scanner_secrets").select("user_id, password_plain"),
@@ -284,65 +285,63 @@ export async function getScannerAssignments(): Promise<ScannerAssignment[]> {
     user_id: string;
     edition_id: string | null;
     roles: { name: string } | { name: string }[] | null;
-    users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+    users:
+      | { full_name: string; email: string; username: string | null }
+      | { full_name: string; email: string; username: string | null }[]
+      | null;
   }>;
-  return rows.flatMap((row) => {
-    const role = Array.isArray(row.roles) ? row.roles[0] : row.roles;
-    if (role?.name !== "ATTENDANCE_OPERATOR" && role?.name !== "FOOD_OPERATOR") return [];
-    const user = Array.isArray(row.users) ? row.users[0] : row.users;
-    return [
-      {
-        id: row.id,
-        user_id: row.user_id,
-        edition_id: row.edition_id,
-        role_name: role.name,
-        full_name: user?.full_name ?? "Scanner",
-        email: user?.email ?? "",
-        edition_name: row.edition_id ? (editionName.get(row.edition_id) ?? null) : null,
-        password_plain: secrets.get(row.user_id) ?? null,
-      },
-    ];
-  });
-}
 
-export async function getEditorAssignments(): Promise<ScannerAssignment[]> {
-  const supabase = await createClient();
-  const [{ data }, secretsRes] = await Promise.all([
-    supabase
-      .from("user_roles")
-      .select("id, user_id, edition_id, roles(name), users(full_name, email)")
-      .order("created_at", { ascending: false }),
-    supabase.from("scanner_secrets").select("user_id, password_plain"),
-  ]);
-  const secrets = new Map(
-    ((secretsRes.data ?? []) as Array<{ user_id: string; password_plain: string }>).map((row) => [
-      row.user_id,
-      row.password_plain,
-    ]),
-  );
-  const rows = (data ?? []) as Array<{
-    id: string;
-    user_id: string;
-    edition_id: string | null;
-    roles: { name: string } | { name: string }[] | null;
-    users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
-  }>;
-  return rows.flatMap((row) => {
+  const grouped = new Map<
+    string,
+    {
+      user_id: string;
+      assignment_ids: string[];
+      role_names: string[];
+      full_name: string;
+      username: string | null;
+      email: string;
+      edition_id: string | null;
+    }
+  >();
+
+  for (const row of rows) {
     const role = Array.isArray(row.roles) ? row.roles[0] : row.roles;
-    if (role?.name !== "CONTENT_EDITOR") return [];
+    const kind = kindFromRoleNames(role ? [role.name] : []);
+    if (!kind || !role) continue;
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
-    return [
-      {
-        id: row.id,
-        user_id: row.user_id,
-        edition_id: row.edition_id,
-        role_name: role.name,
-        full_name: user?.full_name ?? "Editor",
-        email: user?.email ?? "",
-        edition_name: null,
-        password_plain: secrets.get(row.user_id) ?? null,
-      },
-    ];
+    const current = grouped.get(row.user_id);
+    if (current) {
+      current.assignment_ids.push(row.id);
+      if (!current.role_names.includes(role.name)) current.role_names.push(role.name);
+      if (!current.edition_id && row.edition_id) current.edition_id = row.edition_id;
+      continue;
+    }
+    grouped.set(row.user_id, {
+      user_id: row.user_id,
+      assignment_ids: [row.id],
+      role_names: [role.name],
+      full_name: user?.full_name ?? "Staff",
+      username: user?.username ?? null,
+      email: user?.email ?? "",
+      edition_id: row.edition_id,
+    });
+  }
+
+  return [...grouped.values()].map((person) => {
+    const kind = kindFromRoleNames(person.role_names) ?? "viewer";
+    return {
+      user_id: person.user_id,
+      assignment_ids: person.assignment_ids,
+      full_name: person.full_name,
+      username: person.username,
+      email: person.email,
+      password_plain: secrets.get(person.user_id) ?? null,
+      kind,
+      role_names: person.role_names,
+      desk: deskFromRoleNames(person.role_names),
+      edition_id: person.edition_id,
+      edition_name: person.edition_id ? (editionName.get(person.edition_id) ?? null) : null,
+    };
   });
 }
 

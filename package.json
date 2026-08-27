@@ -14,6 +14,7 @@
     "db:reset": "npx supabase db reset",
     "db:status": "npx supabase status",
     "db:backup": "node scripts/backup.mjs",
+    "secrets:check": "node scripts/check-secrets.mjs",
     "smoke": "node scripts/load-smoke.mjs",
     "compose:up": "docker compose up --build",
     "compose:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build"

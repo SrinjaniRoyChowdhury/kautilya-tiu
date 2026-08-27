@@ -55,10 +55,10 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={societyName}>
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />
           <span className="flex min-w-0 flex-col leading-none">
-            <span className="font-serif text-xl font-semibold tracking-wide text-gold-700 sm:text-2xl">
+            <span className="font-serif text-xl font-bold tracking-wide text-gold-700 sm:text-2xl">
               Kautilya
             </span>
-            <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-gold-700">
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] text-gold-700">
               Model United Nations
             </span>
           </span>
@@ -73,9 +73,9 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "border-b-2 pb-0.5 text-sm hover:text-gold-700",
+                  "border-b-2 pb-0.5 text-sm font-semibold hover:text-gold-700",
                   active
-                    ? "border-gold-700 font-medium text-gold-700"
+                    ? "border-gold-700 text-gold-700"
                     : "border-transparent text-ink-muted",
                 )}
               >
@@ -90,20 +90,20 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
             onAdmin ? null : (
             <>
               {isStaff ? (
-                <Link href="/admin" className="text-sm text-gold-700 hover:underline">
+                <Link href="/admin" className="text-sm font-semibold text-gold-700 hover:underline">
                   Admin
                 </Link>
               ) : null}
               {canScan ? (
-                <Link href="/scan" className="text-sm text-gold-700 hover:underline">
+                <Link href="/scan" className="text-sm font-semibold text-gold-700 hover:underline">
                   Scan
                 </Link>
               ) : null}
-              <Link href="/dashboard" className="text-sm text-ink-muted hover:text-gold-700">
+              <Link href="/dashboard" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
                 Dashboard
               </Link>
               <form action={logoutAction}>
-                <button type="submit" className="text-sm text-ink-muted hover:text-gold-700">
+                <button type="submit" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
                   Sign out
                 </button>
               </form>
@@ -111,12 +111,12 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
             )
           ) : (
             <>
-              <Link href="/login" className="text-sm text-ink-muted hover:text-gold-700">
+              <Link href="/login" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="inline-flex h-10 items-center rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50"
+                className="inline-flex h-10 items-center rounded-sm bg-gold-700 px-4 text-sm font-semibold text-parchment-50"
               >
                 Register
               </Link>
@@ -147,9 +147,9 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
                   href={link.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "w-fit border-b-2 pb-0.5 text-base",
+                    "w-fit border-b-2 pb-0.5 text-base font-semibold",
                     active
-                      ? "border-gold-700 font-medium text-gold-700"
+                      ? "border-gold-700 text-gold-700"
                       : "border-transparent text-ink",
                   )}
                   onClick={() => setOpen(false)}
@@ -161,30 +161,30 @@ export function Header({ societyName, email, isStaff, canScan }: Props) {
             {email ? (
               onAdmin ? null : (
               <>
-                <Link href="/dashboard" onClick={() => setOpen(false)}>
+                <Link href="/dashboard" className="font-semibold" onClick={() => setOpen(false)}>
                   Dashboard
                 </Link>
                 {isStaff ? (
-                  <Link href="/admin" onClick={() => setOpen(false)}>
+                  <Link href="/admin" className="font-semibold" onClick={() => setOpen(false)}>
                     Admin
                   </Link>
                 ) : null}
                 {canScan ? (
-                  <Link href="/scan" onClick={() => setOpen(false)}>
+                  <Link href="/scan" className="font-semibold" onClick={() => setOpen(false)}>
                     Scan
                   </Link>
                 ) : null}
                 <form action={logoutAction}>
-                  <button type="submit">Sign out</button>
+                  <button type="submit" className="font-semibold">Sign out</button>
                 </form>
               </>
               )
             ) : (
               <>
-                <Link href="/login" onClick={() => setOpen(false)}>
+                <Link href="/login" className="font-semibold" onClick={() => setOpen(false)}>
                   Sign in
                 </Link>
-                <Link href="/signup" onClick={() => setOpen(false)}>
+                <Link href="/signup" className="font-semibold" onClick={() => setOpen(false)}>
                   Register
                 </Link>
               </>

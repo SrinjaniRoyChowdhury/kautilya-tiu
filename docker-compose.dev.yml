@@ -15,4 +15,5 @@ services:
     environment:
       WATCHPACK_POLLING: "true"
       MAILPIT_URL: ${MAILPIT_URL:-http://host.docker.internal:54324}
+      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-http://host.docker.internal:54321}
     command: ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]

@@ -16,7 +16,7 @@ export default async function LoginPage({
         <PageHeader
           eyebrow="Account"
           title="Sign in"
-          description="Delegates use this form for registration. Desk scanners sign in with the email and password the secretariat created."
+          description="Delegates sign in with email. Staff accounts created under Admin → Accounts sign in with username and password."
         />
       <Card className="max-w-md">
         <LoginForm nextPath={safeInternalPath(next, "/dashboard")} />

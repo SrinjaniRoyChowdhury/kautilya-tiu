@@ -23,6 +23,20 @@
 # misc
 .DS_Store
 *.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+*.ppk
+credentials.json
+*-credentials.json
+serviceAccount*.json
+*-service-account.json
+.secrets
+/secrets/
+docker-compose.override.yml
 
 # debug
 npm-debug.log*
@@ -30,9 +44,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — never commit real secrets; examples are allowed
+.env
+.env.*
 !.env.example
+!.env*.example
 
 # supabase local
 supabase/.temp

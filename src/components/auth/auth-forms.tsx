@@ -12,8 +12,8 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="next" value={nextPath} />
-      <Field label="Email" htmlFor="email" error={state.fieldErrors?.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+      <Field label="Email or username" htmlFor="identifier" error={state.fieldErrors?.identifier}>
+        <Input id="identifier" name="identifier" autoComplete="username" required />
       </Field>
       <Field label="Password" htmlFor="password" error={state.fieldErrors?.password}>
         <Input id="password" name="password" type="password" autoComplete="current-password" required />

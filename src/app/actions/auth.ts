@@ -10,8 +10,9 @@ import {
   clientKeyFromHeaders,
   rateLimit,
 } from "@/lib/rate-limit";
-import { hasScanAccess, getRoleNames, isContentEditorOnly, isOperatorOnly, isProtectedAdminEmail } from "@/lib/auth";
+import { hasScanAccess, getRoleNames, isContentEditorOnly, isDelegateAffairsOnly, isOperatorOnly, isProtectedAdminEmail, isViewerOnly } from "@/lib/auth";
 import { safeInternalPath } from "@/lib/safe-path";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const signupSchema = z.object({
@@ -32,7 +33,7 @@ const signupSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().trim().email("Enter a valid email"),
+  identifier: z.string().trim().min(1, "Enter your email or username"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -95,30 +96,48 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   };
 }
 
+async function resolveLoginEmail(identifier: string): Promise<string | null> {
+  const value = identifier.trim().toLowerCase();
+  if (!value) return null;
+  if (value.includes("@")) return value;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("users").select("email").eq("username", value).maybeSingle();
+    return (data as { email: string } | null)?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
+    identifier: formData.get("identifier") ?? formData.get("email"),
     password: formData.get("password"),
   });
   if (!parsed.success) return firstIssue(parsed.error);
 
   const ip = await authClientKey();
-  const emailKey = parsed.data.email.toLowerCase();
+  const identKey = parsed.data.identifier.toLowerCase();
   if (
     !rateLimit(`login-ip:${ip}`, AUTH_LIMIT, AUTH_WINDOW_MS) ||
-    !rateLimit(`login:${ip}:${emailKey}`, AUTH_LIMIT, AUTH_WINDOW_MS)
+    !rateLimit(`login:${ip}:${identKey}`, AUTH_LIMIT, AUTH_WINDOW_MS)
   ) {
     return { error: "Too many sign-in attempts. Try again in 15 minutes." };
   }
 
+  const email = await resolveLoginEmail(parsed.data.identifier);
+  if (!email) {
+    return { error: "Invalid username or password." };
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
+    email,
     password: parsed.data.password,
   });
 
   if (error) {
-    return { error: "Invalid email or password." };
+    return { error: "Invalid username or password." };
   }
 
   const requested = safeInternalPath(formData.get("next"), "/dashboard");
@@ -130,6 +149,8 @@ async function postLoginPath(requested: string): Promise<string> {
   if (requested.startsWith("/scan") && !canScan) return "/dashboard";
   if (isOperatorOnly(roles)) return "/scan";
   if (isContentEditorOnly(roles)) return "/admin/cms";
+  if (isDelegateAffairsOnly(roles)) return "/admin/participants";
+  if (isViewerOnly(roles)) return "/admin";
   return requested;
 }
 
