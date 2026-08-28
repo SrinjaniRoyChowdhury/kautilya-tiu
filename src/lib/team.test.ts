@@ -20,7 +20,7 @@ const member = (overrides: Partial<TeamMember> & Pick<TeamMember, "id" | "full_n
 
 describe("splitOfficerNames", () => {
   it("splits co-holders on &", () => {
-    expect(splitOfficerNames("Nilanjana & Pratik")).toEqual(["Nilanjana", "Pratik"]);
+    expect(splitOfficerNames("Pratik & Nilanjana")).toEqual(["Pratik", "Nilanjana"]);
   });
 
   it("keeps a single name", () => {
@@ -54,10 +54,10 @@ describe("contactFaces", () => {
     const faces = contactFaces([
       member({
         id: "sg",
-        full_name: "Nilanjana & Pratik",
+        full_name: "Pratik & Nilanjana",
         role_title: "Secretary-General",
       }),
     ]);
-    expect(faces.map((face) => face.full_name)).toEqual(["Nilanjana", "Pratik"]);
+    expect(faces.map((face) => face.full_name)).toEqual(["Pratik", "Nilanjana"]);
   });
 });

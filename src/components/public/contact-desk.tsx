@@ -6,11 +6,13 @@ import { BrandLogo } from "@/components/brand/logo";
 import {
   ARTHASHASTRA,
   CONTACT_DESKS,
+  CONTACT_PEOPLE,
   VENUE,
   deskMailto,
   instagramHandle,
   mapsEmbedSrc,
   mapsOpenUrl,
+  telHref,
 } from "@/lib/contact";
 import { formatDateRange } from "@/lib/format";
 import type { Edition, SiteSettings, TeamMember } from "@/types";
@@ -39,7 +41,6 @@ export function ContactDesk({
   edition: Edition | null;
 }) {
   const email = settings.contact_email ?? "tiukautilya@gmail.com";
-  const phone = settings.contact_phone;
   const instagram = settings.instagram_url || "https://www.instagram.com/kautilya_tiu/";
   const desks = CONTACT_DESKS.filter((desk) => desk.id !== "other");
 
@@ -72,7 +73,7 @@ export function ContactDesk({
           Three desks
         </h2>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
-          One action each. No phone directory, no identical cards.
+          One action each. Call the help desk if you need someone now.
         </p>
         <div className="mt-6 grid border-y border-gold-700/25 md:grid-cols-3 md:divide-x md:divide-gold-700/20">
           {desks.map((desk, index) => (
@@ -153,15 +154,21 @@ export function ContactDesk({
                 {formatDateRange(edition.start_date, edition.end_date)}
               </p>
             ) : null}
-            {phone ? (
-              <p className="mt-4 text-sm text-parchment-200">
-                Or call the secretariat{" "}
-                <a className="text-gold-400 hover:underline" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
-                  {phone}
-                </a>
-                .
-              </p>
-            ) : null}
+            <ul className="mt-4 space-y-3 border-t border-gold-400/20 pt-4">
+              {CONTACT_PEOPLE.map((person) => (
+                <li key={person.phone}>
+                  {person.label ? (
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold-400">
+                      {person.label}
+                    </p>
+                  ) : null}
+                  <p className="font-heading text-sm font-semibold text-parchment-50">{person.name}</p>
+                  <a className="text-sm text-gold-400 hover:underline" href={telHref(person.phone)}>
+                    {person.phone}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </section>
 
           <a

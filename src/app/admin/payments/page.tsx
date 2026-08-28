@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ReceivingQrForm } from "@/components/admin/receiving-qr-form";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/field";
 import { hasPermission } from "@/lib/auth";
-import { getAdminPayments, getAllEditionsAdmin } from "@/lib/data";
+import { getAdminPayments, getAllEditionsAdmin, getPaymentInstructions } from "@/lib/data";
 import { formatDateTime12h, formatInrFromMinor } from "@/lib/format";
 import { AMOUNT_FLAG_COPY, PAYMENT_STATUS_COPY, participantEmail } from "@/lib/payments";
 import { adminListHref, inDateRange, matchesQuery, paginate, parsePage } from "@/lib/search";
@@ -39,10 +40,17 @@ export default async function AdminPaymentsPage({
     );
   }
 
-  const [editions, payments] = await Promise.all([
+  const [editions, payments, canEditQr] = await Promise.all([
     getAllEditionsAdmin(),
     getAdminPayments(editionId || null),
+    hasPermission("edition.manage"),
   ]);
+  const qrEdition =
+    editions.find((item) => item.id === editionId) ??
+    editions.find((item) => item.is_public_active) ??
+    editions[0] ??
+    null;
+  const instructions = qrEdition ? await getPaymentInstructions(qrEdition.id) : null;
   const activeFilter = FILTERS.find((item) => item.id === filter) ?? FILTERS[0];
   const visible = (activeFilter.statuses
     ? payments.filter((item) => activeFilter.statuses?.includes(item.status))
@@ -121,6 +129,21 @@ export default async function AdminPaymentsPage({
         </>
       }
     >
+      {qrEdition ? (
+        <div className="mb-4 rounded-sm border border-gold-700/20 p-3">
+          <p className="mb-1 font-serif text-lg text-gold-700">Receiving QR</p>
+          <p className="mb-3 text-xs text-ink-muted">
+            Shown to delegates on payment details for {qrEdition.name}. Upload or replace the image
+            here.
+          </p>
+          <ReceivingQrForm
+            editionId={qrEdition.id}
+            imageKey={instructions?.upi_qr_image_key}
+            canEdit={canEditQr}
+            compact
+          />
+        </div>
+      ) : null}
       {paged.items.length ? (
         <AdminTable columns={["Payer", "Status", "Amount", "Delegates", "When", ""]}>
           {paged.items.map((payment) => (

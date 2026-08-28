@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Textarea } from "@/components/ui/field";
+import { PaymentQrImage } from "@/components/pay/payment-qr-image";
 import { updatePaymentInstructionsAction, type PaymentState } from "@/app/actions/payments";
 import type { PaymentInstructions } from "@/types";
 
@@ -46,15 +47,23 @@ export function PaymentInstructionsForm({
         <Field
           label="UPI QR image"
           htmlFor="upi_qr"
-          hint="Only secretariat admins can change this. Delegates see it on the pay page."
+          hint="Delegates see this on payment details. You can also change it from Admin → Payments."
         >
           <Input id="upi_qr" name="upi_qr" type="file" accept="image/jpeg,image/png,image/webp" />
         </Field>
         {instructions?.upi_qr_image_key ? (
-          <label className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
-            <input type="checkbox" name="remove_qr" />
-            Remove the current QR
-          </label>
+          <div className="mt-3 flex flex-wrap items-start gap-4">
+            <PaymentQrImage
+              editionId={editionId}
+              imageKey={instructions.upi_qr_image_key}
+              alt="Current receiving QR"
+              className="h-36 w-36 rounded-sm border border-gold-700/25 bg-parchment-50 object-contain p-1"
+            />
+            <label className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+              <input type="checkbox" name="remove_qr" />
+              Remove the current QR
+            </label>
+          </div>
         ) : null}
       </div>
       <div className="sm:col-span-2">

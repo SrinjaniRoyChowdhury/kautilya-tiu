@@ -1168,7 +1168,7 @@ insert into public.site_settings (
   '<p>To run a conference that is operationally exact — seats, payments, credentials, and logistics that do not fail under load — and intellectually serious enough that a first-time delegate leaves knowing how a resolution is actually made.</p>',
   '<p>The society has hosted successive editions of Kautilya MUN without rebuilding the platform each year. Past committees, galleries, and results remain on this site so the record of the conference outlasts any single secretariat.</p>',
   'tiukautilya@gmail.com',
-  '+91 90000 00000',
+  '9049064408',
   'Techno India University, West Bengal, India',
   'https://www.instagram.com/kautilya_tiu/',
   '[{"label":"Editions hosted","value":"1"},{"label":"Committees / year","value":"6"},{"label":"Delegates","value":"300+"}]'::jsonb

@@ -9,6 +9,18 @@ export const ARTHASHASTRA = {
   attribution: "Kautilya, Arthashastra",
 } as const;
 
+export const CONTACT_PEOPLE = [
+  { name: "Bipul", label: "Help desk", phone: "9049064408" },
+  { name: "Nilanjana", label: null, phone: "7439493303" },
+  { name: "Pratik", label: null, phone: "9903693894" },
+] as const;
+
+export const HELP_DESK_PHONE = CONTACT_PEOPLE[0].phone;
+
+export function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
 export const CONTACT_DESKS = [
   {
     id: "delegate",

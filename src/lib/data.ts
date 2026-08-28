@@ -33,6 +33,7 @@ import type {
   SiteSettings,
   TeamMember,
   StaffAccount,
+  AdminUser,
 } from "@/types";
 
 const fallbackSettings: SiteSettings = {
@@ -42,7 +43,7 @@ const fallbackSettings: SiteSettings = {
   mission_html: null,
   history_html: null,
   contact_email: "tiukautilya@gmail.com",
-  contact_phone: null,
+  contact_phone: "9049064408",
   contact_address: "Techno India University, West Bengal, India",
   instagram_url: "https://www.instagram.com/kautilya_tiu/",
   linkedin_url: null,
@@ -1050,6 +1051,90 @@ export async function getAdminParticipant(
 ): Promise<AdminParticipant | null> {
   const rows = await getAdminParticipants();
   return rows.find((row) => row.id === registrationId) ?? null;
+}
+
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const supabase = await createClient();
+  const [{ data: users }, { data: roleRows }, { data: registrations }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id, email, full_name, phone, email_verified_at, status, created_at")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase.from("user_roles").select("user_id"),
+    supabase
+      .from("registrations")
+      .select("id, user_id, status, submitted_at, committees:committee_id (short_name)")
+      .is("deleted_at", null)
+      .neq("status", "CANCELLED"),
+  ]);
+
+  const staffIds = new Set(
+    ((roleRows ?? []) as Array<{ user_id: string }>).map((row) => row.user_id),
+  );
+
+  type RegRow = {
+    id: string;
+    user_id: string;
+    status: AdminUser["registration_status"];
+    submitted_at: string | null;
+    committees: { short_name: string } | { short_name: string }[] | null;
+  };
+  const registrationByUser = new Map<
+    string,
+    {
+      registration_id: string;
+      status: AdminUser["registration_status"];
+      committee_short_name: string | null;
+      submitted: number;
+    }
+  >();
+  for (const row of (registrations as RegRow[] | null) ?? []) {
+    const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const submitted = row.submitted_at ? Date.parse(row.submitted_at) : 0;
+    const current = registrationByUser.get(row.user_id);
+    if (!current || submitted >= current.submitted) {
+      registrationByUser.set(row.user_id, {
+        registration_id: row.id,
+        status: row.status,
+        committee_short_name: committee?.short_name ?? null,
+        submitted,
+      });
+    }
+  }
+
+  type UserRow = {
+    id: string;
+    email: string;
+    full_name: string;
+    phone: string | null;
+    email_verified_at: string | null;
+    status: AdminUser["status"];
+    created_at: string;
+  };
+
+  return ((users as UserRow[] | null) ?? [])
+    .filter((row) => !staffIds.has(row.id))
+    .map((row) => {
+      const registration = registrationByUser.get(row.id);
+      return {
+        id: row.id,
+        email: row.email,
+        full_name: row.full_name,
+        phone: row.phone,
+        email_verified_at: row.email_verified_at,
+        status: row.status,
+        created_at: row.created_at,
+        registration_id: registration?.registration_id ?? null,
+        registration_status: registration?.status ?? null,
+        committee_short_name: registration?.committee_short_name ?? null,
+      };
+    });
+}
+
+export async function getAdminUser(userId: string): Promise<AdminUser | null> {
+  const rows = await getAdminUsers();
+  return rows.find((row) => row.id === userId) ?? null;
 }
 
 export async function getFoodCollections(

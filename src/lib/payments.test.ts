@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyAmountFlag, parseEmailList } from "./payments";
+import { classifyAmountFlag, parseEmailList, paymentQrSrc } from "./payments";
 
 describe("parseEmailList", () => {
   it("splits, lowercases, and de-duplicates", () => {
@@ -17,5 +17,14 @@ describe("classifyAmountFlag", () => {
     expect(classifyAmountFlag(50000, 50000)).toBe("EXACT");
     expect(classifyAmountFlag(50000, 60000)).toBe("OVERPAID");
     expect(classifyAmountFlag(50000, null)).toBe("UNKNOWN");
+  });
+});
+
+describe("paymentQrSrc", () => {
+  it("returns a cache-busted same-origin URL only when a key exists", () => {
+    expect(paymentQrSrc("ed-1", null)).toBeNull();
+    expect(paymentQrSrc("ed-1", "payment-qr/ed-1.png")).toBe(
+      "/api/pay/qr/ed-1?v=payment-qr%2Fed-1.png",
+    );
   });
 });

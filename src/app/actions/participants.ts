@@ -80,6 +80,7 @@ export async function setParticipantPasswordAction(
   });
   revalidatePath("/admin/participants");
   revalidatePath(`/admin/participants/${registrationId}`);
+  revalidatePath("/admin/users");
   return { success: "Password updated. Share it out of band." };
 }
 

@@ -222,25 +222,13 @@ export async function updatePaymentInstructionsAction(
     .eq("edition_id", editionId)
     .maybeSingle();
 
-  let qrKey = (current as { upi_qr_image_key?: string | null } | null)?.upi_qr_image_key ?? null;
-  const removeQr = String(formData.get("remove_qr") ?? "") === "on";
-  const file = formData.get("upi_qr");
-  if (removeQr) qrKey = null;
-  if (file instanceof File && file.size > 0) {
-    if (file.size > MAX_PROOF_BYTES) return { error: "QR image must be 5 MB or smaller." };
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mime = sniffImageMime(buffer);
-    if (!mime) return { error: "Use JPEG, PNG, or WebP for the payment QR." };
-    const key = `payment-qr/${editionId}.${proofExtension(mime)}`;
-    const admin = createAdminClient();
-    const upload = await admin.storage.from("cms-media").upload(key, buffer, {
-      contentType: mime,
-      upsert: true,
-    });
-    if (upload.error) return { error: "Could not store the payment QR." };
-    qrKey = key;
-  }
-  if (qrKey && !isStorageObjectKey(qrKey)) qrKey = null;
+  const stored = await storePaymentQrImage(
+    editionId,
+    formData,
+    (current as { upi_qr_image_key?: string | null } | null)?.upi_qr_image_key ?? null,
+  );
+  if (stored.error) return { error: stored.error };
+  const qrKey = stored.qrKey;
 
   const payload = {
     edition_id: editionId,
@@ -264,7 +252,96 @@ export async function updatePaymentInstructionsAction(
     p_old: current,
     p_new: payload,
   });
-  revalidatePath(`/admin/editions/${editionId}`);
-  revalidatePath("/dashboard/pay");
+  revalidatePaymentSurfaces(editionId);
   return { success: "Payment instructions saved." };
+}
+
+function revalidatePaymentSurfaces(editionId: string) {
+  revalidatePath(`/admin/editions/${editionId}`);
+  revalidatePath("/admin/payments");
+  revalidatePath("/dashboard/pay");
+  revalidatePath("/dashboard/pay", "layout");
+}
+
+async function storePaymentQrImage(
+  editionId: string,
+  formData: FormData,
+  currentKey: string | null,
+): Promise<{ qrKey: string | null; error?: string }> {
+  let qrKey = currentKey;
+  const removeQr = String(formData.get("remove_qr") ?? "") === "on";
+  const file = formData.get("upi_qr");
+  if (removeQr) qrKey = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_PROOF_BYTES) return { qrKey, error: "QR image must be 5 MB or smaller." };
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mime = sniffImageMime(buffer);
+    if (!mime) return { qrKey, error: "Use JPEG, PNG, or WebP for the payment QR." };
+    const key = `payment-qr/${editionId}.${proofExtension(mime)}`;
+    const admin = createAdminClient();
+    const upload = await admin.storage.from("cms-media").upload(key, buffer, {
+      contentType: mime,
+      upsert: true,
+    });
+    if (upload.error) return { qrKey, error: "Could not store the payment QR." };
+    qrKey = key;
+  }
+  if (qrKey && !isStorageObjectKey(qrKey)) qrKey = null;
+  return { qrKey };
+}
+
+export async function updatePaymentQrAction(
+  editionId: string,
+  _prev: PaymentState,
+  formData: FormData,
+): Promise<PaymentState> {
+  if (!isUuid(editionId)) return { error: "Missing edition." };
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("has_permission", {
+    p_code: "edition.manage",
+    p_edition_id: editionId,
+  });
+  if (!allowed) return { error: "Only an admin can change the receiving QR." };
+
+  const { data: current } = await supabase
+    .from("payment_instructions")
+    .select("upi_id, upi_qr_image_key, bank_name, account_name, account_number, ifsc, notes")
+    .eq("edition_id", editionId)
+    .maybeSingle();
+  const row = current as {
+    upi_id: string | null;
+    upi_qr_image_key: string | null;
+    bank_name: string | null;
+    account_name: string | null;
+    account_number: string | null;
+    ifsc: string | null;
+    notes: string | null;
+  } | null;
+
+  const stored = await storePaymentQrImage(editionId, formData, row?.upi_qr_image_key ?? null);
+  if (stored.error) return { error: stored.error };
+
+  const payload = {
+    edition_id: editionId,
+    upi_id: row?.upi_id ?? null,
+    bank_name: row?.bank_name ?? null,
+    account_name: row?.account_name ?? null,
+    account_number: row?.account_number ?? null,
+    ifsc: row?.ifsc ?? null,
+    notes: row?.notes ?? null,
+    upi_qr_image_key: stored.qrKey,
+  };
+  const { error } = await supabase.from("payment_instructions").upsert(payload, {
+    onConflict: "edition_id",
+  });
+  if (error) return { error: error.message };
+  await supabase.rpc("write_audit", {
+    p_action: "payment_qr.update",
+    p_entity: "payment_instructions",
+    p_entity_id: editionId,
+    p_old: { upi_qr_image_key: row?.upi_qr_image_key ?? null },
+    p_new: { upi_qr_image_key: stored.qrKey },
+  });
+  revalidatePaymentSurfaces(editionId);
+  return { success: stored.qrKey ? "Receiving QR saved. Delegates will see it on payment details." : "Receiving QR removed." };
 }

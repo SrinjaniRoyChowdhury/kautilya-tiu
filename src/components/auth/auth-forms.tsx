@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import { loginAction, signupAction, forgotPasswordAction, type AuthState } from "@/app/actions/auth";
+import { PHONE_HINT, phoneInputProps } from "@/lib/phone";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const [state, action, pending] = useActionState(loginAction, {} as AuthState);
@@ -16,7 +18,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         <Input id="identifier" name="identifier" autoComplete="username" required />
       </Field>
       <Field label="Password" htmlFor="password" error={state.fieldErrors?.password}>
-        <Input id="password" name="password" type="password" autoComplete="current-password" required />
+        <PasswordInput id="password" name="password" autoComplete="current-password" required />
       </Field>
       <Button type="submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
@@ -45,8 +47,8 @@ export function SignupForm() {
       <Field label="Email" htmlFor="email" error={state.fieldErrors?.email}>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </Field>
-      <Field label="Phone" htmlFor="phone" error={state.fieldErrors?.phone} hint="Required. Digits only, 8–15 numbers.">
-        <Input id="phone" name="phone" type="tel" autoComplete="tel" required />
+      <Field label="Phone" htmlFor="phone" error={state.fieldErrors?.phone} hint={PHONE_HINT}>
+        <Input id="phone" name="phone" required {...phoneInputProps} />
       </Field>
       <Field
         label="Password"
@@ -54,7 +56,19 @@ export function SignupForm() {
         hint="At least 8 characters, with upper, lower, and a number."
         error={state.fieldErrors?.password}
       >
-        <Input id="password" name="password" type="password" autoComplete="new-password" required />
+        <PasswordInput id="password" name="password" autoComplete="new-password" required />
+      </Field>
+      <Field
+        label="Confirm password"
+        htmlFor="confirm_password"
+        error={state.fieldErrors?.confirm_password}
+      >
+        <PasswordInput
+          id="confirm_password"
+          name="confirm_password"
+          autoComplete="new-password"
+          required
+        />
       </Field>
       <Button type="submit" disabled={pending}>
         {pending ? "Creating account…" : "Create account"}

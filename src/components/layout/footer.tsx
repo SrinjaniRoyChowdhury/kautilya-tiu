@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { FaInstagram } from "react-icons/fa";
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from "react-icons/hi";
 import { BrandLogo } from "@/components/brand/logo";
+import { HELP_DESK_PHONE, instagramHandle, telHref } from "@/lib/contact";
 import type { SiteSettings } from "@/types";
 
 export function Footer({ settings }: { settings: SiteSettings }) {
@@ -55,11 +56,15 @@ export function Footer({ settings }: { settings: SiteSettings }) {
               </a>
             </p>
           ) : null}
-          {settings.contact_phone ? (
-            <p className="mt-2 flex items-center gap-2">
-              <HiOutlinePhone className="text-gold-400" aria-hidden /> {settings.contact_phone}
-            </p>
-          ) : null}
+          <p className="mt-2 flex items-center gap-2">
+            <HiOutlinePhone className="text-gold-400" aria-hidden />
+            <a
+              className="hover:text-gold-400"
+              href={telHref(settings.contact_phone || HELP_DESK_PHONE)}
+            >
+              {settings.contact_phone || HELP_DESK_PHONE}
+            </a>
+          </p>
           {settings.contact_address ? (
             <p className="mt-2 flex items-start gap-2">
               <HiOutlineLocationMarker className="mt-0.5 text-gold-400" aria-hidden />
@@ -74,7 +79,8 @@ export function Footer({ settings }: { settings: SiteSettings }) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 hover:text-gold-400"
               >
-                <FaInstagram className="text-gold-400" aria-hidden /> Instagram
+                <FaInstagram className="text-gold-400" aria-hidden />{" "}
+                {instagramHandle(settings.instagram_url).replace(/^@/, "")}
               </a>
             </p>
           ) : null}

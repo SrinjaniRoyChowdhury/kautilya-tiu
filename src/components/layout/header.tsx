@@ -54,21 +54,21 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
         hideForIntro && "pointer-events-none opacity-0",
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={societyName}>
+      <div className="flex w-full items-center gap-3 px-4 py-3 sm:px-6 lg:gap-6">
+        <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={societyName}>
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />
-          <span className="flex min-w-0 flex-col leading-none">
-            <span className="font-serif text-xl font-bold tracking-wide text-gold-700 sm:text-2xl">
+          <span className="flex flex-col leading-none">
+            <span className="font-serif text-xl font-bold tracking-wide whitespace-nowrap text-gold-700 sm:text-2xl">
               Kautilya
             </span>
-            <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] text-gold-700">
+            <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] whitespace-nowrap text-gold-700">
               Model United Nations
             </span>
           </span>
         </Link>
 
         {!onScan ? (
-        <nav className="hidden items-center gap-6 lg:flex" aria-label="Primary">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-5 lg:flex" aria-label="Primary">
           {links.map((link) => {
             const active = isActivePath(pathname, link.href);
             return (
@@ -77,7 +77,7 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "border-b-2 pb-0.5 text-sm font-semibold hover:text-gold-700",
+                  "shrink-0 border-b-2 pb-0.5 text-sm font-semibold whitespace-nowrap hover:text-gold-700",
                   active
                     ? "border-gold-700 text-gold-700"
                     : "border-transparent text-ink-muted",
@@ -88,29 +88,31 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
             );
           })}
         </nav>
-        ) : null}
+        ) : (
+          <div className="hidden min-w-0 flex-1 lg:block" />
+        )}
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="ml-auto hidden shrink-0 items-center gap-3 whitespace-nowrap lg:flex">
           {email ? (
             onAdmin ? null : (
             <>
               {showAdmin ? (
-                <Link href={adminHref} className="text-sm font-semibold text-gold-700 hover:underline">
+                <Link href={adminHref} className="text-sm font-semibold whitespace-nowrap text-gold-700 hover:underline">
                   Admin
                 </Link>
               ) : null}
               {canScan ? (
-                <Link href="/scan" className="text-sm font-semibold text-gold-700 hover:underline">
+                <Link href="/scan" className="text-sm font-semibold whitespace-nowrap text-gold-700 hover:underline">
                   Scan
                 </Link>
               ) : null}
               {showDashboard ? (
-              <Link href="/dashboard" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
+              <Link href="/dashboard" className="text-sm font-semibold whitespace-nowrap text-ink-muted hover:text-gold-700">
                 Dashboard
               </Link>
               ) : null}
-              <form action={logoutAction}>
-                <button type="submit" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
+              <form action={logoutAction} className="shrink-0">
+                <button type="submit" className="text-sm font-semibold whitespace-nowrap text-ink-muted hover:text-gold-700">
                   Sign out
                 </button>
               </form>
@@ -118,12 +120,12 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
             )
           ) : (
             <>
-              <Link href="/login" className="text-sm font-semibold text-ink-muted hover:text-gold-700">
+              <Link href="/login" className="text-sm font-semibold whitespace-nowrap text-ink-muted hover:text-gold-700">
                 Sign in
               </Link>
               <Link
                 href="/signup"
-                className="inline-flex h-10 items-center rounded-sm bg-gold-700 px-4 text-sm font-semibold text-parchment-50"
+                className="inline-flex h-10 shrink-0 items-center rounded-sm bg-gold-700 px-4 text-sm font-semibold whitespace-nowrap text-parchment-50"
               >
                 Register
               </Link>
@@ -133,7 +135,7 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
 
         <button
           type="button"
-          className="inline-flex h-10 w-10 items-center justify-center text-gold-700 lg:hidden"
+          className="ml-auto inline-flex h-10 w-10 shrink-0 items-center justify-center text-gold-700 lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-nav"
           onClick={() => setOpen((v) => !v)}
@@ -186,7 +188,7 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
                   </Link>
                 ) : null}
                 <form action={logoutAction}>
-                  <button type="submit" className="font-semibold">Sign out</button>
+                  <button type="submit" className="font-semibold whitespace-nowrap">Sign out</button>
                 </form>
               </>
               )

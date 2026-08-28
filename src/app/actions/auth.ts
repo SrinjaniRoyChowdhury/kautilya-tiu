@@ -11,26 +11,19 @@ import {
   rateLimit,
 } from "@/lib/rate-limit";
 import { hasScanAccess, getRoleNames, isContentEditorOnly, isDelegateAffairsOnly, isOperatorOnly, isProtectedAdminEmail, isViewerOnly } from "@/lib/auth";
+import { tenDigitPhoneSchema } from "@/lib/phone";
+import { confirmPasswordSchema } from "@/lib/password";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-const signupSchema = z.object({
-  full_name: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
-  email: z.string().trim().email("Enter a valid email"),
-  phone: z
-    .string()
-    .trim()
-    .min(8, "Enter a valid phone number")
-    .max(20, "Phone number is too long")
-    .regex(/^[+]?[0-9]{8,15}$/, "Use digits only, 8–15 numbers. A leading + is allowed."),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[a-z]/, "Include a lowercase letter")
-    .regex(/[A-Z]/, "Include an uppercase letter")
-    .regex(/[0-9]/, "Include a number"),
-});
+const signupSchema = z
+  .object({
+    full_name: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
+    email: z.string().trim().email("Enter a valid email"),
+    phone: tenDigitPhoneSchema,
+  })
+  .and(confirmPasswordSchema);
 
 const loginSchema = z.object({
   identifier: z.string().trim().min(1, "Enter your email or username"),
@@ -66,6 +59,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     email: formData.get("email"),
     phone: formData.get("phone"),
     password: formData.get("password"),
+    confirm_password: formData.get("confirm_password"),
   });
   if (!parsed.success) return firstIssue(parsed.error);
 

@@ -19,7 +19,9 @@ export default async function HomePage() {
         societyName={settings.society_name}
         tagline={settings.tagline}
         edition={edition}
-        stats={settings.hero_stats ?? []}
+        stats={(settings.hero_stats ?? []).filter(
+          (stat) => stat.label.trim().toLowerCase() !== "editions hosted",
+        )}
       />
       <Container className="pb-16">
         <section>

@@ -18,7 +18,7 @@ export type UsgDepartment = {
 };
 
 export const CORE_SECRETARIAT: CoreOfficer[] = [
-  { id: "sg", role: "Secretary-General", names: ["Nilanjana", "Pratik"] },
+  { id: "sg", role: "Secretary-General", names: ["Pratik", "Nilanjana"] },
   { id: "dsg", role: "Deputy Secretary-General", names: ["Chirag"] },
   { id: "dg", role: "Director-General", names: ["Vaishnavi"] },
   { id: "cos", role: "Chief of Staff", names: ["Swapnil"] },

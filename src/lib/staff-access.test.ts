@@ -18,6 +18,7 @@ describe("staffNavItems", () => {
     expect(isAdminPathAllowed("/admin", ["DELEGATE_AFFAIRS"])).toBe(true);
     expect(isAdminPathAllowed("/admin/accounts", ["DELEGATE_AFFAIRS"])).toBe(false);
     expect(isAdminPathAllowed("/admin/participants/abc", ["DELEGATE_AFFAIRS"])).toBe(true);
+    expect(isAdminPathAllowed("/admin/users", ["DELEGATE_AFFAIRS"])).toBe(true);
     expect(staffHomePath(["DELEGATE_AFFAIRS"])).toBe("/admin/participants");
   });
 
@@ -39,6 +40,7 @@ describe("staffNavItems", () => {
     expect(hrefs).toContain("/admin/payments");
     expect(hrefs).toContain("/admin/cms");
     expect(isAdminPathAllowed("/admin/accounts", ["VIEWER"])).toBe(false);
+    expect(isAdminPathAllowed("/admin/users", ["VIEWER"])).toBe(true);
     expect(isAdminPathAllowed("/admin/attendance", ["VIEWER"])).toBe(true);
     expect(isAdminPathAllowed("/admin/cms", ["VIEWER"])).toBe(true);
   });

@@ -73,6 +73,28 @@ describe("buildRegistrationSchema", () => {
       }).success,
     ).toBe(true);
   });
+
+  it("accepts only a 10-digit emergency contact, digits only", () => {
+    const schema = buildRegistrationSchema([
+      {
+        id: "field-phone",
+        edition_id: "edition",
+        field_key: "emergency_contact",
+        label: "Emergency contact number",
+        field_type: "text" as const,
+        required: true,
+        options: null,
+        validation: { regex: "^[0-9+]{8,15}$" },
+        display_order: 3,
+        section: "PERSONAL" as const,
+      },
+    ]);
+    const base = { committee_id: committee, food_preference: "VEG" as const };
+    expect(schema.safeParse({ ...base, emergency_contact: "9876543210" }).success).toBe(true);
+    expect(schema.safeParse({ ...base, emergency_contact: "+919876543210" }).success).toBe(false);
+    expect(schema.safeParse({ ...base, emergency_contact: "987654321" }).success).toBe(false);
+    expect(schema.safeParse({ ...base, emergency_contact: "98765-43210" }).success).toBe(false);
+  });
 });
 
 describe("needsConferenceRulesAcceptance", () => {

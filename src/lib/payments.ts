@@ -92,3 +92,8 @@ export function classifyAmountFlag(
   if (paidMinor > expectedMinor) return "OVERPAID";
   return "EXACT";
 }
+
+export function paymentQrSrc(editionId: string, imageKey?: string | null): string | null {
+  if (!imageKey) return null;
+  return `/api/pay/qr/${encodeURIComponent(editionId)}?v=${encodeURIComponent(imageKey)}`;
+}

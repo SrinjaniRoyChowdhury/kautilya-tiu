@@ -118,3 +118,36 @@ legend {
   background: #e4d2ae;
   color: #3a2a12;
 }
+
+html {
+  scrollbar-width: auto;
+  scrollbar-color: var(--gold-400) var(--parchment-200);
+}
+
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--gold-400) var(--parchment-200);
+}
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--parchment-200);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--gold-400);
+  border: 2px solid var(--parchment-200);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-700);
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--parchment-200);
+}

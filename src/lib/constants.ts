@@ -43,7 +43,7 @@ export const DEFAULT_REGISTRATION_FIELDS = [
     field_type: "text" as const,
     required: true,
     options: null,
-    validation: { regex: "^[0-9+]{8,15}$" },
+    validation: { regex: "^[0-9]{10}$" },
     display_order: 3,
     section: "PERSONAL" as const,
   },

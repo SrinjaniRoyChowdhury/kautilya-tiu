@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
+import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
 import { buildRegistrationSchema } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
@@ -240,6 +241,9 @@ export async function updateProfileAction(
   const phone = String(formData.get("phone") ?? "").trim();
   if (fullName.length < 2) {
     return { error: "Name must be at least 2 characters", fieldErrors: { full_name: "Too short" } };
+  }
+  if (!isTenDigitPhone(phone)) {
+    return { error: PHONE_ERROR, fieldErrors: { phone: PHONE_ERROR } };
   }
   const supabase = await createClient();
   const {

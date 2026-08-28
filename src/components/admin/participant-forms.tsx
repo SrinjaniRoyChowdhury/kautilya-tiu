@@ -8,7 +8,8 @@ import {
 } from "@/app/actions/participants";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import { Field, Input } from "@/components/ui/field";
+import { Field } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import type { AdminParticipant } from "@/types";
 
 export function ParticipantPasswordForm({ registrationId }: { registrationId: string }) {
@@ -21,7 +22,7 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
         htmlFor="password"
         hint="At least 8 characters, with upper, lower, and a number."
       >
-        <Input id="password" name="password" type="password" required autoComplete="new-password" />
+        <PasswordInput id="password" name="password" required autoComplete="new-password" />
       </Field>
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Update password"}

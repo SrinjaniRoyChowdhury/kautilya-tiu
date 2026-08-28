@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { Controller, useForm, useWatch, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/registration";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
 import { PHASE_LABELS } from "@/lib/phases";
+import { PHONE_HINT, isParticipantPhoneField, phoneInputProps } from "@/lib/phone";
 import type {
   Committee,
   FieldSection,
@@ -348,13 +349,8 @@ function CatalogIdSuggest({
   placeholder?: string;
 }) {
   const selected = items.find((item) => item.id === selectedId);
-  const [text, setText] = useState(selected?.name ?? "");
-  useEffect(() => {
-    if (selectedId) {
-      const name = items.find((item) => item.id === selectedId)?.name;
-      if (name) setText(name);
-    }
-  }, [items, selectedId]);
+  const [draft, setDraft] = useState(selected?.name ?? "");
+  const text = selected?.name ?? draft;
   return (
     <div>
     <NameSuggestInput
@@ -363,7 +359,7 @@ function CatalogIdSuggest({
       value={text}
       placeholder={placeholder}
       onChange={(next, match) => {
-        setText(next);
+        setDraft(next);
         onSelectId(match?.id ?? "");
       }}
     />
@@ -397,9 +393,11 @@ function DynamicField({
       ? optional
         ? "Optional because you selected a collective. Type to search, or enter any name."
         : "Type to search suggested institutions. You can enter a name that is not on the list."
-      : field.required && !optional
-        ? undefined
-        : "Optional";
+      : isParticipantPhoneField(field.field_key)
+        ? PHONE_HINT
+        : field.required && !optional
+          ? undefined
+          : "Optional";
 
   if (field.field_key === "institution") {
     return (
@@ -505,7 +503,11 @@ function DynamicField({
       {field.field_key === "dietary_notes" ? (
         <Textarea id={field.field_key} {...register(field.field_key)} />
       ) : (
-        <Input id={field.field_key} {...register(field.field_key)} />
+        <Input
+          id={field.field_key}
+          {...register(field.field_key)}
+          {...(isParticipantPhoneField(field.field_key) ? phoneInputProps : {})}
+        />
       )}
     </Field>
   );

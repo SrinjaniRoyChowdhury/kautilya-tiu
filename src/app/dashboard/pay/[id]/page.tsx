@@ -31,12 +31,13 @@ export default async function PaymentDetailPage({ params }: Props) {
       <PageHeader
         eyebrow="Participant"
         title="Upload proof"
-        description="Transfer the expected total, then attach the screenshot. Staff review is manual."
+        description="Scan the secretariat QR, transfer the expected total, then attach the screenshot. Staff review is manual."
       />
       <DashboardNav current="/dashboard/pay" />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <PaymentInstructionsCard
+            editionId={payment.edition_id}
             instructions={instructions}
             expectedMinor={payment.expected_amount_minor}
           />

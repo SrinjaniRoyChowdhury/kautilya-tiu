@@ -49,7 +49,7 @@ export function AdminNav({ items, canScan }: { items: AdminNavItem[]; canScan: b
         <form action={logoutAction}>
           <button
             type="submit"
-            className="w-full shrink-0 rounded-sm px-3 py-2 text-left text-sm text-gold-700 hover:bg-parchment-200"
+            className="w-full shrink-0 rounded-sm px-3 py-2 text-left text-sm whitespace-nowrap text-gold-700 hover:bg-parchment-200"
           >
             Sign out
           </button>

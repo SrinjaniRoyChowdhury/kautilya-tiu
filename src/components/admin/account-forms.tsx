@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   createStaffAccountAction,
   deleteStaffAccountAction,
@@ -67,7 +68,7 @@ export function CreateAccountForm({ editions }: { editions: Edition[] }) {
         htmlFor="password"
         hint="At least 8 characters, with upper, lower, and a number."
       >
-        <Input id="password" name="password" type="text" required autoComplete="new-password" />
+        <PasswordInput id="password" name="password" required autoComplete="new-password" />
       </Field>
       <Field label="Account type" htmlFor="kind">
         <Select
@@ -168,12 +169,12 @@ function EditAccountModal({
             htmlFor={`password-${account.user_id}`}
             hint="Shown so you can copy it. Leave unchanged unless you need a new password."
           >
-            <Input
+            <PasswordInput
               id={`password-${account.user_id}`}
               name="password"
-              type="text"
               defaultValue={account.password_plain ?? ""}
               autoComplete="off"
+              defaultVisible
             />
           </Field>
           <Field label="Account type" htmlFor={`kind-${account.user_id}`}>

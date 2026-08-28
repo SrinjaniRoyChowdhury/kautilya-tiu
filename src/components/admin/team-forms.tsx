@@ -27,7 +27,7 @@ export function TeamMemberForm({
   const titleLabel = isUsg ? "Department" : "Designation";
   const nameHint = isUsg
     ? "Optional. Co-holders: Name & Name."
-    : "Co-holders share one office: Nilanjana & Pratik.";
+    : "Co-holders share one office: Pratik & Nilanjana.";
 
   return (
     <div className="grid gap-3">

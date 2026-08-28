@@ -1,5 +1,6 @@
 import { z, type ZodType } from "zod";
 import { hexId } from "@/lib/ids";
+import { isParticipantPhoneField, tenDigitPhoneSchema } from "@/lib/phone";
 import type { FieldSection, RegistrationFieldDefinition } from "@/types";
 
 export const SECTION_LABELS: Record<FieldSection, string> = {
@@ -49,6 +50,12 @@ function parseOptions(options: RegistrationFieldDefinition["options"]): string[]
 function fieldSchema(def: RegistrationFieldDefinition): ZodType {
   const rules = def.validation ?? {};
   const options = parseOptions(def.options);
+
+  if (isParticipantPhoneField(def.field_key)) {
+    return def.required
+      ? tenDigitPhoneSchema
+      : z.union([tenDigitPhoneSchema, z.literal("")]).optional();
+  }
 
   switch (def.field_type) {
     case "number": {

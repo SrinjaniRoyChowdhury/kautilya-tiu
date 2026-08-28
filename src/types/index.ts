@@ -178,6 +178,19 @@ export type ConferenceDocument = {
   updated_at: string;
 };
 
+export type AdminUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  email_verified_at: string | null;
+  status: "ACTIVE" | "SUSPENDED";
+  created_at: string;
+  registration_id?: string | null;
+  registration_status?: RegistrationStatus | null;
+  committee_short_name?: string | null;
+};
+
 export type AdminParticipant = {
   id: string;
   edition_id: string;

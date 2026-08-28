@@ -20,6 +20,7 @@ import {
   participantResolution,
   paymentEditable,
 } from "@/lib/payments";
+import { PaymentQrImage } from "@/components/pay/payment-qr-image";
 import type { PaymentInstructions, PaymentParticipant, PaymentWithParticipants } from "@/types";
 
 function TransferDateTimeField() {
@@ -90,27 +91,34 @@ function Alert({ state }: { state: PaymentState }) {
 }
 
 export function PaymentInstructionsCard({
+  editionId,
   instructions,
   expectedMinor,
 }: {
+  editionId: string;
   instructions: PaymentInstructions | null;
   expectedMinor: number;
 }) {
   const upi = instructions?.upi_id;
   const copyValue = upi ?? instructions?.account_number ?? "";
+  const qrKey = instructions?.upi_qr_image_key;
   return (
     <div className="grid gap-3">
       <p className="text-xs uppercase tracking-widest text-gold-700">Pay this amount</p>
       <p className="font-serif text-4xl text-gold-700">{formatInrFromMinor(expectedMinor)}</p>
-      {instructions?.upi_qr_image_key ? (
-        // Streamed same-origin QR; not a remote next/image host.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/api/pay/qr/${instructions.edition_id}`}
-          alt="UPI payment QR"
-          className="h-48 w-48 rounded-sm border border-gold-700/25 bg-parchment-50 object-contain"
-        />
-      ) : null}
+      <div className="rounded-sm border border-gold-700/20 bg-parchment-100/60 p-4">
+        <p className="text-xs uppercase tracking-widest text-gold-700">Scan this QR to pay</p>
+        {qrKey ? (
+          <div className="mt-3 flex justify-center sm:justify-start">
+            <PaymentQrImage editionId={editionId} imageKey={qrKey} alt="QR code for receiving payment" />
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-ink-muted">
+            The secretariat has not uploaded a payment QR yet. Use the bank or UPI details below if
+            they are listed.
+          </p>
+        )}
+      </div>
       <p className="text-sm text-ink-muted">
         Manual UPI / bank transfer only. No payment gateway. Transfer the expected total, then
         upload the screenshot below.

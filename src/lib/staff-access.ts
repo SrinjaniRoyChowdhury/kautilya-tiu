@@ -12,6 +12,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/committees", label: "Committees" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/participants", label: "Participants" },
+  { href: "/admin/users", label: "Users" },
   { href: "/admin/collectives", label: "Collectives" },
   { href: "/admin/credentials", label: "Credentials" },
   { href: "/admin/expenses", label: "Expenses" },
@@ -27,7 +28,7 @@ export type AdminNavItem = (typeof ADMIN_NAV_ITEMS)[number];
 
 export { hasFullAdminRole, isContentEditorOnly } from "@/lib/roles";
 
-const STAFF_READ_HREFS = new Set(
+const STAFF_READ_HREFS = new Set<AdminNavItem["href"]>(
   ADMIN_NAV_ITEMS.filter((item) => item.href !== "/admin/accounts").map((item) => item.href),
 );
 
