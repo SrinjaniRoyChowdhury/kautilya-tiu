@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CommitteeFeeBlock } from "@/components/public/committee-fees";
+import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
-import { PHASE_LABELS } from "@/lib/phases";
-import { toPlainText } from "@/lib/sanitize";
-import { seatsHeld } from "@/lib/registration";
+import { seatsRemaining } from "@/lib/format";
 import { getActiveEdition, getCommitteeBySlug } from "@/lib/data";
-
+import { seatsHeld } from "@/lib/registration";
+import { toPlainText } from "@/lib/sanitize";
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -29,6 +29,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
 
   return (
     <Container className="py-12">
+      <BackLink href="/committees" label="Back to committees" />
       <PageHeader eyebrow={committee.short_name} title={committee.name} />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <article>
@@ -81,18 +82,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
           ) : null}
         </article>
         <Card className="h-fit space-y-3">
-          <p className="text-sm text-ink-muted">
-            {committee.current_phase_kind ? `${PHASE_LABELS[committee.current_phase_kind]} · ` : ""}
-            Fee
-          </p>
-          <p className="font-serif text-3xl text-gold-700">
-            {formatInrFromMinor(committee.fee_minor)}
-          </p>
-          {committee.allows_double_del ? (
-            <p className="text-sm text-ink-muted">
-              Double del {formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}
-            </p>
-          ) : null}
+          <CommitteeFeeBlock committee={committee} size="lg" />
           <p className="text-sm text-ink-muted">
             {remaining} of {committee.capacity} delegations remaining
           </p>

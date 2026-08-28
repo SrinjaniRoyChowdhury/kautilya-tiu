@@ -1,0 +1,13 @@
+# Manages the Supabase CLI stack via the host Docker socket.
+# Started/stopped with `docker compose up` / `docker compose down`.
+FROM node:22-alpine
+
+RUN apk add --no-cache bash curl docker-cli socat \
+  && npm install -g supabase@2.116.0
+
+COPY scripts/supabase-stack.sh /usr/local/bin/supabase-stack.sh
+RUN sed -i 's/\r$//' /usr/local/bin/supabase-stack.sh \
+  && chmod +x /usr/local/bin/supabase-stack.sh
+
+WORKDIR /workspace
+ENTRYPOINT ["/bin/bash", "/usr/local/bin/supabase-stack.sh"]

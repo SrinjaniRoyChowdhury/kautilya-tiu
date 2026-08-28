@@ -13,6 +13,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/committees", label: "Committees" },
+  { href: "/executive-board", label: "Executive Board" },
   { href: "/editions", label: "Editions" },
   { href: "/team", label: "Team" },
   { href: "/gallery", label: "Gallery" },

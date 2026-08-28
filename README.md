@@ -17,7 +17,7 @@ Multi-edition Model United Nations platform. Phases 1–7 are live: conference o
 - Admin analytics (edition-scoped KPIs), CSV exports, audit log
 - Public CMS: homepage, about, team, contact, announcements, gallery (image URLs)
 - Hardening: security headers, auth/scanner/payment rate limits, image magic-byte checks, HTML sanitization, unit tests, GitHub Actions, DB dump script
-- Docker for the Next.js app; `npx supabase start` Dockerizes Postgres, Auth, Storage, Studio, and Mailpit
+- Docker Compose for the full local stack (Supabase + Next.js hot reload)
 
 ## Run locally (Windows / macOS / Linux)
 
@@ -30,29 +30,26 @@ cp .env.example .env
 
 On PowerShell: `Copy-Item .env.example .env`
 
-3. Start Supabase (pulls Docker images on first run):
+3. Start the full stack (Supabase + Next.js; pulls images on first run):
 
 ```bash
-npm run db:start
+docker compose up --build
 ```
 
+Open http://localhost:3000  
 Studio: http://127.0.0.1:54323  
 Mailpit (local emails): http://127.0.0.1:54324  
 API: http://127.0.0.1:54321
 
-4. Apply schema + seed (first time, or after SQL changes):
+Stop everything:
 
 ```bash
-npm run db:reset
+docker compose down
 ```
 
-5. Start the app:
+### App on the host (optional)
 
-```bash
-npm run dev
-```
-
-Open http://localhost:3000
+If you prefer `npm run dev` on the host, start only Supabase with `npm run db:start`, apply schema with `npm run db:reset` (first time or after SQL changes), then `npm run dev`.
 
 ### Seed logins (local only)
 
@@ -65,21 +62,17 @@ Desk scanners are created in Admin → Scanners (name, email, password). They si
 
 New signups must click the verification link in Mailpit before they can register or pay (Phases 2–3).
 
-## Dockerize the Next.js app
+## Docker Compose
 
-Supabase is already in Docker via `npm run db:start`. To also run Next.js in Docker:
+`docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both.
 
-```bash
-npm run compose:up
-```
-
-Hot reload:
+Production-style image only (hosted Supabase):
 
 ```bash
-npm run compose:dev
+npm run compose:prod
 ```
 
-If Next.js is in Docker and Supabase is on the host, set in `.env`:
+When Next.js runs in Docker, set in `.env`:
 
 ```
 SUPABASE_INTERNAL_URL=http://host.docker.internal:54321

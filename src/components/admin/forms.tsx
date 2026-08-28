@@ -7,7 +7,46 @@ import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { createEditionAction, updateEditionAction, type FormState } from "@/app/actions/editions";
 import { createCommitteeAction, updateCommitteeAction, updateCommitteeContentAction } from "@/app/actions/committees";
 import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
+import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
 import type { Committee, CommitteePhaseFee, Edition } from "@/types";
+
+function CommitteeLogoField({
+  committee,
+  readOnly,
+  showRemove,
+}: {
+  committee?: Committee;
+  readOnly?: boolean;
+  showRemove?: boolean;
+}) {
+  return (
+    <div className="grid gap-2 sm:col-span-2">
+      {committee?.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={committee.logo_url}
+          alt=""
+          className="h-20 w-20 rounded-sm border border-gold-700/25 bg-parchment-100 object-contain p-1"
+        />
+      ) : null}
+      <Field label="Logo" htmlFor="logo_file" hint={COMMITTEE_LOGO_HINT}>
+        <Input
+          id="logo_file"
+          name="logo_file"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          disabled={readOnly}
+        />
+      </Field>
+      {showRemove && committee?.logo_url ? (
+        <label className="inline-flex w-fit items-center gap-2 text-sm text-ink-muted">
+          <input type="checkbox" name="remove_logo" disabled={readOnly} className="h-4 w-4 shrink-0" />
+          Remove current logo
+        </label>
+      ) : null}
+    </div>
+  );
+}
 
 function toLocalInput(iso?: string | null) {
   if (!iso) return "";
@@ -100,38 +139,31 @@ export function CommitteeForm({
 }) {
   const contentOnly = mode === "content";
   const readOnly = mode === "view";
+  const isCreate = !committee;
   const action = contentOnly
     ? updateCommitteeContentAction.bind(null, committee?.id ?? "")
     : committee
       ? updateCommitteeAction.bind(null, committee.id)
       : createCommitteeAction;
   const [state, formAction, pending] = useActionState(action, {} as FormState);
-  const ebDefault = committee?.eb_json?.map((m) => `${m.name} | ${m.title}`).join("\n") ?? "";
+  const draft = state.values;
+  const formKey = state.formKey ?? "initial";
   const feeByKind = Object.fromEntries(
     fees.filter((row) => row.kind).map((row) => [row.kind, row]),
   ) as Record<string, CommitteePhaseFee>;
 
   if (contentOnly && committee) {
     return (
-      <form action={readOnly ? undefined : formAction} className="grid gap-4 sm:grid-cols-2">
+      <form action={readOnly ? undefined : formAction} encType="multipart/form-data" className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <Field label="Full name" htmlFor="name">
             <Input id="name" name="name" required defaultValue={committee.name} disabled={readOnly} />
           </Field>
         </div>
-        <div className="sm:col-span-2">
-          <Field label="Logo URL" htmlFor="logo_url" hint="Public image URL. Leave blank to hide.">
-            <Input id="logo_url" name="logo_url" type="url" defaultValue={committee.logo_url ?? ""} disabled={readOnly} />
-          </Field>
-        </div>
+        <CommitteeLogoField committee={committee} readOnly={readOnly} showRemove />
         <div className="sm:col-span-2">
           <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
             <Textarea id="description" name="description" defaultValue={committee.description ?? ""} disabled={readOnly} />
-          </Field>
-        </div>
-        <div className="sm:col-span-2">
-          <Field label="Executive board" htmlFor="eb_json" hint="One per line: Name | Title">
-            <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} disabled={readOnly} />
           </Field>
         </div>
         {readOnly ? null : (
@@ -147,14 +179,19 @@ export function CommitteeForm({
   }
 
   return (
-      <form action={readOnly ? undefined : formAction} className="grid gap-4 sm:grid-cols-2">
+      <form
+        key={formKey}
+        action={readOnly ? undefined : formAction}
+        encType="multipart/form-data"
+        className="grid gap-4 sm:grid-cols-2"
+      >
       <Field label="Edition" htmlFor="edition_id">
         <Select
           id="edition_id"
           name="edition_id"
           required
           disabled={readOnly}
-          defaultValue={committee?.edition_id ?? defaultEditionId}
+          defaultValue={draft?.edition_id ?? committee?.edition_id ?? defaultEditionId}
         >
           {editions.map((edition) => (
             <option key={edition.id} value={edition.id}>
@@ -164,18 +201,35 @@ export function CommitteeForm({
         </Select>
       </Field>
       <Field label="Short name" htmlFor="short_name" hint="e.g. UNSC">
-        <Input id="short_name" name="short_name" required defaultValue={committee?.short_name} disabled={readOnly} />
+        <Input
+          id="short_name"
+          name="short_name"
+          required
+          defaultValue={draft?.short_name ?? committee?.short_name ?? ""}
+          disabled={readOnly}
+        />
       </Field>
       <div className="sm:col-span-2">
         <Field label="Full name" htmlFor="name">
-          <Input id="name" name="name" required defaultValue={committee?.name} disabled={readOnly} />
+          <Input
+            id="name"
+            name="name"
+            required
+            defaultValue={draft?.name ?? committee?.name ?? ""}
+            disabled={readOnly}
+          />
         </Field>
       </div>
       <Field label="Slug" htmlFor="slug">
-        <Input id="slug" name="slug" defaultValue={committee?.slug} disabled={readOnly} />
+        <Input id="slug" name="slug" defaultValue={draft?.slug ?? committee?.slug ?? ""} disabled={readOnly} />
       </Field>
       <Field label="Status" htmlFor="status">
-        <Select id="status" name="status" defaultValue={committee?.status ?? "OPEN"} disabled={readOnly}>
+        <Select
+          id="status"
+          name="status"
+          defaultValue={draft?.status ?? committee?.status ?? "OPEN"}
+          disabled={readOnly}
+        >
           <option value="OPEN">Open</option>
           <option value="CLOSED">Closed</option>
           <option value="HIDDEN">Hidden</option>
@@ -187,26 +241,32 @@ export function CommitteeForm({
           Double delegation uses one portfolio for two people. Fees for double del are set per phase
           below.
         </p>
-        <label className="flex items-center gap-2 text-sm">
+        <div className="inline-flex w-fit items-center gap-2 text-sm">
           <input
+            id="allows_single_del"
             type="checkbox"
             name="allows_single_del"
-            defaultChecked={committee?.allows_single_del ?? true}
+            defaultChecked={draft?.allows_single_del ?? committee?.allows_single_del ?? true}
             disabled={readOnly}
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
           />
-          Allow single delegation
-        </label>
-        <label className="flex items-center gap-2 text-sm">
+          <label htmlFor="allows_single_del" className="cursor-pointer select-none">
+            Allow single delegation
+          </label>
+        </div>
+        <div className="inline-flex w-fit items-center gap-2 text-sm">
           <input
+            id="allows_double_del"
             type="checkbox"
             name="allows_double_del"
-            defaultChecked={committee?.allows_double_del ?? false}
+            defaultChecked={draft?.allows_double_del ?? committee?.allows_double_del ?? false}
             disabled={readOnly}
-            className="h-4 w-4"
+            className="h-4 w-4 shrink-0"
           />
-          Allow double delegation
-        </label>
+          <label htmlFor="allows_double_del" className="cursor-pointer select-none">
+            Allow double delegation
+          </label>
+        </div>
       </fieldset>
       <div className="sm:col-span-2 overflow-x-auto">
         <p className="mb-2 text-sm font-medium">Fees by registration phase (₹)</p>
@@ -222,6 +282,7 @@ export function CommitteeForm({
             {PHASE_KINDS.map((kind) => {
               const row = feeByKind[kind];
               const fallback = committee ? committee.fee_minor / 100 : 1500;
+              const draftFees = draft?.phase_fees?.[kind];
               return (
                 <tr key={kind} className="border-b border-gold-700/10">
                   <td className="px-2 py-1.5">{PHASE_LABELS[kind]}</td>
@@ -233,7 +294,10 @@ export function CommitteeForm({
                       step="1"
                       required
                       disabled={readOnly}
-                      defaultValue={row ? row.single_fee_minor / 100 : fallback}
+                      defaultValue={
+                        draftFees?.single ??
+                        (row ? row.single_fee_minor / 100 : fallback)
+                      }
                       className="h-9 py-1.5"
                     />
                   </td>
@@ -245,7 +309,10 @@ export function CommitteeForm({
                       step="1"
                       required
                       disabled={readOnly}
-                      defaultValue={row ? row.double_fee_minor / 100 : fallback}
+                      defaultValue={
+                        draftFees?.double ??
+                        (row ? row.double_fee_minor / 100 : fallback)
+                      }
                       className="h-9 py-1.5"
                     />
                   </td>
@@ -261,23 +328,25 @@ export function CommitteeForm({
           name="display_order"
           type="number"
           disabled={readOnly}
-          defaultValue={committee?.display_order ?? 0}
+          defaultValue={draft?.display_order ?? committee?.display_order ?? 0}
         />
       </Field>
-      <Field label="Logo URL" htmlFor="logo_url" hint="Public image URL. Leave blank to hide.">
-        <Input id="logo_url" name="logo_url" type="url" defaultValue={committee?.logo_url ?? ""} disabled={readOnly} />
-      </Field>
-      <Field label="Rules URL" htmlFor="rules_url">
-        <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} disabled={readOnly} />
-      </Field>
+      <CommitteeLogoField committee={committee} readOnly={readOnly} showRemove={!isCreate} />
+      {!isCreate ? (
+        <Field label="Rules URL" htmlFor="rules_url">
+          <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} disabled={readOnly} />
+        </Field>
+      ) : null}
       <div className="sm:col-span-2">
         <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
-          <Textarea id="description" name="description" defaultValue={committee?.description ?? ""} disabled={readOnly} />
+          <Textarea
+            id="description"
+            name="description"
+            defaultValue={draft?.description ?? committee?.description ?? ""}
+            disabled={readOnly}
+          />
         </Field>
       </div>
-      <Field label="Executive board" htmlFor="eb_json" hint="One per line: Name | Title">
-        <Textarea id="eb_json" name="eb_json" defaultValue={ebDefault} disabled={readOnly} />
-      </Field>
       {readOnly ? null : (
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>

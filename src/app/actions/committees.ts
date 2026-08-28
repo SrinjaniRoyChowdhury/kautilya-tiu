@@ -6,15 +6,32 @@ import { z } from "zod";
 import { slugify } from "@/lib/format";
 import { hasPermission, isStaffUser } from "@/lib/auth";
 import { hexId, isUuid } from "@/lib/ids";
-import { rupeesFromForm } from "@/lib/phases";
+import { rupeesFromForm, PHASE_KINDS } from "@/lib/phases";
 import { toPlainText } from "@/lib/sanitize";
 import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { proofExtension, sniffImageMime, validateCommitteeLogoBytes } from "@/lib/upload";
+
+export type CommitteeFormValues = {
+  edition_id: string;
+  name: string;
+  short_name: string;
+  slug: string;
+  status: string;
+  display_order: number;
+  description: string;
+  eb_json: string;
+  allows_single_del: boolean;
+  allows_double_del: boolean;
+  phase_fees: Record<string, { single: string; double: string }>;
+};
 
 export type FormState = {
   error?: string;
   success?: string;
+  values?: CommitteeFormValues;
+  formKey?: string;
 };
 
 const MAX_PORTFOLIO_BYTES = 2 * 1024 * 1024;
@@ -26,7 +43,6 @@ const committeeSchema = z.object({
   slug: z.string().trim().max(40).optional().or(z.literal("")),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   rules_url: z.string().url().optional().or(z.literal("")),
-  logo_url: z.string().url().optional().or(z.literal("")),
   fee_rupees: z.coerce.number().min(0).max(100000).optional(),
   allows_single_del: z.coerce.boolean().optional(),
   allows_double_del: z.coerce.boolean().optional(),
@@ -35,6 +51,52 @@ const committeeSchema = z.object({
   eb_json: z.string().optional().or(z.literal("")),
   portfolio_config: z.string().optional().or(z.literal("")),
 });
+
+const COMMITTEE_FIELD_LABELS: Record<string, string> = {
+  edition_id: "Edition",
+  name: "Full name",
+  short_name: "Short name",
+  slug: "Slug",
+  description: "Description",
+  rules_url: "Rules URL",
+  status: "Status",
+  display_order: "Display order",
+  eb_json: "Executive board",
+};
+
+function readCommitteeDraft(formData: FormData): CommitteeFormValues {
+  const phase_fees: CommitteeFormValues["phase_fees"] = {};
+  for (const kind of PHASE_KINDS) {
+    phase_fees[kind] = {
+      single: String(formData.get(`fee_${kind}_single`) ?? ""),
+      double: String(formData.get(`fee_${kind}_double`) ?? ""),
+    };
+  }
+  return {
+    edition_id: String(formData.get("edition_id") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    short_name: String(formData.get("short_name") ?? ""),
+    slug: String(formData.get("slug") ?? ""),
+    status: String(formData.get("status") ?? "OPEN"),
+    display_order: Number(formData.get("display_order") ?? 0),
+    description: String(formData.get("description") ?? ""),
+    eb_json: String(formData.get("eb_json") ?? ""),
+    allows_single_del: formData.get("allows_single_del") === "on",
+    allows_double_del: formData.get("allows_double_del") === "on",
+    phase_fees,
+  };
+}
+
+function failCommittee(formData: FormData, error: string): FormState {
+  return { error, values: readCommitteeDraft(formData), formKey: String(Date.now()) };
+}
+
+function formatCommitteeZodError(error: z.ZodError): string {
+  const issue = error.issues[0];
+  if (!issue) return "Check the committee form.";
+  const field = COMMITTEE_FIELD_LABELS[String(issue.path[0])] ?? String(issue.path[0] || "Field");
+  return `${field}: ${issue.message}`;
+}
 
 function parseEb(raw: string | undefined) {
   if (!raw?.trim()) return [];
@@ -73,6 +135,45 @@ async function portfoliosFromForm(formData: FormData): Promise<{ rows: Portfolio
     return { rows };
   }
   return { rows: parsePortfoliosText(String(formData.get("portfolio_config") ?? "")) };
+}
+
+async function uploadCommitteeLogoBytes(
+  committeeId: string,
+  buffer: Buffer,
+): Promise<{ logoUrl: string | null; error?: string }> {
+  const bytes = new Uint8Array(buffer);
+  const dimError = validateCommitteeLogoBytes(bytes);
+  if (dimError) return { logoUrl: null, error: dimError };
+  const mime = sniffImageMime(bytes);
+  if (!mime) return { logoUrl: null, error: "Logo: use JPEG, PNG, or WebP." };
+  const key = `committee-logos/${committeeId}.${proofExtension(mime)}`;
+  const admin = createAdminClient();
+  const upload = await admin.storage.from("cms-media").upload(key, buffer, {
+    contentType: mime,
+    upsert: true,
+  });
+  if (upload.error) return { logoUrl: null, error: "Logo: could not store the image." };
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ?? "";
+  return { logoUrl: `${base}/storage/v1/object/public/cms-media/${key}` };
+}
+
+async function resolveCommitteeLogo(
+  committeeId: string,
+  formData: FormData,
+  currentLogoUrl: string | null,
+): Promise<{ logoUrl: string | null; error?: string }> {
+  if (formData.get("remove_logo") === "on") return { logoUrl: null };
+  const file = formData.get("logo_file");
+  if (!(file instanceof File) || file.size === 0) return { logoUrl: currentLogoUrl };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return uploadCommitteeLogoBytes(committeeId, buffer);
+}
+
+async function validateOptionalCommitteeLogoFile(formData: FormData): Promise<string | null> {
+  const file = formData.get("logo_file");
+  if (!(file instanceof File) || file.size === 0) return null;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return validateCommitteeLogoBytes(new Uint8Array(buffer));
 }
 
 async function requireCommitteeManager() {
@@ -123,6 +224,8 @@ async function upsertCommitteeFees(
 function revalidateCommittee(committeeId?: string) {
   revalidatePath("/committees");
   revalidatePath("/admin/committees");
+  revalidatePath("/admin/committees/eb");
+  revalidatePath("/executive-board");
   revalidatePath("/admin/credentials");
   revalidatePath("/admin/reports");
   revalidatePath("/dashboard/qr");
@@ -134,7 +237,7 @@ export async function createCommitteeAction(
   formData: FormData,
 ): Promise<FormState> {
   const gate = await requireCommitteeManager();
-  if (!gate.allowed) return { error: "You do not have permission to manage committees." };
+  if (!gate.allowed) return failCommittee(formData, "You do not have permission to manage committees.");
 
   const parsed = committeeSchema.safeParse({
     edition_id: String(formData.get("edition_id") ?? ""),
@@ -142,25 +245,30 @@ export async function createCommitteeAction(
     short_name: formData.get("short_name"),
     slug: formData.get("slug"),
     description: formData.get("description"),
-    rules_url: formData.get("rules_url"),
-    logo_url: formData.get("logo_url"),
+    rules_url: String(formData.get("rules_url") ?? ""),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
     eb_json: formData.get("eb_json"),
     portfolio_config: String(formData.get("portfolio_config") ?? ""),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
+  if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
 
   const allowsSingle = formData.get("allows_single_del") === "on";
   const allowsDouble = formData.get("allows_double_del") === "on";
   if (!allowsSingle && !allowsDouble) {
-    return { error: "A committee must allow single delegation, double delegation, or both." };
+    return failCommittee(
+      formData,
+      "Delegation type: allow single delegation, double delegation, or both.",
+    );
   }
   const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
   const portfolios = await portfoliosFromForm(formData);
-  if (portfolios.error) return { error: portfolios.error };
+  if (portfolios.error) return failCommittee(formData, portfolios.error);
+
+  const logoValidation = await validateOptionalCommitteeLogoFile(formData);
+  if (logoValidation) return failCommittee(formData, logoValidation);
 
   const slug = parsed.data.slug
     ? slugify(parsed.data.slug)
@@ -175,7 +283,6 @@ export async function createCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
-      logo_url: parsed.data.logo_url || null,
       capacity: portfolios.rows.length,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
@@ -188,7 +295,17 @@ export async function createCommitteeAction(
     .select("id")
     .single();
 
-  if (error || !data) return { error: error?.message ?? "Could not create committee" };
+  if (error || !data) return failCommittee(formData, error?.message ?? "Could not create committee");
+
+  const logo = await resolveCommitteeLogo(data.id, formData, null);
+  if (logo.error) return failCommittee(formData, logo.error);
+  if (logo.logoUrl) {
+    const { error: logoError } = await gate.supabase
+      .from("committees")
+      .update({ logo_url: logo.logoUrl })
+      .eq("id", data.id);
+    if (logoError) return failCommittee(formData, logoError.message);
+  }
 
   await upsertCommitteeFees(gate.supabase, data.id, parsed.data.edition_id, formData, fallbackRupees);
   await gate.supabase.rpc("write_audit", {
@@ -209,7 +326,7 @@ export async function updateCommitteeAction(
   formData: FormData,
 ): Promise<FormState> {
   const gate = await requireCommitteeManager();
-  if (!gate.allowed) return { error: "You do not have permission to manage committees." };
+  if (!gate.allowed) return failCommittee(formData, "You do not have permission to manage committees.");
 
   const parsed = committeeSchema.safeParse({
     edition_id: String(formData.get("edition_id") ?? ""),
@@ -217,25 +334,35 @@ export async function updateCommitteeAction(
     short_name: formData.get("short_name"),
     slug: formData.get("slug"),
     description: formData.get("description"),
-    rules_url: formData.get("rules_url"),
-    logo_url: formData.get("logo_url"),
+    rules_url: String(formData.get("rules_url") ?? ""),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
     eb_json: formData.get("eb_json"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
+  if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
 
   const allowsSingle = formData.get("allows_single_del") === "on";
   const allowsDouble = formData.get("allows_double_del") === "on";
   if (!allowsSingle && !allowsDouble) {
-    return { error: "A committee must allow single delegation, double delegation, or both." };
+    return failCommittee(
+      formData,
+      "Delegation type: allow single delegation, double delegation, or both.",
+    );
   }
   const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
   const slug = parsed.data.slug
     ? slugify(parsed.data.slug)
     : slugify(parsed.data.short_name);
+
+  const { data: current } = await gate.supabase
+    .from("committees")
+    .select("logo_url")
+    .eq("id", committeeId)
+    .maybeSingle();
+  const logo = await resolveCommitteeLogo(committeeId, formData, current?.logo_url ?? null);
+  if (logo.error) return failCommittee(formData, logo.error);
 
   const { error } = await gate.supabase
     .from("committees")
@@ -246,17 +373,16 @@ export async function updateCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
-      logo_url: parsed.data.logo_url || null,
+      logo_url: logo.logoUrl,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
       status: parsed.data.status,
       display_order: parsed.data.display_order,
-      eb_json: parseEb(parsed.data.eb_json),
     })
     .eq("id", committeeId);
 
-  if (error) return { error: error.message };
+  if (error) return failCommittee(formData, error.message);
 
   await upsertCommitteeFees(gate.supabase, committeeId, parsed.data.edition_id, formData, fallbackRupees);
 
@@ -275,7 +401,9 @@ export async function updateCommitteeAction(
 const contentSchema = z.object({
   name: z.string().trim().min(2).max(120),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
-  logo_url: z.string().url().optional().or(z.literal("")),
+});
+
+const ebSchema = z.object({
   eb_json: z.string().optional().or(z.literal("")),
 });
 
@@ -288,25 +416,26 @@ export async function updateCommitteeContentAction(
   const canContent = await hasPermission("committee.content");
   const canManage = await hasPermission("committee.manage");
   if (!canContent && !canManage) {
-    return { error: "You can only edit committee name, description, logo, and executive board." };
+    return { error: "You can only edit committee name, description, and logo." };
   }
 
   const parsed = contentSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
-    logo_url: formData.get("logo_url"),
-    eb_json: formData.get("eb_json"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
 
   const admin = createAdminClient();
+  const { data: current } = await admin.from("committees").select("logo_url").eq("id", committeeId).maybeSingle();
+  const logo = await resolveCommitteeLogo(committeeId, formData, current?.logo_url ?? null);
+  if (logo.error) return { error: logo.error };
+
   const { error } = await admin
     .from("committees")
     .update({
       name: parsed.data.name,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
-      logo_url: parsed.data.logo_url || null,
-      eb_json: parseEb(parsed.data.eb_json),
+      logo_url: logo.logoUrl,
     })
     .eq("id", committeeId);
   if (error) return { error: error.message };
@@ -320,6 +449,41 @@ export async function updateCommitteeContentAction(
   });
   revalidateCommittee(committeeId);
   return { success: "Committee public details saved." };
+}
+
+export async function updateCommitteeEbAction(
+  committeeId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  if (!isUuid(committeeId)) return { error: "Missing committee." };
+  const canContent = await hasPermission("committee.content");
+  const canManage = await hasPermission("committee.manage");
+  if (!canContent && !canManage) {
+    return { error: "You do not have permission to edit executive boards." };
+  }
+
+  const parsed = ebSchema.safeParse({ eb_json: formData.get("eb_json") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid executive board" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("committees")
+    .update({ eb_json: parseEb(parsed.data.eb_json) })
+    .eq("id", committeeId);
+  if (error) return { error: error.message };
+
+  await admin.rpc("write_audit", {
+    p_action: "committee.eb_update",
+    p_entity: "committees",
+    p_entity_id: committeeId,
+    p_old: null,
+    p_new: { eb_count: parseEb(parsed.data.eb_json).length },
+  });
+  revalidateCommittee(committeeId);
+  revalidatePath("/executive-board");
+  revalidatePath("/admin/committees/eb");
+  return { success: "Executive board saved." };
 }
 
 export async function uploadCommitteePortfoliosAction(

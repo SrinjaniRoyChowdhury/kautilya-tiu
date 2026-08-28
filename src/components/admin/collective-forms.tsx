@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   createCollectiveAction,
   deleteCollectiveAction,
@@ -13,135 +13,192 @@ import {
   updateInstitutionAction,
   type InstitutionState,
 } from "@/app/actions/institutions";
+import { AdminTable } from "@/components/admin/admin-filters";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { Modal, ModalTrigger } from "@/components/ui/modal";
 import type { Collective, Institution } from "@/types";
-
-export function CreateCollectiveForm() {
-  const [state, action, pending] = useActionState(createCollectiveAction, {} as CollectiveState);
-  return (
-    <form action={action} className="grid gap-3">
-      <Field label="Collective name" htmlFor="collective_name">
-        <Input id="collective_name" name="name" required minLength={2} maxLength={80} />
-      </Field>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Adding…" : "Add collective"}
-      </Button>
-      <ActionFeedback error={state.error} success={state.success} />
-    </form>
-  );
-}
-
-export function CreateInstitutionForm() {
-  const [state, action, pending] = useActionState(createInstitutionAction, {} as InstitutionState);
-  return (
-    <form action={action} className="grid gap-3">
-      <Field label="Institution name" htmlFor="institution_name">
-        <Input id="institution_name" name="name" required minLength={2} maxLength={120} />
-      </Field>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Adding…" : "Add institution"}
-      </Button>
-      <ActionFeedback error={state.error} success={state.success} />
-    </form>
-  );
-}
-
-export function CollectiveList({ rows, readOnly = false }: { rows: Collective[]; readOnly?: boolean }) {
-  return (
-    <NamedList
-      rows={rows}
-      readOnly={readOnly}
-      empty="No collectives yet."
-      update={updateCollectiveAction}
-      remove={deleteCollectiveAction}
-    />
-  );
-}
-
-export function InstitutionList({ rows, readOnly = false }: { rows: Institution[]; readOnly?: boolean }) {
-  return (
-    <NamedList
-      rows={rows}
-      readOnly={readOnly}
-      empty="No institutions yet."
-      update={updateInstitutionAction}
-      remove={deleteInstitutionAction}
-    />
-  );
-}
 
 type NamedState = CollectiveState | InstitutionState;
 
-function NamedList({
-  rows,
-  readOnly,
-  empty,
-  update,
-  remove,
+function CreateNamedForm({
+  action,
+  fieldId,
+  label,
+  onSuccess,
 }: {
-  rows: Array<{ id: string; name: string }>;
-  readOnly: boolean;
-  empty: string;
-  update: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
-  remove: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
+  action: (prev: NamedState, formData: FormData) => Promise<NamedState>;
+  fieldId: string;
+  label: string;
+  onSuccess?: () => void;
 }) {
-  if (!rows.length) {
-    return <p className="text-sm text-ink-muted">{empty}</p>;
-  }
-  if (readOnly) {
-    return (
-      <ul className="grid gap-2 text-sm">
-        {rows.map((row) => (
-          <li key={row.id}>{row.name}</li>
-        ))}
-      </ul>
-    );
-  }
+  const [state, formAction, pending] = useActionState(action, {} as NamedState);
+  useEffect(() => {
+    if (state.success) onSuccess?.();
+  }, [state.success, onSuccess]);
+
   return (
-    <ul className="grid gap-4">
-      {rows.map((row) => (
-        <li key={row.id} className="border-b border-gold-700/15 pb-4 last:border-b-0 last:pb-0">
-          <EditNamedForm row={row} update={update} remove={remove} />
-        </li>
-      ))}
-    </ul>
+    <form action={formAction} className="grid gap-3">
+      <Field label={label} htmlFor={fieldId}>
+        <Input id={fieldId} name="name" required minLength={2} maxLength={120} />
+      </Field>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Adding…" : "Add"}
+      </Button>
+      <ActionFeedback error={state.error} success={state.success} />
+    </form>
   );
 }
 
-function EditNamedForm({
+export function CreateCollectiveModalButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <ModalTrigger label="Add collective" onOpen={() => setOpen(true)} />
+      <Modal open={open} title="Add collective" onClose={() => setOpen(false)}>
+        <CreateNamedForm
+          action={createCollectiveAction}
+          fieldId="collective_name"
+          label="Collective name"
+          onSuccess={() => setOpen(false)}
+        />
+      </Modal>
+    </>
+  );
+}
+
+export function CreateInstitutionModalButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <ModalTrigger label="Add institution" onOpen={() => setOpen(true)} />
+      <Modal open={open} title="Add institution" onClose={() => setOpen(false)}>
+        <CreateNamedForm
+          action={createInstitutionAction}
+          fieldId="institution_name"
+          label="Institution name"
+          onSuccess={() => setOpen(false)}
+        />
+      </Modal>
+    </>
+  );
+}
+
+function EditNamedModal({
   row,
+  title,
   update,
   remove,
+  onClose,
 }: {
   row: { id: string; name: string };
+  title: string;
   update: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
   remove: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
+  onClose: () => void;
 }) {
   const save = update.bind(null, row.id);
   const drop = remove.bind(null, row.id);
   const [state, action, pending] = useActionState(save, {} as NamedState);
   const [deleteState, deleteAction, deleting] = useActionState(drop, {} as NamedState);
+
+  useEffect(() => {
+    if (state.success || deleteState.success) onClose();
+  }, [state.success, deleteState.success, onClose]);
+
   return (
-    <div className="grid gap-2">
-      <form action={action} className="flex flex-wrap items-end gap-2">
-        <div className="min-w-[12rem] flex-1">
-          <Field label="Name" htmlFor={`name-${row.id}`}>
-            <Input id={`name-${row.id}`} name="name" defaultValue={row.name} required />
-          </Field>
+    <Modal open title={title} onClose={onClose}>
+      <form action={action} className="grid gap-3">
+        <Field label="Name" htmlFor={`edit-${row.id}`}>
+          <Input id={`edit-${row.id}`} name="name" defaultValue={row.name} required />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={pending || deleting}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
         </div>
-        <Button type="submit" size="sm" disabled={pending || deleting}>
-          {pending ? "Saving…" : "Save"}
-        </Button>
-        <ActionFeedback error={state.error} success={state.success} className="w-full text-xs" />
+        <ActionFeedback error={state.error} success={state.success} />
       </form>
-      <form action={deleteAction}>
+      <form action={deleteAction} className="mt-4 border-t border-gold-700/15 pt-4">
         <Button type="submit" variant="ghost" size="sm" disabled={pending || deleting}>
           {deleting ? "Removing…" : "Delete"}
         </Button>
         <ActionFeedback error={deleteState.error} success={deleteState.success} className="text-xs" />
       </form>
-    </div>
+    </Modal>
+  );
+}
+
+function NamedRowActions({
+  row,
+  title,
+  update,
+  remove,
+}: {
+  row: { id: string; name: string };
+  title: string;
+  update: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
+  remove: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        Edit
+      </Button>
+      {open ? (
+        <EditNamedModal row={row} title={title} update={update} remove={remove} onClose={() => setOpen(false)} />
+      ) : null}
+    </>
+  );
+}
+
+export function CollectiveTable({ rows, readOnly }: { rows: Collective[]; readOnly: boolean }) {
+  if (!rows.length) return <p className="text-sm text-ink-muted">No collectives yet.</p>;
+  return (
+    <AdminTable columns={readOnly ? ["Name"] : ["Name", ""]}>
+      {rows.map((row) => (
+        <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
+          <td className="px-2 py-1.5">{row.name}</td>
+          {readOnly ? null : (
+            <td className="px-2 py-1.5 text-right">
+              <NamedRowActions
+                row={row}
+                title="Edit collective"
+                update={updateCollectiveAction}
+                remove={deleteCollectiveAction}
+              />
+            </td>
+          )}
+        </tr>
+      ))}
+    </AdminTable>
+  );
+}
+
+export function InstitutionTable({ rows, readOnly }: { rows: Institution[]; readOnly: boolean }) {
+  if (!rows.length) return <p className="text-sm text-ink-muted">No institutions yet.</p>;
+  return (
+    <AdminTable columns={readOnly ? ["Name"] : ["Name", ""]}>
+      {rows.map((row) => (
+        <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
+          <td className="px-2 py-1.5">{row.name}</td>
+          {readOnly ? null : (
+            <td className="px-2 py-1.5 text-right">
+              <NamedRowActions
+                row={row}
+                title="Edit institution"
+                update={updateInstitutionAction}
+                remove={deleteInstitutionAction}
+              />
+            </td>
+          )}
+        </tr>
+      ))}
+    </AdminTable>
   );
 }

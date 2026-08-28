@@ -44,8 +44,6 @@ function firstIssue(error: z.ZodError): AccountState {
 
 function revalidateAccounts() {
   revalidatePath("/admin/accounts");
-  revalidatePath("/admin/scanners");
-  revalidatePath("/admin/editors");
 }
 
 async function roleRowsByName(names: string[]) {

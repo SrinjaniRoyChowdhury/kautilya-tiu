@@ -6,7 +6,8 @@ import {
   PublishedDocs,
 } from "@/components/admin/conference-doc-forms";
 import {
-  AnnouncementForm,
+  AnnouncementsTable,
+  CreateAnnouncementModalButton,
   GalleryAlbumForm,
   GalleryImageForm,
   SiteSettingsForm,
@@ -60,10 +61,9 @@ export default async function AdminCmsPage() {
 
       {canManageDocs ? (
         <Card>
-          <p className="mb-4 font-serif text-2xl text-gold-700">Rulebook and guidelines</p>
+          <p className="mb-2 font-serif text-2xl text-gold-700">Rulebook and guidelines</p>
           <p className="mb-6 text-sm text-ink-muted">
-            Public PDFs at /rulebook. Delegates must acknowledge both before they can register. Only
-            an admin can upload or delete these files.
+            Public PDFs at /rulebook. Delegates must acknowledge both before they can register.
           </p>
           <ConferenceDocForm />
           <PublishedDocs docs={docs} />
@@ -71,22 +71,26 @@ export default async function AdminCmsPage() {
       ) : null}
 
       <Card className={canManageDocs ? "mt-6" : undefined}>
-        <p className="mb-4 font-serif text-2xl text-gold-700">Site copy</p>
-        <p className="mb-6 text-sm text-ink-muted">
-          Homepage hero, about, mission, history, and contact details.
-          {canEdit && !readOnly ? (
-            <>
-              {" "}
-              Edit names, designations, and USG departments on{" "}
-              <Link href="/admin/team" className="text-gold-700 hover:underline">
-                Team
-              </Link>
-              .
-            </>
-          ) : null}
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-serif text-2xl text-gold-700">Site copy</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Homepage hero, about, mission, history, and contact.
+              {canEdit && !readOnly ? (
+                <>
+                  {" "}
+                  Edit team on{" "}
+                  <Link href="/admin/team" className="text-gold-700 hover:underline">
+                    Team
+                  </Link>
+                  .
+                </>
+              ) : null}
+            </p>
+          </div>
+        </div>
         {readOnly ? (
-          <dl className="grid gap-3 text-sm">
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-ink-muted">Society</dt>
               <dd>{settings.society_name}</dd>
@@ -95,7 +99,7 @@ export default async function AdminCmsPage() {
               <dt className="text-ink-muted">Tagline</dt>
               <dd>{settings.tagline || "—"}</dd>
             </div>
-            <div>
+            <div className="sm:col-span-2">
               <dt className="text-ink-muted">Contact</dt>
               <dd>{settings.contact_email || "—"}</dd>
             </div>
@@ -106,36 +110,20 @@ export default async function AdminCmsPage() {
       </Card>
 
       <Card className="mt-6">
-        <p className="mb-4 font-serif text-2xl text-gold-700">Announcements</p>
-        {readOnly ? (
-          <ul className="grid gap-2 text-sm">
-            {announcements.map((item) => (
-              <li key={item.id}>{item.title}</li>
-            ))}
-            {announcements.length ? null : <li className="text-ink-muted">None published.</li>}
-          </ul>
-        ) : (
-          <>
-        <AnnouncementForm editions={editions} />
-        <div className="mt-6 grid gap-4">
-          {announcements.map((item) => (
-            <div key={item.id} className="border-t border-gold-700/15 pt-4">
-              <AnnouncementForm editions={editions} announcement={item} />
-              <form action={deleteAnnouncementAction} className="mt-2">
-                <input type="hidden" name="id" value={item.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Delete
-                </Button>
-              </form>
-            </div>
-          ))}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="font-serif text-2xl text-gold-700">Announcements</p>
+          {!readOnly ? <CreateAnnouncementModalButton editions={editions} /> : null}
         </div>
-          </>
-        )}
+        <AnnouncementsTable
+          announcements={announcements}
+          editions={editions}
+          readOnly={readOnly}
+          onDelete={deleteAnnouncementAction}
+        />
       </Card>
 
       <Card className="mt-6">
-        <p className="mb-4 font-serif text-2xl text-gold-700">Gallery</p>
+        <p className="mb-2 font-serif text-2xl text-gold-700">Gallery</p>
         {readOnly ? (
           <ul className="grid gap-2 text-sm">
             {albums.map((album) => (
@@ -145,39 +133,39 @@ export default async function AdminCmsPage() {
           </ul>
         ) : (
           <>
-        <p className="mb-6 text-sm text-ink-muted">
-          Albums need an edition. Add images as public URLs — no paid storage pipeline.
-        </p>
-        {editions.length ? <GalleryAlbumForm editions={editions} /> : (
-          <p className="text-sm text-ink-muted">Create an edition before adding albums.</p>
-        )}
-        <div className="mt-6 grid gap-6">
-          {albums.map((album) => (
-            <div key={album.id} className="border-t border-gold-700/15 pt-4">
-              <GalleryAlbumForm editions={editions} album={album} />
-              <form action={deleteGalleryAlbumAction} className="mt-2">
-                <input type="hidden" name="id" value={album.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Delete album
-                </Button>
-              </form>
-              <ul className="mt-3 space-y-2 text-sm">
-                {(album.images ?? []).map((image) => (
-                  <li key={image.id} className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="truncate text-ink-muted">{image.caption || image.storage_key}</span>
-                    <form action={deleteGalleryImageAction}>
-                      <input type="hidden" name="id" value={image.id} />
-                      <Button type="submit" variant="ghost" size="sm">
-                        Remove
-                      </Button>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-              <GalleryImageForm albumId={album.id} />
+            <p className="mb-6 text-sm text-ink-muted">
+              Albums need an edition. Add images as public URLs — no paid storage pipeline.
+            </p>
+            {editions.length ? <GalleryAlbumForm editions={editions} /> : (
+              <p className="text-sm text-ink-muted">Create an edition before adding albums.</p>
+            )}
+            <div className="mt-8 space-y-8">
+              {albums.map((album) => (
+                <div key={album.id} className="border-t border-gold-700/15 pt-6">
+                  <GalleryAlbumForm editions={editions} album={album} />
+                  <form action={deleteGalleryAlbumAction} className="mt-2">
+                    <input type="hidden" name="id" value={album.id} />
+                    <Button type="submit" variant="ghost" size="sm">
+                      Delete album
+                    </Button>
+                  </form>
+                  <ul className="mt-3 space-y-2 text-sm">
+                    {(album.images ?? []).map((image) => (
+                      <li key={image.id} className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="truncate text-ink-muted">{image.caption || image.storage_key}</span>
+                        <form action={deleteGalleryImageAction}>
+                          <input type="hidden" name="id" value={image.id} />
+                          <Button type="submit" variant="ghost" size="sm">
+                            Remove
+                          </Button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                  <GalleryImageForm albumId={album.id} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
           </>
         )}
       </Card>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CommitteeForm } from "@/components/admin/forms";
+import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAllEditionsAdmin } from "@/lib/data";
@@ -15,6 +16,7 @@ export default async function NewCommitteePage() {
 
   return (
     <Container className="py-12">
+      <BackLink href="/admin/committees" label="Back to committees" />
       <PageHeader
         eyebrow="Admin"
         title="New committee"
