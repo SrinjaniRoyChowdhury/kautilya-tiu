@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { ContactDesk } from "@/components/public/contact-desk";
-import { Container } from "@/components/ui/card";
+import { ContactDesk } from "@/components/public/contact-desk";import { Container } from "@/components/ui/card";
 import { getActiveEdition, getSiteSettings, getTeamMembers } from "@/lib/data";
 import { contactFaces } from "@/lib/team";
 

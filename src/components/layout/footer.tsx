@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from "next/link";import { usePathname } from "next/navigation";
 import { FaInstagram } from "react-icons/fa";
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from "react-icons/hi";
 import { BrandLogo } from "@/components/brand/logo";
@@ -27,25 +26,29 @@ export function Footer({ settings }: { settings: SiteSettings }) {
             {settings.tagline ?? "Strategy. Diplomacy. Statecraft."}
           </p>
         </div>
-        <nav className="flex flex-col gap-2 text-sm text-parchment-200" aria-label="Footer">
-          <Link href="/about" className="hover:text-gold-400">
-            About the society
-          </Link>
-          <Link href="/committees" className="hover:text-gold-400">
-            Current committees
-          </Link>
-          <Link href="/editions" className="hover:text-gold-400">
-            Past editions
-          </Link>
-          <Link href="/gallery" className="hover:text-gold-400">
-            Gallery
-          </Link>
-          <Link href="/rulebook" className="hover:text-gold-400">
-            Rulebook
-          </Link>
-          <Link href="/login" className="hover:text-gold-400">
-            Delegate login
-          </Link>
+        <nav className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-parchment-200" aria-label="Footer">
+          <div className="flex flex-col gap-2">
+            <Link href="/about" className="hover:text-gold-400">
+              About the society
+            </Link>
+            <Link href="/editions" className="hover:text-gold-400">
+              Past editions
+            </Link>
+            <Link href="/gallery" className="hover:text-gold-400">
+              Gallery
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Link href="/committees" className="hover:text-gold-400">
+              Current committees
+            </Link>
+            <Link href="/rulebook" className="hover:text-gold-400">
+              Rulebook
+            </Link>
+            <Link href="/login" className="hover:text-gold-400">
+              Delegate login
+            </Link>
+          </div>
         </nav>
         <address className="not-italic text-sm text-parchment-200">
           {settings.contact_email ? (
@@ -88,10 +91,9 @@ export function Footer({ settings }: { settings: SiteSettings }) {
       </div>
       <div className="border-t border-gold-400/20">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 text-xs text-parchment-300 sm:px-6">
-          <p>
+          <p suppressHydrationWarning>
             © {new Date().getFullYear()} {settings.society_name}. All rights reserved.
-          </p>
-          <p className="text-right">
+          </p>          <p className="text-right">
             Behind the digital curtain: Srinjani Roy Chowdhury and Pratik Guha Roy
           </p>
         </div>
