@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { RulebookPageView } from "@/components/public/rulebook-page-view";
 import { Container } from "@/components/ui/card";
 import { getConferenceDocuments } from "@/lib/data";
-import { DOC_KINDS } from "@/lib/docs";
 
 export const metadata: Metadata = {
   title: "Rulebook & guidelines",

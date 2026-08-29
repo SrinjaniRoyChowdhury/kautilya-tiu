@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, type HTMLMotionProps, type Variants } from "framer-motion";
-import { useEffect, useState, type ElementType, type ReactNode } from "react";
+import { useSyncExternalStore, type ElementType, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -20,9 +20,11 @@ const STATIC_TAGS: Record<RevealTag, ElementType> = {
 };
 
 function useMotionReady() {
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
-  return ready;
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 }
 
 type MotionRevealProps = {
