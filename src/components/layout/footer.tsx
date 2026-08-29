@@ -24,7 +24,7 @@ export function Footer({ settings }: { settings: SiteSettings }) {
             <p className="font-serif text-2xl font-semibold text-gold-400">{settings.society_name}</p>
           </div>
           <p className="mt-2 max-w-xs text-sm text-parchment-300">
-            {settings.tagline ?? "A college Model United Nations society."}
+            {settings.tagline ?? "Strategy. Diplomacy. Statecraft."}
           </p>
         </div>
         <nav className="flex flex-col gap-2 text-sm text-parchment-200" aria-label="Footer">

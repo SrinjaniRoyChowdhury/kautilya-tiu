@@ -24,16 +24,24 @@ export default async function AdminCommitteesPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Committees" />
-      {canCreate ? (
-        <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-3">
+        {canCreate ? (
           <Link
             href="/admin/committees/new"
             className="inline-flex h-10 items-center rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50"
           >
             New committee
           </Link>
-        </div>
-      ) : null}
+        ) : null}
+        {!readOnly && (canCreate || contentOnly) ? (
+          <Link
+            href="/admin/committees/eb"
+            className="inline-flex h-10 items-center rounded-sm border border-gold-700/50 px-4 text-sm font-medium text-gold-700 hover:bg-parchment-200"
+          >
+            Executive board
+          </Link>
+        ) : null}
+      </div>
       <div className="grid gap-3">
         {committees.map((committee) => (
           <Card key={committee.id} className="flex flex-wrap items-center justify-between gap-3">

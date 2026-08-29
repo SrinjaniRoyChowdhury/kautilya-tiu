@@ -51,12 +51,26 @@ function ScannerFields({
   );
 }
 
-export function CreateAccountForm({ editions }: { editions: Edition[] }) {
-  const [kind, setKind] = useState<AccountKind>("scanner");
+export function CreateAccountForm({
+  editions,
+  defaultKind,
+  lockKind = false,
+  onSuccess,
+}: {
+  editions: Edition[];
+  defaultKind?: AccountKind;
+  lockKind?: boolean;
+  onSuccess?: () => void;
+}) {
+  const [kind, setKind] = useState<AccountKind>(defaultKind ?? "scanner");
   const [state, action, pending] = useActionState(createStaffAccountAction, {} as AccountState);
 
+  useEffect(() => {
+    if (state.success) onSuccess?.();
+  }, [state.success, onSuccess]);
+
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <form action={action} className="grid gap-3 sm:grid-cols-2">
       <Field label="Full name" htmlFor="full_name">
         <Input id="full_name" name="full_name" required autoComplete="name" />
       </Field>
@@ -70,27 +84,29 @@ export function CreateAccountForm({ editions }: { editions: Edition[] }) {
       >
         <PasswordInput id="password" name="password" required autoComplete="new-password" />
       </Field>
-      <Field label="Account type" htmlFor="kind">
-        <Select
-          id="kind"
-          name="kind"
-          value={kind}
-          onChange={(event) => setKind(event.target.value as AccountKind)}
-        >
-          {(Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).map((item) => (
-            <option key={item} value={item}>
-              {ACCOUNT_KIND_LABELS[item]}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      {kind === "scanner" ? <ScannerFields editions={editions} /> : null}
-      <div className="flex items-end">
+      {lockKind && defaultKind ? (
+        <input type="hidden" name="kind" value={defaultKind} />
+      ) : (
+        <Field label="Account type" htmlFor="kind">
+          <Select
+            id="kind"
+            name="kind"
+            value={kind}
+            onChange={(event) => setKind(event.target.value as AccountKind)}
+          >
+            {(Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).map((item) => (
+              <option key={item} value={item}>
+                {ACCOUNT_KIND_LABELS[item]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+      {(lockKind ? defaultKind : kind) === "scanner" ? <ScannerFields editions={editions} /> : null}
+      <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create account"}
         </Button>
-      </div>
-      <div className="sm:col-span-2 lg:col-span-3">
         <ActionFeedback error={state.error} success={state.success} />
       </div>
     </form>

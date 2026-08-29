@@ -1,18 +1,25 @@
 import type { Metadata } from "next";
 import {
-  CollectiveList,
-  CreateCollectiveForm,
-  CreateInstitutionForm,
-  InstitutionList,
+  CollectiveTable,
+  CreateCollectiveModalButton,
+  CreateInstitutionModalButton,
+  InstitutionTable,
 } from "@/components/admin/collective-forms";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { AdminFilters, AdminListShell, AdminPagination } from "@/components/admin/admin-filters";
+import { Container, PageHeader } from "@/components/ui/card";
 import { getRoleNames, hasPermission } from "@/lib/auth";
 import { getCollectives, getInstitutions } from "@/lib/data";
+import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
 import { isLimitedStaff } from "@/lib/staff-access";
 
 export const metadata: Metadata = { title: "Collectives" };
 
-export default async function AdminCollectivesPage() {
+export default async function AdminCollectivesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; q?: string; page?: string }>;
+}) {
+  const { tab = "collectives", q = "", page: pageRaw } = await searchParams;
   const canEdit = await hasPermission("edition.manage");
   const readOnly = !canEdit;
   if (!canEdit && !isLimitedStaff(await getRoleNames())) {
@@ -24,35 +31,64 @@ export default async function AdminCollectivesPage() {
   }
 
   const [collectives, institutions] = await Promise.all([getCollectives(), getInstitutions()]);
+  const onCollectives = tab !== "institutions";
+  const source = onCollectives ? collectives : institutions;
+  const visible = source.filter((row) => matchesQuery(q, row.name));
+  const paged = paginate(visible, parsePage(pageRaw));
+  const query = { tab, q };
 
   return (
-    <Container className="py-8">
-      <PageHeader
-        title="Collectives and institutions"
-        description="Suggested names for registration. Delegates type to filter these lists. They can still enter an institution that is not on the list."
-      />
-      <div className="grid gap-6 lg:grid-cols-2">
-        {canEdit ? (
-          <Card>
-            <p className="mb-4 font-serif text-2xl text-gold-700">Add collective</p>
-            <CreateCollectiveForm />
-          </Card>
-        ) : null}
-        <Card>
-          <p className="mb-4 font-serif text-2xl text-gold-700">Current collectives</p>
-          <CollectiveList rows={collectives} readOnly={readOnly} />
-        </Card>
-        {canEdit ? (
-          <Card>
-            <p className="mb-4 font-serif text-2xl text-gold-700">Add institution</p>
-            <CreateInstitutionForm />
-          </Card>
-        ) : null}
-        <Card>
-          <p className="mb-4 font-serif text-2xl text-gold-700">Current institutions</p>
-          <InstitutionList rows={institutions} readOnly={readOnly} />
-        </Card>
-      </div>
-    </Container>
+    <div className="flex h-full min-h-0 flex-col">
+      <Container className="shrink-0 py-6">
+        <PageHeader
+          title="Collectives and institutions"
+          description="Suggested names for registration. Delegates can still enter a name that is not on the list."
+        />
+      </Container>
+      <AdminListShell
+        header={
+          <div className="flex flex-wrap gap-3">
+            <a
+              href={adminListHref("/admin/collectives", { tab: "collectives", q }, 1)}
+              className={onCollectives ? "font-semibold text-gold-700" : "text-gold-700 hover:underline"}
+            >
+              Collectives
+            </a>
+            <a
+              href={adminListHref("/admin/collectives", { tab: "institutions", q }, 1)}
+              className={!onCollectives ? "font-semibold text-gold-700" : "text-gold-700 hover:underline"}
+            >
+              Institutions
+            </a>
+          </div>
+        }
+        toolbar={
+          <>
+            {canEdit ? (
+              onCollectives ? <CreateCollectiveModalButton /> : <CreateInstitutionModalButton />
+            ) : null}
+            <AdminFilters action="/admin/collectives" q={q} qPlaceholder="Search name">
+              <input type="hidden" name="tab" value={tab} />
+            </AdminFilters>
+          </>
+        }
+        footer={
+          <AdminPagination
+            page={paged.page}
+            pageCount={paged.pageCount}
+            total={paged.total}
+            from={paged.from}
+            to={paged.to}
+            makeHref={(next) => adminListHref("/admin/collectives", query, next)}
+          />
+        }
+      >
+        {onCollectives ? (
+          <CollectiveTable rows={paged.items as typeof collectives} readOnly={readOnly} />
+        ) : (
+          <InstitutionTable rows={paged.items as typeof institutions} readOnly={readOnly} />
+        )}
+      </AdminListShell>
+    </div>
   );
 }

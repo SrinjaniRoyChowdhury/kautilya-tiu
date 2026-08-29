@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Montserrat, Poppins } from "next/font/google";
+import { AnnouncementRibbon } from "@/components/public/announcement-ribbon";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { getProfile, getRoleNames, getSessionUser, hasScanAccess } from "@/lib/auth";
 import { isOperatorOnly } from "@/lib/roles";
 import { staffHomePath } from "@/lib/staff-access";
-import { getSiteSettings } from "@/lib/data";
+import { APP_NAME } from "@/lib/constants";
+import { getActiveEdition, getAnnouncements, getSiteSettings } from "@/lib/data";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -24,11 +26,11 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: "Kautilya MUN",
-    template: "%s · Kautilya MUN",
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
   },
   description:
-    "Registration, credentials, and conference operations for Kautilya Model United Nations.",
+    "Registration, credentials, and conference operations for Niti Sabha — Techno Kautilya's Model United Nations conference.",
   icons: {
     icon: "/KautilyaLogo.png",
     apple: "/KautilyaLogo.png",
@@ -36,13 +38,15 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [settings, user, profile, roles, canScan] = await Promise.all([
+  const [settings, user, profile, roles, canScan, edition] = await Promise.all([
     getSiteSettings(),
     getSessionUser(),
     getProfile(),
     getRoleNames(),
     hasScanAccess(),
+    getActiveEdition(),
   ]);
+  const announcements = edition ? await getAnnouncements(edition.id) : [];
 
   const scannerOnly = isOperatorOnly(roles);
 
@@ -59,6 +63,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           adminHref={staffHomePath(roles)}
           canScan={canScan}
         />
+        <AnnouncementRibbon announcements={announcements} />
         <main className="flex-1">{children}</main>
         {scannerOnly ? null : <Footer settings={settings} />}
       </body>

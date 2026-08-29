@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CommitteeFeeBlock } from "@/components/public/committee-fees";
+import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
-import { PHASE_LABELS } from "@/lib/phases";
-import { toPlainText } from "@/lib/sanitize";
-import { seatsHeld } from "@/lib/registration";
+import { seatsRemaining } from "@/lib/format";
 import { getActiveEdition, getCommitteeBySlug } from "@/lib/data";
-
+import { seatsHeld } from "@/lib/registration";
+import { toPlainText } from "@/lib/sanitize";
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -29,6 +29,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
 
   return (
     <Container className="py-12">
+      <BackLink href="/committees" label="Back to committees" />
       <PageHeader eyebrow={committee.short_name} title={committee.name} />
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <article>
@@ -53,11 +54,24 @@ export default async function CommitteeDetailPage({ params }: Props) {
           {committee.eb_json?.length ? (
             <section className="mt-8">
               <h2 className="font-serif text-2xl text-gold-700">Executive board</h2>
-              <ul className="mt-3 space-y-2 text-sm">
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
                 {committee.eb_json.map((member) => (
-                  <li key={`${member.name}-${member.title}`}>
-                    <span className="font-medium">{member.name}</span>
-                    <span className="text-ink-muted"> · {member.title}</span>
+                  <li
+                    key={`${member.name}-${member.title}`}
+                    className="flex items-center gap-3 rounded-sm border border-gold-700/15 bg-parchment-50/80 px-3 py-2"
+                  >
+                    {member.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={member.photo_url}
+                        alt=""
+                        className="h-14 w-14 shrink-0 rounded-sm border border-gold-700/20 object-cover"
+                      />
+                    ) : null}
+                    <div>
+                      <span className="font-medium">{member.name}</span>
+                      <span className="block text-ink-muted"> {member.title}</span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -81,18 +95,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
           ) : null}
         </article>
         <Card className="h-fit space-y-3">
-          <p className="text-sm text-ink-muted">
-            {committee.current_phase_kind ? `${PHASE_LABELS[committee.current_phase_kind]} · ` : ""}
-            Fee
-          </p>
-          <p className="font-serif text-3xl text-gold-700">
-            {formatInrFromMinor(committee.fee_minor)}
-          </p>
-          {committee.allows_double_del ? (
-            <p className="text-sm text-ink-muted">
-              Double del {formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}
-            </p>
-          ) : null}
+          <CommitteeFeeBlock committee={committee} size="lg" />
           <p className="text-sm text-ink-muted">
             {remaining} of {committee.capacity} delegations remaining
           </p>

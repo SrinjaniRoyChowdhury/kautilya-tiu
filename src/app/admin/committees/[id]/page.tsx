@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DelegationMatrix, PortfolioUploadForm } from "@/components/admin/delegation-matrix";
 import { CommitteeForm } from "@/components/admin/forms";
+import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, getRoleNames } from "@/lib/auth";
 import { isReadOnlyStaff } from "@/lib/staff-access";
@@ -29,6 +30,7 @@ export default async function EditCommitteePage({ params }: Props) {
 
   return (
     <Container className="py-12">
+      <BackLink href="/admin/committees" label="Back to committees" />
       <PageHeader
         eyebrow="Admin"
         title={committee.name}
@@ -36,7 +38,7 @@ export default async function EditCommitteePage({ params }: Props) {
           canEdit
             ? `${committee.portfolio_config.length} delegations in this committee. Allocating a portfolio does not issue a new QR.`
             : mode === "content"
-              ? "Public name, description, logo, and executive board."
+              ? "Public name, description, and logo."
               : `${committee.short_name} · ${committee.status}`
         }
       />

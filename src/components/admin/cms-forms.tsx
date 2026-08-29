@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useEffect, useState } from "react";
 import {
   addGalleryImageAction,
   saveAnnouncementAction,
@@ -8,9 +9,11 @@ import {
   updateSiteSettingsAction,
   type FormState,
 } from "@/app/actions/cms";
+import { AdminTable } from "@/components/admin/admin-filters";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
+import { Modal, ModalTrigger } from "@/components/ui/modal";
 import { toPlainText } from "@/lib/sanitize";
 import type { Announcement, Edition, GalleryAlbum, SiteSettings } from "@/types";
 
@@ -102,11 +105,21 @@ function EditionOptions({ editions }: { editions: Edition[] }) {
 export function AnnouncementForm({
   editions,
   announcement,
+  onSuccess,
 }: {
   editions: Edition[];
   announcement?: Announcement;
+  onSuccess?: () => void;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(saveAnnouncementAction, {} as FormState);
+
+  useEffect(() => {
+    if (!state.success) return;
+    router.refresh();
+    onSuccess?.();
+  }, [state.success, onSuccess, router]);
+
   return (
     <form action={formAction} className="grid gap-3">
       {announcement ? <input type="hidden" name="id" value={announcement.id} /> : null}
@@ -156,6 +169,150 @@ export function AnnouncementForm({
         <Feedback state={state} />
       </div>
     </form>
+  );
+}
+
+export function CreateAnnouncementModalButton({ editions }: { editions: Edition[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <ModalTrigger label="Add announcement" onOpen={() => setOpen(true)} />
+      <Modal open={open} title="Add announcement" onClose={() => setOpen(false)} wide>
+        <AnnouncementForm editions={editions} onSuccess={() => setOpen(false)} />
+      </Modal>
+    </>
+  );
+}
+
+function DeleteAnnouncementButton({
+  id,
+  onDelete,
+}: {
+  id: string;
+  onDelete: (formData: FormData) => void | Promise<void>;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      onClick={async () => {
+        setPending(true);
+        try {
+          const formData = new FormData();
+          formData.set("id", id);
+          await onDelete(formData);
+          router.refresh();
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
+      {pending ? "Deleting…" : "Delete"}
+    </Button>
+  );
+}
+
+function EditAnnouncementModal({
+  announcement,
+  editions,
+  onClose,
+}: {
+  announcement: Announcement;
+  editions: Edition[];
+  onClose: () => void;
+}) {
+  return (
+    <Modal open title="Edit announcement" onClose={onClose} wide>
+      <AnnouncementForm editions={editions} announcement={announcement} onSuccess={onClose} />
+    </Modal>
+  );
+}
+
+export function AnnouncementsTable({
+  announcements,
+  editions,
+  readOnly,
+  onDelete,
+}: {
+  announcements: Announcement[];
+  editions: Edition[];
+  readOnly: boolean;
+  onDelete: (formData: FormData) => void;
+}) {
+  if (!announcements.length) {
+    return <p className="text-sm text-ink-muted">No announcements published yet.</p>;
+  }
+
+  const editionName = Object.fromEntries(editions.map((e) => [e.id, e.name]));
+
+  return (
+    <AdminTable columns={readOnly ? ["Title", "Edition", "Published"] : ["Title", "Edition", "Order", "Published", ""]}>
+      {announcements.map((item) => (
+        <AnnouncementRow
+          key={item.id}
+          item={item}
+          editions={editions}
+          editionName={editionName}
+          readOnly={readOnly}
+          onDelete={onDelete}
+        />
+      ))}
+    </AdminTable>
+  );
+}
+
+function AnnouncementRow({
+  item,
+  editions,
+  editionName,
+  readOnly,
+  onDelete,
+}: {
+  item: Announcement;
+  editions: Edition[];
+  editionName: Record<string, string>;
+  readOnly: boolean;
+  onDelete: (formData: FormData) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <tr className="border-b border-gold-700/10 hover:bg-parchment-100">
+      <td className="px-2 py-1.5">
+        <p className="font-medium">{item.title}</p>
+        <p className="line-clamp-1 text-xs text-ink-muted">{toPlainText(item.body_html)}</p>
+      </td>
+      <td className="px-2 py-1.5 text-sm text-ink-muted">
+        {item.edition_id ? editionName[item.edition_id] ?? "Edition" : "All editions"}
+      </td>
+      {readOnly ? (
+        <td className="px-2 py-1.5 text-sm text-ink-muted">{item.published ? "Yes" : "No"}</td>
+      ) : (
+        <>
+          <td className="px-2 py-1.5 text-sm text-ink-muted">{item.display_order}</td>
+          <td className="px-2 py-1.5 text-sm text-ink-muted">{item.published ? "Yes" : "No"}</td>
+          <td className="px-2 py-1.5 text-right">
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+                Edit
+              </Button>
+              <DeleteAnnouncementButton id={item.id} onDelete={onDelete} />
+            </div>
+            {open ? (
+              <EditAnnouncementModal
+                announcement={item}
+                editions={editions}
+                onClose={() => setOpen(false)}
+              />
+            ) : null}
+          </td>
+        </>
+      )}
+    </tr>
   );
 }
 

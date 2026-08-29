@@ -50,7 +50,7 @@ export default async function HomePage() {
           )}
         </section>
 
-        <section className="mt-14">
+        <section id="announcements" className="mt-14 scroll-mt-[calc(var(--site-header-height)+var(--announcement-ribbon-height)+1rem)]">
           <h2 className="mb-6 font-serif text-3xl text-gold-700">Announcements</h2>
           {announcements.length ? (
             <ul className="grid gap-4">

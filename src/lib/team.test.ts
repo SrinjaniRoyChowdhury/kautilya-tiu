@@ -41,7 +41,9 @@ describe("resolvePublicRoster", () => {
       member({ id: "1", section: "CORE", full_name: "Asha", role_title: "Secretary-General" }),
       member({ id: "2", section: "USG", full_name: "", role_title: "Hospitality" }),
     ];
-    expect(coreFromMembers(rows)).toEqual([{ id: "1", role: "Secretary-General", names: ["Asha"] }]);
+    expect(coreFromMembers(rows)).toEqual([
+      { id: "1", role: "Secretary-General", names: ["Asha"], photo_url: null },
+    ]);
     expect(usgFromMembers(rows)).toEqual([{ id: "2", title: "Hospitality", names: [] }]);
     const roster = resolvePublicRoster(rows);
     expect(roster.core).toHaveLength(1);

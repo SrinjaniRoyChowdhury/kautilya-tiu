@@ -7,7 +7,7 @@ import { contactFaces } from "@/lib/team";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Write the Kautilya MUN secretariat — delegates, sponsors, faculty, and press are all welcome at the desk.",
+    "Write the Niti Sabha secretariat — delegates, sponsors, faculty, and press are all welcome at the desk.",
 };
 
 export default async function ContactPage() {

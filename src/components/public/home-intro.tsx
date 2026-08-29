@@ -1,16 +1,40 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { markHomeIntroDone } from "@/lib/intro-gate";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  beginHomeIntro,
+  markHomeIntroDone,
+  releaseHomeIntroHold,
+  shouldPlayHomeIntro,
+} from "@/lib/intro-gate";
 
 const FADE_MS = 1100;
+
+let cachedPlayDecision: boolean | null = null;
+
+function readPlayDecision() {
+  if (cachedPlayDecision === null) {
+    cachedPlayDecision = shouldPlayHomeIntro();
+  }
+  return cachedPlayDecision;
+}
+
+function subscribeNoop() {
+  return () => {};
+}
 
 export function HomeIntro() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fadingRef = useRef(false);
+  const play = useSyncExternalStore(subscribeNoop, readPlayDecision, () => false);
   const [dismissed, setDismissed] = useState(false);
   const [fading, setFading] = useState(false);
-  const visible = !dismissed;
+  const shouldPlay = play && !dismissed;
+
+  useEffect(() => {
+    if (play) beginHomeIntro();
+    else releaseHomeIntroHold();
+  }, [play]);
 
   function startFade() {
     if (fadingRef.current) return;
@@ -23,7 +47,7 @@ export function HomeIntro() {
   }
 
   useEffect(() => {
-    if (!visible) return;
+    if (!shouldPlay) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
@@ -44,7 +68,7 @@ export function HomeIntro() {
       window.removeEventListener("keydown", onKey);
       video?.removeEventListener("canplay", tryPlay);
     };
-  }, [visible]);
+  }, [shouldPlay]);
 
   function onTimeUpdate() {
     const video = videoRef.current;
@@ -52,7 +76,7 @@ export function HomeIntro() {
     if (video.duration - video.currentTime <= FADE_MS / 1000) startFade();
   }
 
-  if (!visible) return null;
+  if (!shouldPlay) return null;
 
   return (
     <div
@@ -62,7 +86,7 @@ export function HomeIntro() {
       style={{ transitionDuration: `${FADE_MS}ms` }}
       role="dialog"
       aria-modal="true"
-      aria-label="Kautilya introduction"
+      aria-label="Niti Sabha introduction"
     >
       <video
         ref={videoRef}

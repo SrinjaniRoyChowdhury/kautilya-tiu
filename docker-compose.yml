@@ -1,12 +1,73 @@
-# Production-style stack for the Next.js app.
-# Supabase (Postgres + Auth + Storage + Studio + Inbucket) is also Docker:
-#   npx supabase start
-# That is the official $0 local BaaS. Point NEXT_PUBLIC_SUPABASE_* at it
-# (see .env.example) or at a hosted Supabase Free project.
+# Local dev stack: Supabase (Postgres, Auth, Storage, Studio, Mailpit) + Next.js hot reload.
+#
+#   docker compose up --build
+#   docker compose down
+#
+# Production-style app only (hosted Supabase): docker compose --profile prod up --build
 name: kautilya
 
 services:
+  supabase:
+    build:
+      context: .
+      dockerfile: Dockerfile.supabase
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    stop_grace_period: 120s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://host.docker.internal:54321/auth/v1/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 180s
+
   app:
+    depends_on:
+      supabase:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WATCHPACK_POLLING: "true"
+      MAILPIT_URL: ${MAILPIT_URL:-http://host.docker.internal:54324}
+      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-http://host.docker.internal:54321}
+    command: ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  app-prod:
+    profiles: ["prod"]
     build:
       context: .
       dockerfile: Dockerfile

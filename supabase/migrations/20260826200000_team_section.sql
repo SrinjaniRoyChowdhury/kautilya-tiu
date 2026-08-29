@@ -21,7 +21,7 @@ where section = 'CORE'
     or full_name in ('Finance & Ops', 'Delegate Affairs')
   );
 
--- Replace leftover placeholder seed rows with the Niti Sabha 2.0 roster.
+-- Replace leftover placeholder seed rows with the Niti Sabha 2026 roster.
 delete from public.cms_team_members
 where (full_name, role_title) in (
   ('Secretariat', 'Secretary-General'),

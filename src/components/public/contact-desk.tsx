@@ -245,7 +245,16 @@ export function ContactDesk({
           <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {members.map((member) => (
               <li key={member.id} className="flex items-center gap-3">
-                <Initials name={member.full_name} />
+                {member.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={member.photo_url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-full border border-gold-700/25 object-cover"
+                  />
+                ) : (
+                  <Initials name={member.full_name} />
+                )}
                 <div>
                   <p className="font-heading text-sm font-semibold text-ink">{member.full_name}</p>
                   <p className="text-xs uppercase tracking-[0.14em] text-gold-700">

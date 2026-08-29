@@ -37,6 +37,7 @@ export type Edition = {
 export type EbMember = {
   name: string;
   title: string;
+  photo_url?: string | null;
 };
 
 export type Portfolio = {
