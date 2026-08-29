@@ -1,5 +1,6 @@
 # Manages the Supabase CLI stack via the host Docker socket.
 # Started/stopped with `docker compose up` / `docker compose down`.
+# Uses `supabase stop` (keeps DB volumes). Never `--no-backup` unless wiping data.
 FROM node:22-alpine
 
 RUN apk add --no-cache bash curl docker-cli socat \

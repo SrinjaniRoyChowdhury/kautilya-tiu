@@ -54,11 +54,24 @@ export default async function CommitteeDetailPage({ params }: Props) {
           {committee.eb_json?.length ? (
             <section className="mt-8">
               <h2 className="font-serif text-2xl text-gold-700">Executive board</h2>
-              <ul className="mt-3 space-y-2 text-sm">
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2">
                 {committee.eb_json.map((member) => (
-                  <li key={`${member.name}-${member.title}`}>
-                    <span className="font-medium">{member.name}</span>
-                    <span className="text-ink-muted"> · {member.title}</span>
+                  <li
+                    key={`${member.name}-${member.title}`}
+                    className="flex items-center gap-3 rounded-sm border border-gold-700/15 bg-parchment-50/80 px-3 py-2"
+                  >
+                    {member.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={member.photo_url}
+                        alt=""
+                        className="h-14 w-14 shrink-0 rounded-sm border border-gold-700/20 object-cover"
+                      />
+                    ) : null}
+                    <div>
+                      <span className="font-medium">{member.name}</span>
+                      <span className="block text-ink-muted"> {member.title}</span>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -7,6 +7,7 @@ import { HiOutlineMenu, HiOutlineX } from "react-icons/hi";
 import { logoutAction } from "@/app/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/format";
+import { CLUB_NAME, EVENT_NAME } from "@/lib/team";
 import { isHomeIntroDone, subscribeHomeIntro, syncHomeIntroPath } from "@/lib/intro-gate";
 
 const links = [
@@ -60,10 +61,10 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />
           <span className="flex flex-col leading-none">
             <span className="font-serif text-xl font-bold tracking-wide whitespace-nowrap text-gold-700 sm:text-2xl">
-              Kautilya
+              {CLUB_NAME}
             </span>
             <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] whitespace-nowrap text-gold-700">
-              Model United Nations
+              {EVENT_NAME}
             </span>
           </span>
         </Link>

@@ -6,7 +6,7 @@ import { DOC_KINDS } from "@/lib/docs";
 
 export const metadata: Metadata = {
   title: "Rulebook & guidelines",
-  description: "Conference rules of procedure and delegate guidelines for Kautilya MUN.",
+  description: "Conference rules of procedure and delegate guidelines for Niti Sabha.",
 };
 
 export default async function RulebookPage() {

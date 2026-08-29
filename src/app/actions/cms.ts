@@ -6,6 +6,9 @@ import { z } from "zod";
 import { isStaffUser } from "@/lib/auth";
 import { hexId, isUuid, optionalHexId } from "@/lib/ids";
 import { toPlainText } from "@/lib/sanitize";
+import { resolveSquareImageUpload, validateOptionalSquareImageFile } from "@/lib/cms-media";
+import { proofExtension } from "@/lib/upload";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = {
@@ -32,6 +35,7 @@ async function requireCms() {
 }
 
 function revalidatePublic() {
+  revalidatePath("/", "layout");
   revalidatePath("/");
   revalidatePath("/about");
   revalidatePath("/team");
@@ -39,6 +43,7 @@ function revalidatePublic() {
   revalidatePath("/gallery");
   revalidatePath("/admin/cms");
   revalidatePath("/admin/team");
+  revalidatePath("/api/announcements");
 }
 
 const settingsSchema = z.object({
@@ -241,6 +246,21 @@ export async function saveTeamMemberAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid team member" };
 
+  const photoValidation = await validateOptionalSquareImageFile(formData, "photo_file");
+  if (photoValidation) return { error: photoValidation };
+
+  const admin = createAdminClient();
+  const memberId = parsed.data.id;
+  let currentPhoto: string | null = null;
+  if (memberId) {
+    const { data: existing } = await admin
+      .from("cms_team_members")
+      .select("photo_url")
+      .eq("id", memberId)
+      .maybeSingle();
+    currentPhoto = existing?.photo_url ?? null;
+  }
+
   const row = {
     edition_id: null,
     section: parsed.data.section,
@@ -251,7 +271,19 @@ export async function saveTeamMemberAction(
   };
 
   if (parsed.data.id) {
-    const { error } = await gate.supabase.from("cms_team_members").update(row).eq("id", parsed.data.id);
+    const photo = await resolveSquareImageUpload(
+      formData,
+      "photo_file",
+      "remove_photo",
+      currentPhoto,
+      (mime) => `team-photos/${parsed.data.id}.${proofExtension(mime!)}`,
+    );
+    if (photo.error) return { error: photo.error };
+
+    const { error } = await gate.supabase
+      .from("cms_team_members")
+      .update({ ...row, photo_url: photo.url })
+      .eq("id", parsed.data.id);
     if (error) return { error: error.message };
     await gate.supabase.rpc("write_audit", {
       p_action: "cms.team.update",
@@ -263,6 +295,23 @@ export async function saveTeamMemberAction(
   } else {
     const { data, error } = await gate.supabase.from("cms_team_members").insert(row).select("id").single();
     if (error || !data) return { error: error?.message ?? "Could not add team member" };
+
+    const photo = await resolveSquareImageUpload(
+      formData,
+      "photo_file",
+      "remove_photo",
+      null,
+      (mime) => `team-photos/${data.id}.${proofExtension(mime!)}`,
+    );
+    if (photo.error) return { error: photo.error };
+    if (photo.url) {
+      const { error: photoError } = await gate.supabase
+        .from("cms_team_members")
+        .update({ photo_url: photo.url })
+        .eq("id", data.id);
+      if (photoError) return { error: photoError.message };
+    }
+
     await gate.supabase.rpc("write_audit", {
       p_action: "cms.team.create",
       p_entity: "cms_team_members",

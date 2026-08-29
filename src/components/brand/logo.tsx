@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/format";
 
 export function BrandLogo({
@@ -13,7 +14,7 @@ export function BrandLogo({
   return (
     <Image
       src="/KautilyaLogo.png"
-      alt="Kautilya MUN"
+      alt={APP_NAME}
       width={500}
       height={500}
       sizes={sizes}

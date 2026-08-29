@@ -1,14 +1,16 @@
 import type { TeamMember, TeamSection } from "@/types";
 
-export const CLUB_NAME = "Kautilya";
+export const CLUB_NAME = "Techno Kautilya";
+export const PRESENTER_LINE = "TECHNO KAUTILYA presents";
 export const EVENT_NAME = "Niti Sabha";
-export const EVENT_EDITION = "2.0";
+export const EVENT_EDITION = "2026";
 export const HOST_UNIVERSITY = "Techno India University";
 
 export type CoreOfficer = {
   id: string;
   role: string;
   names: string[];
+  photo_url?: string | null;
 };
 
 export type UsgDepartment = {
@@ -63,6 +65,7 @@ export function coreFromMembers(members: TeamMember[]): CoreOfficer[] {
       id: member.id,
       role: member.role_title,
       names: splitOfficerNames(member.full_name),
+      photo_url: member.photo_url,
     }))
     .filter((officer) => officer.names.length > 0);
 }

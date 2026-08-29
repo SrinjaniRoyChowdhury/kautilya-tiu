@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isConferenceMeal } from "@/lib/meals";
 import { normalizePortfolios } from "@/lib/sheet";
@@ -37,7 +38,7 @@ import type {
 } from "@/types";
 
 const fallbackSettings: SiteSettings = {
-  society_name: "Kautilya MUN",
+  society_name: "Niti Sabha",
   tagline: "Strategy. Diplomacy. Statecraft.",
   about_html: null,
   mission_html: null,
@@ -180,6 +181,7 @@ export async function getCommitteeBySlug(
 }
 
 export async function getAnnouncements(editionId?: string | null): Promise<Announcement[]> {
+  noStore();
   const supabase = await createClient();
   let query = supabase
     .from("announcements")
@@ -847,6 +849,7 @@ export function eventDayFromEdition(startDate?: string | null): number {
 }
 
 export async function getAnnouncementsAdmin(): Promise<Announcement[]> {
+  noStore();
   const supabase = await createClient();
   const { data } = await supabase
     .from("announcements")

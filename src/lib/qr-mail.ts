@@ -1,3 +1,4 @@
+import { APP_NAME } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { deliverLocalEmail } from "@/lib/mail";
 import { qrPngBase64, qrPngDataUrl, renderTemplate } from "@/lib/qr";
@@ -40,7 +41,7 @@ async function loadTemplate(editionId: string | null): Promise<TemplateRow> {
     .maybeSingle();
   return (
     (global as TemplateRow | null) ?? {
-      subject: "Your Kautilya MUN credential — {{display_code}}",
+      subject: `Your ${APP_NAME} credential — {{display_code}}`,
       body_html:
         "<p>Dear {{full_name}},</p><p>You are confirmed for <strong>{{committee_name}}</strong>. Credential: <strong>{{display_code}}</strong>.</p><p>Open {{app_url}}/dashboard/qr</p>",
     }

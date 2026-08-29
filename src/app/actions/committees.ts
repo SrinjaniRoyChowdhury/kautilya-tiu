@@ -11,13 +11,14 @@ import { toPlainText } from "@/lib/sanitize";
 import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { proofExtension, sniffImageMime, validateCommitteeLogoBytes } from "@/lib/upload";
+import { resolveSquareImageUpload, validateOptionalSquareImageFile } from "@/lib/cms-media";
+import { proofExtension } from "@/lib/upload";
+import type { EbMember } from "@/types";
 
 export type CommitteeFormValues = {
   edition_id: string;
   name: string;
   short_name: string;
-  slug: string;
   status: string;
   display_order: number;
   description: string;
@@ -40,7 +41,6 @@ const committeeSchema = z.object({
   edition_id: hexId,
   name: z.string().trim().min(2).max(120),
   short_name: z.string().trim().min(2).max(16),
-  slug: z.string().trim().max(40).optional().or(z.literal("")),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   rules_url: z.string().url().optional().or(z.literal("")),
   fee_rupees: z.coerce.number().min(0).max(100000).optional(),
@@ -56,7 +56,6 @@ const COMMITTEE_FIELD_LABELS: Record<string, string> = {
   edition_id: "Edition",
   name: "Full name",
   short_name: "Short name",
-  slug: "Slug",
   description: "Description",
   rules_url: "Rules URL",
   status: "Status",
@@ -76,7 +75,6 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
     edition_id: String(formData.get("edition_id") ?? ""),
     name: String(formData.get("name") ?? ""),
     short_name: String(formData.get("short_name") ?? ""),
-    slug: String(formData.get("slug") ?? ""),
     status: String(formData.get("status") ?? "OPEN"),
     display_order: Number(formData.get("display_order") ?? 0),
     description: String(formData.get("description") ?? ""),
@@ -105,10 +103,14 @@ function parseEb(raw: string | undefined) {
     if (Array.isArray(parsed)) {
       return parsed.flatMap((item) => {
         if (!item || typeof item !== "object") return [];
-        const row = item as { name?: string; title?: string };
+        const row = item as { name?: string; title?: string; photo_url?: string | null };
         const name = toPlainText(row.name);
         if (!name) return [];
-        return [{ name, title: toPlainText(row.title) || "Chair" }];
+        return [{
+          name,
+          title: toPlainText(row.title) || "Chair",
+          photo_url: row.photo_url ?? null,
+        }];
       });
     }
   } catch {
@@ -137,43 +139,27 @@ async function portfoliosFromForm(formData: FormData): Promise<{ rows: Portfolio
   return { rows: parsePortfoliosText(String(formData.get("portfolio_config") ?? "")) };
 }
 
-async function uploadCommitteeLogoBytes(
-  committeeId: string,
-  buffer: Buffer,
-): Promise<{ logoUrl: string | null; error?: string }> {
-  const bytes = new Uint8Array(buffer);
-  const dimError = validateCommitteeLogoBytes(bytes);
-  if (dimError) return { logoUrl: null, error: dimError };
-  const mime = sniffImageMime(bytes);
-  if (!mime) return { logoUrl: null, error: "Logo: use JPEG, PNG, or WebP." };
-  const key = `committee-logos/${committeeId}.${proofExtension(mime)}`;
-  const admin = createAdminClient();
-  const upload = await admin.storage.from("cms-media").upload(key, buffer, {
-    contentType: mime,
-    upsert: true,
-  });
-  if (upload.error) return { logoUrl: null, error: "Logo: could not store the image." };
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ?? "";
-  return { logoUrl: `${base}/storage/v1/object/public/cms-media/${key}` };
-}
-
 async function resolveCommitteeLogo(
   committeeId: string,
   formData: FormData,
   currentLogoUrl: string | null,
 ): Promise<{ logoUrl: string | null; error?: string }> {
-  if (formData.get("remove_logo") === "on") return { logoUrl: null };
-  const file = formData.get("logo_file");
-  if (!(file instanceof File) || file.size === 0) return { logoUrl: currentLogoUrl };
-  const buffer = Buffer.from(await file.arrayBuffer());
-  return uploadCommitteeLogoBytes(committeeId, buffer);
+  const logo = await resolveSquareImageUpload(
+    formData,
+    "logo_file",
+    "remove_logo",
+    currentLogoUrl,
+    (mime) => `committee-logos/${committeeId}.${proofExtension(mime!)}`,
+  );
+  return {
+    logoUrl: logo.url,
+    error: logo.error?.replace(/^Photo:/, "Logo:"),
+  };
 }
 
 async function validateOptionalCommitteeLogoFile(formData: FormData): Promise<string | null> {
-  const file = formData.get("logo_file");
-  if (!(file instanceof File) || file.size === 0) return null;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  return validateCommitteeLogoBytes(new Uint8Array(buffer));
+  const error = await validateOptionalSquareImageFile(formData, "logo_file");
+  return error?.replace(/^Photo:/, "Logo:") ?? null;
 }
 
 async function requireCommitteeManager() {
@@ -243,13 +229,12 @@ export async function createCommitteeAction(
     edition_id: String(formData.get("edition_id") ?? ""),
     name: formData.get("name"),
     short_name: formData.get("short_name"),
-    slug: formData.get("slug"),
     description: formData.get("description"),
     rules_url: String(formData.get("rules_url") ?? ""),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
-    eb_json: formData.get("eb_json"),
+    eb_json: String(formData.get("eb_json") ?? ""),
     portfolio_config: String(formData.get("portfolio_config") ?? ""),
   });
   if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
@@ -270,9 +255,7 @@ export async function createCommitteeAction(
   const logoValidation = await validateOptionalCommitteeLogoFile(formData);
   if (logoValidation) return failCommittee(formData, logoValidation);
 
-  const slug = parsed.data.slug
-    ? slugify(parsed.data.slug)
-    : slugify(parsed.data.short_name);
+  const slug = slugify(parsed.data.short_name);
 
   const { data, error } = await gate.supabase
     .from("committees")
@@ -332,13 +315,11 @@ export async function updateCommitteeAction(
     edition_id: String(formData.get("edition_id") ?? ""),
     name: formData.get("name"),
     short_name: formData.get("short_name"),
-    slug: formData.get("slug"),
     description: formData.get("description"),
     rules_url: String(formData.get("rules_url") ?? ""),
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
-    eb_json: formData.get("eb_json"),
   });
   if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
 
@@ -352,9 +333,7 @@ export async function updateCommitteeAction(
   }
   const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
-  const slug = parsed.data.slug
-    ? slugify(parsed.data.slug)
-    : slugify(parsed.data.short_name);
+  const slug = slugify(parsed.data.short_name);
 
   const { data: current } = await gate.supabase
     .from("committees")
@@ -400,12 +379,45 @@ export async function updateCommitteeAction(
 
 const contentSchema = z.object({
   name: z.string().trim().min(2).max(120),
+  short_name: z.string().trim().min(2).max(16),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
 });
 
 const ebSchema = z.object({
-  eb_json: z.string().optional().or(z.literal("")),
+  eb_count: z.coerce.number().int().min(0).max(50),
 });
+
+async function parseEbMembersFromForm(
+  committeeId: string,
+  formData: FormData,
+): Promise<{ members: EbMember[]; error?: string }> {
+  const count = Number(formData.get("eb_count") ?? 0);
+  const members: EbMember[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const name = toPlainText(String(formData.get(`eb_name_${index}`) ?? ""));
+    if (!name) continue;
+    const title = toPlainText(String(formData.get(`eb_title_${index}`) ?? "")) || "Chair";
+    const existingPhoto = String(formData.get(`eb_photo_${index}`) ?? "") || null;
+
+    const photo = await resolveSquareImageUpload(
+      formData,
+      `eb_photo_file_${index}`,
+      `eb_remove_photo_${index}`,
+      existingPhoto,
+      (mime) => `eb-photos/${committeeId}/${index}.${proofExtension(mime!)}`,
+    );
+    if (photo.error) return { members: [], error: photo.error };
+
+    members.push({
+      name,
+      title,
+      photo_url: photo.url,
+    });
+  }
+
+  return { members };
+}
 
 export async function updateCommitteeContentAction(
   committeeId: string,
@@ -416,24 +428,46 @@ export async function updateCommitteeContentAction(
   const canContent = await hasPermission("committee.content");
   const canManage = await hasPermission("committee.manage");
   if (!canContent && !canManage) {
-    return { error: "You can only edit committee name, description, and logo." };
+    return { error: "You can only edit committee name, short name, description, and logo." };
   }
 
   const parsed = contentSchema.safeParse({
     name: formData.get("name"),
+    short_name: formData.get("short_name"),
     description: formData.get("description"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid committee" };
 
   const admin = createAdminClient();
-  const { data: current } = await admin.from("committees").select("logo_url").eq("id", committeeId).maybeSingle();
-  const logo = await resolveCommitteeLogo(committeeId, formData, current?.logo_url ?? null);
+  const { data: current } = await admin
+    .from("committees")
+    .select("edition_id, logo_url")
+    .eq("id", committeeId)
+    .maybeSingle();
+  if (!current) return { error: "Committee not found." };
+
+  const shortName = parsed.data.short_name.toUpperCase();
+  const slug = slugify(parsed.data.short_name);
+  const { data: slugClash } = await admin
+    .from("committees")
+    .select("id")
+    .eq("edition_id", current.edition_id)
+    .eq("slug", slug)
+    .neq("id", committeeId)
+    .maybeSingle();
+  if (slugClash) {
+    return { error: "Another committee already uses that short name." };
+  }
+
+  const logo = await resolveCommitteeLogo(committeeId, formData, current.logo_url ?? null);
   if (logo.error) return { error: logo.error };
 
   const { error } = await admin
     .from("committees")
     .update({
       name: parsed.data.name,
+      short_name: shortName,
+      slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       logo_url: logo.logoUrl,
     })
@@ -445,7 +479,7 @@ export async function updateCommitteeContentAction(
     p_entity: "committees",
     p_entity_id: committeeId,
     p_old: null,
-    p_new: { name: parsed.data.name },
+    p_new: { name: parsed.data.name, short_name: shortName },
   });
   revalidateCommittee(committeeId);
   return { success: "Committee public details saved." };
@@ -463,13 +497,16 @@ export async function updateCommitteeEbAction(
     return { error: "You do not have permission to edit executive boards." };
   }
 
-  const parsed = ebSchema.safeParse({ eb_json: formData.get("eb_json") });
+  const parsed = ebSchema.safeParse({ eb_count: formData.get("eb_count") ?? 0 });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid executive board" };
+
+  const eb = await parseEbMembersFromForm(committeeId, formData);
+  if (eb.error) return { error: eb.error };
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("committees")
-    .update({ eb_json: parseEb(parsed.data.eb_json) })
+    .update({ eb_json: eb.members })
     .eq("id", committeeId);
   if (error) return { error: error.message };
 
@@ -478,7 +515,7 @@ export async function updateCommitteeEbAction(
     p_entity: "committees",
     p_entity_id: committeeId,
     p_old: null,
-    p_new: { eb_count: parseEb(parsed.data.eb_json).length },
+    p_new: { eb_count: eb.members.length },
   });
   revalidateCommittee(committeeId);
   revalidatePath("/executive-board");

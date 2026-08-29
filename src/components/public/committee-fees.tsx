@@ -5,13 +5,16 @@ import type { Committee, RegistrationPhaseKind } from "@/types";
 export function CommitteeFeeBlock({
   committee,
   size = "sm",
+  tone = "default",
 }: {
   committee: Pick<
     Committee,
     "fee_minor" | "double_fee_minor" | "allows_single_del" | "allows_double_del" | "current_phase_kind"
   >;
   size?: "sm" | "lg";
+  tone?: "default" | "light";
 }) {
+  const light = tone === "light";
   const phaseLabel = committee.current_phase_kind
     ? PHASE_LABELS[committee.current_phase_kind as RegistrationPhaseKind]
     : null;
@@ -48,18 +51,34 @@ export function CommitteeFeeBlock({
   return (
     <div className="text-right">
       {phaseLabel ? (
-        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-700/80">
+        <p
+          className={
+            light
+              ? "mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-400/90"
+              : "mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gold-700/80"
+          }
+        >
           {phaseLabel}
         </p>
       ) : null}
       {singleOnly || both ? (
-        <p className="text-sm font-medium text-ink">
-          Single <span className="text-gold-700">{singleFee}</span>
+        <p className={light ? "text-sm font-medium text-parchment-50" : "text-sm font-medium text-ink"}>
+          Single <span className={light ? "text-gold-400" : "text-gold-700"}>{singleFee}</span>
         </p>
       ) : null}
       {doubleOnly || both ? (
-        <p className={singleOnly || both ? "mt-0.5 text-xs text-ink-muted" : "text-sm font-medium text-ink"}>
-          Double <span className="text-gold-700">{doubleFee}</span>
+        <p
+          className={
+            singleOnly || both
+              ? light
+                ? "mt-0.5 text-xs text-parchment-100/75"
+                : "mt-0.5 text-xs text-ink-muted"
+              : light
+                ? "text-sm font-medium text-parchment-50"
+                : "text-sm font-medium text-ink"
+          }
+        >
+          Double <span className={light ? "text-gold-400" : "text-gold-700"}>{doubleFee}</span>
         </p>
       ) : null}
     </div>

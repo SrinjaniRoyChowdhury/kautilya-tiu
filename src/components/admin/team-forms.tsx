@@ -6,6 +6,7 @@ import { AdminTable } from "@/components/admin/admin-filters";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
+import { SquareImageField } from "@/components/ui/square-image-field";
 import { Modal, ModalTrigger } from "@/components/ui/modal";
 import type { TeamMember, TeamSection } from "@/types";
 
@@ -67,6 +68,15 @@ function TeamMemberFields({
         <input type="checkbox" name="published" defaultChecked={member?.published ?? true} />
         Published
       </label>
+      <div className="sm:col-span-2">
+        <SquareImageField
+          htmlFor={`photo-${suffix}`}
+          fileName="photo_file"
+          removeName="remove_photo"
+          currentUrl={member?.photo_url}
+          label="Photo"
+        />
+      </div>
     </>
   );
 }

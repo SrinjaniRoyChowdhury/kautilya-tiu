@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import {
   addGalleryImageAction,
@@ -110,11 +111,14 @@ export function AnnouncementForm({
   announcement?: Announcement;
   onSuccess?: () => void;
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(saveAnnouncementAction, {} as FormState);
 
   useEffect(() => {
-    if (state.success) onSuccess?.();
-  }, [state.success, onSuccess]);
+    if (!state.success) return;
+    router.refresh();
+    onSuccess?.();
+  }, [state.success, onSuccess, router]);
 
   return (
     <form action={formAction} className="grid gap-3">
@@ -177,6 +181,39 @@ export function CreateAnnouncementModalButton({ editions }: { editions: Edition[
         <AnnouncementForm editions={editions} onSuccess={() => setOpen(false)} />
       </Modal>
     </>
+  );
+}
+
+function DeleteAnnouncementButton({
+  id,
+  onDelete,
+}: {
+  id: string;
+  onDelete: (formData: FormData) => void | Promise<void>;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      onClick={async () => {
+        setPending(true);
+        try {
+          const formData = new FormData();
+          formData.set("id", id);
+          await onDelete(formData);
+          router.refresh();
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
+      {pending ? "Deleting…" : "Delete"}
+    </Button>
   );
 }
 
@@ -263,12 +300,7 @@ function AnnouncementRow({
               <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
                 Edit
               </Button>
-              <form action={onDelete}>
-                <input type="hidden" name="id" value={item.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  Delete
-                </Button>
-              </form>
+              <DeleteAnnouncementButton id={item.id} onDelete={onDelete} />
             </div>
             {open ? (
               <EditAnnouncementModal

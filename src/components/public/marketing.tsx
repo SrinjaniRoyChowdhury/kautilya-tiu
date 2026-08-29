@@ -6,6 +6,7 @@ import { cn } from "@/lib/format";
 import { formatDateRange, seatsRemaining } from "@/lib/format";
 import { seatsHeld } from "@/lib/registration";
 import { toPlainText } from "@/lib/sanitize";
+import { PRESENTER_LINE } from "@/lib/team";
 import type { Committee, Edition, HeroStat } from "@/types";
 
 export function Hero({
@@ -30,7 +31,7 @@ export function Hero({
           />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-700">
-              College Model United Nations
+              {PRESENTER_LINE}
             </p>
             <h1 className="mt-4 max-w-3xl font-serif text-5xl font-semibold leading-tight text-gold-gradient sm:text-7xl">
               {societyName}
@@ -91,7 +92,7 @@ export function CommitteeCard({
   return (
     <Link
       href={href}
-      className="group frame-gold relative flex h-full min-h-[14rem] flex-col overflow-hidden rounded-sm bg-parchment-50/95 p-5 transition hover:bg-parchment-100 hover:shadow-md"
+      className="group frame-gold relative flex h-full min-h-[14rem] flex-col overflow-hidden rounded-sm bg-[#fff1d0] p-5 transition hover:brightness-[0.98] hover:shadow-md"
     >
       {committee.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element

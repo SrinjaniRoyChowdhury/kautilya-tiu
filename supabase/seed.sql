@@ -109,7 +109,7 @@ begin
     is_public_active, created_by
   ) values (
     v_edition_id,
-    'Kautilya MUN 2026',
+    'Niti Sabha 2026',
     2026,
     '2026',
     'The Arithmetic of Power',
@@ -126,7 +126,7 @@ begin
     name, year, slug, start_date, end_date, status, is_public_active, created_by
   )
   select
-    'Kautilya MUN 2025',
+    'Niti Sabha 2025',
     2025,
     '2025',
     '2025-10-31',
@@ -255,7 +255,7 @@ begin
   values
     (
       v_edition_id,
-      'Registrations open for Kautilya MUN 2026',
+      'Registrations open for Niti Sabha 2026',
       '<p>Individual registration is now open. Committee fees are listed on the committees page. One person may pay for several delegates after each person has (or will have) their own registration.</p>',
       true,
       now(),
@@ -294,7 +294,7 @@ begin
     v_edition_id,
     'kautilyamun@upi',
     'State Bank of India',
-    'Kautilya MUN Society',
+    'Techno Kautilya',
     'XXXXXXXXXXXX',
     'SBIN0000000',
     'Transfer the exact expected amount. Upload the screenshot from your dashboard. Do not pay twice for the same email.'

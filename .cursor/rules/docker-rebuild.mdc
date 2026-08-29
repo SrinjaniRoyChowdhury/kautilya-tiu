@@ -12,6 +12,6 @@ docker compose up -d --build
 ```
 
 - App source is bind-mounted, but `.next` is a volume — rebuild/restart so Next actually serves the new code.
-- `docker compose down` stops Supabase as well as the app. If Postgres/PostgREST schema changed, restart the stack (`docker compose down` then `docker compose up -d --build`).
+- `docker compose down` stops Supabase and the app. Data persists in Supabase CLI Docker volumes — never use `supabase stop --no-backup` unless you intend to wipe the DB.
 - Do not `db:reset` unless the user asked.
 - Confirm `kautilya-app-1` is healthy and http://localhost:3000/api/health returns 200.

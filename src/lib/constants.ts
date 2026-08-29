@@ -1,4 +1,4 @@
-export const APP_NAME = "Kautilya MUN";
+export const APP_NAME = "Niti Sabha";
 
 export const STAFF_ROLES = [
   "SUPER_ADMIN",

@@ -24,6 +24,14 @@ function Names({ names, className }: { names: string[]; className: string }) {
 function OfficerCard({ officer, featured = false }: { officer: CoreOfficer; featured?: boolean }) {
   return (
     <Card className={featured ? "sm:col-span-2 lg:col-span-3" : undefined}>
+      {officer.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={officer.photo_url}
+          alt=""
+          className={`mb-4 aspect-square rounded-sm border border-gold-700/20 object-cover ${featured ? "h-28 w-28 sm:h-32 sm:w-32" : "h-20 w-20"}`}
+        />
+      ) : null}
       <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">{officer.role}</h3>
       <Names
         names={officer.names}

@@ -8,6 +8,7 @@ import { createEditionAction, updateEditionAction, type FormState } from "@/app/
 import { createCommitteeAction, updateCommitteeAction, updateCommitteeContentAction } from "@/app/actions/committees";
 import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
 import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
+import { SquareImageField } from "@/components/ui/square-image-field";
 import type { Committee, CommitteePhaseFee, Edition } from "@/types";
 
 function CommitteeLogoField({
@@ -20,30 +21,18 @@ function CommitteeLogoField({
   showRemove?: boolean;
 }) {
   return (
-    <div className="grid gap-2 sm:col-span-2">
-      {committee?.logo_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={committee.logo_url}
-          alt=""
-          className="h-20 w-20 rounded-sm border border-gold-700/25 bg-parchment-100 object-contain p-1"
-        />
-      ) : null}
-      <Field label="Logo" htmlFor="logo_file" hint={COMMITTEE_LOGO_HINT}>
-        <Input
-          id="logo_file"
-          name="logo_file"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          disabled={readOnly}
-        />
-      </Field>
-      {showRemove && committee?.logo_url ? (
-        <label className="inline-flex w-fit items-center gap-2 text-sm text-ink-muted">
-          <input type="checkbox" name="remove_logo" disabled={readOnly} className="h-4 w-4 shrink-0" />
-          Remove current logo
-        </label>
-      ) : null}
+    <div className="sm:col-span-2">
+      <SquareImageField
+        label="Logo"
+        htmlFor="logo_file"
+        fileName="logo_file"
+        removeName="remove_logo"
+        currentUrl={committee?.logo_url}
+        readOnly={readOnly}
+        showRemove={showRemove}
+        hint={COMMITTEE_LOGO_HINT}
+        previewClassName="h-20 w-20 rounded-sm border border-gold-700/25 bg-parchment-100 object-contain p-1"
+      />
     </div>
   );
 }
@@ -154,7 +143,16 @@ export function CommitteeForm({
 
   if (contentOnly && committee) {
     return (
-      <form action={readOnly ? undefined : formAction} encType="multipart/form-data" className="grid gap-4 sm:grid-cols-2">
+      <form action={readOnly ? undefined : formAction} className="grid gap-4 sm:grid-cols-2">
+        <Field label="Short name" htmlFor="short_name" hint="e.g. UNSC. Shown in lists; the public URL is generated from this.">
+          <Input
+            id="short_name"
+            name="short_name"
+            required
+            defaultValue={committee.short_name}
+            disabled={readOnly}
+          />
+        </Field>
         <div className="sm:col-span-2">
           <Field label="Full name" htmlFor="name">
             <Input id="name" name="name" required defaultValue={committee.name} disabled={readOnly} />
@@ -182,7 +180,6 @@ export function CommitteeForm({
       <form
         key={formKey}
         action={readOnly ? undefined : formAction}
-        encType="multipart/form-data"
         className="grid gap-4 sm:grid-cols-2"
       >
       <Field label="Edition" htmlFor="edition_id">
@@ -200,7 +197,7 @@ export function CommitteeForm({
           ))}
         </Select>
       </Field>
-      <Field label="Short name" htmlFor="short_name" hint="e.g. UNSC">
+      <Field label="Short name" htmlFor="short_name" hint="e.g. UNSC. The public page URL is generated automatically from this.">
         <Input
           id="short_name"
           name="short_name"
@@ -220,9 +217,6 @@ export function CommitteeForm({
           />
         </Field>
       </div>
-      <Field label="Slug" htmlFor="slug">
-        <Input id="slug" name="slug" defaultValue={draft?.slug ?? committee?.slug ?? ""} disabled={readOnly} />
-      </Field>
       <Field label="Status" htmlFor="status">
         <Select
           id="status"

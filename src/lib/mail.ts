@@ -30,7 +30,7 @@ export async function deliverLocalEmail(opts: {
   const body: MailpitSendBody = {
     From: {
       Email: process.env.MAIL_FROM ?? "secretariat@kautilya.local",
-      Name: "Kautilya MUN",
+      Name: "Niti Sabha",
     },
     To: [{ Email: opts.to, Name: opts.toName }],
     Subject: opts.subject,

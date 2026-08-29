@@ -2,8 +2,8 @@
 set -euo pipefail
 
 cleanup() {
-  echo "Stopping Supabase stack..."
-  supabase stop --no-backup 2>/dev/null || true
+  echo "Stopping Supabase stack (data volumes are kept)..."
+  supabase stop 2>/dev/null || true
   exit 0
 }
 

@@ -1,4 +1,4 @@
-# Kautilya MUN
+# Niti Sabha
 
 Multi-edition Model United Nations platform. Phases 1–7 are live: conference ops plus hardening (headers, rate limits, tests, backups, health checks).
 
@@ -41,11 +41,13 @@ Studio: http://127.0.0.1:54323
 Mailpit (local emails): http://127.0.0.1:54324  
 API: http://127.0.0.1:54321
 
-Stop everything:
+Stop everything (database data is preserved in Supabase Docker volumes):
 
 ```bash
 docker compose down
 ```
+
+To wipe local database data intentionally: `npx supabase stop --no-backup` (destroys volumes), then `docker compose up --build`.
 
 ### App on the host (optional)
 
@@ -64,7 +66,7 @@ New signups must click the verification link in Mailpit before they can register
 
 ## Docker Compose
 
-`docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both.
+`docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both and **keeps your local database** (uses `supabase stop`, not `--no-backup`).
 
 Production-style image only (hosted Supabase):
 

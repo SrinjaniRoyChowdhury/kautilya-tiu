@@ -5,9 +5,26 @@ import { updateCommitteeEbAction, type FormState } from "@/app/actions/committee
 import { AdminTable } from "@/components/admin/admin-filters";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import { Field, Textarea } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import type { Committee, Edition } from "@/types";
+import { SquareImageField } from "@/components/ui/square-image-field";
+import type { Committee, EbMember, Edition } from "@/types";
+
+type EbDraft = EbMember & { key: string };
+
+function emptyMember(): EbDraft {
+  return { key: crypto.randomUUID(), name: "", title: "Chair", photo_url: null };
+}
+
+function membersToDraft(members: EbMember[]): EbDraft[] {
+  if (!members.length) return [emptyMember()];
+  return members.map((member) => ({
+    key: crypto.randomUUID(),
+    name: member.name,
+    title: member.title,
+    photo_url: member.photo_url ?? null,
+  }));
+}
 
 function EbEditModal({
   committee,
@@ -18,18 +35,61 @@ function EbEditModal({
 }) {
   const action = updateCommitteeEbAction.bind(null, committee.id);
   const [state, formAction, pending] = useActionState(action, {} as FormState);
-  const ebDefault = committee.eb_json?.map((m) => `${m.name} | ${m.title}`).join("\n") ?? "";
+  const [members, setMembers] = useState(() => membersToDraft(committee.eb_json ?? []));
 
   return (
     <Modal open title={`Executive board · ${committee.short_name}`} onClose={onClose} wide>
-      <p className="mb-4 text-sm text-ink-muted">
-        One member per line: <span className="font-mono">Name | Title</span>
-      </p>
-      <form action={formAction} className="grid gap-3">
-        <Field label="Members" htmlFor={`eb-${committee.id}`}>
-          <Textarea id={`eb-${committee.id}`} name="eb_json" rows={8} defaultValue={ebDefault} />
-        </Field>
+      <form action={formAction} className="grid gap-4">
+        <input type="hidden" name="eb_count" value={members.length} />
+        <ul className="grid gap-4">
+          {members.map((member, index) => (
+            <li key={member.key} className="grid gap-3 rounded-sm border border-gold-700/20 p-4 sm:grid-cols-2">
+              <input type="hidden" name={`eb_photo_${index}`} value={member.photo_url ?? ""} />
+              <Field label="Name" htmlFor={`eb-name-${member.key}`}>
+                <Input
+                  id={`eb-name-${member.key}`}
+                  name={`eb_name_${index}`}
+                  required
+                  defaultValue={member.name}
+                  placeholder="Full name"
+                />
+              </Field>
+              <Field label="Title" htmlFor={`eb-title-${member.key}`}>
+                <Input
+                  id={`eb-title-${member.key}`}
+                  name={`eb_title_${index}`}
+                  defaultValue={member.title}
+                  placeholder="Chair"
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <SquareImageField
+                  htmlFor={`eb-photo-${member.key}`}
+                  fileName={`eb_photo_file_${index}`}
+                  removeName={`eb_remove_photo_${index}`}
+                  currentUrl={member.photo_url}
+                  label="Photo"
+                />
+              </div>
+              {members.length > 1 ? (
+                <div className="sm:col-span-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMembers((rows) => rows.filter((row) => row.key !== member.key))}
+                  >
+                    Remove member
+                  </Button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
         <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => setMembers((rows) => [...rows, emptyMember()])}>
+            Add member
+          </Button>
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save executive board"}
           </Button>
