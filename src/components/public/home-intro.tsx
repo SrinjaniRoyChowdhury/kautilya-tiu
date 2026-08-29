@@ -1,29 +1,35 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { markHomeIntroDone } from "@/lib/intro-gate";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { beginHomeIntro, markHomeIntroDone, releaseHomeIntroHold, shouldPlayHomeIntro } from "@/lib/intro-gate";
 
 const FADE_MS = 1100;
 
 export function HomeIntro() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fadingRef = useRef(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [shouldPlay, setShouldPlay] = useState<boolean | null>(null);
   const [fading, setFading] = useState(false);
-  const visible = !dismissed;
+
+  useLayoutEffect(() => {
+    const play = shouldPlayHomeIntro();
+    setShouldPlay(play);
+    if (play) beginHomeIntro();
+    else releaseHomeIntroHold();
+  }, []);
 
   function startFade() {
     if (fadingRef.current) return;
     fadingRef.current = true;
     setFading(true);
     window.setTimeout(() => {
-      setDismissed(true);
+      setShouldPlay(false);
       markHomeIntroDone();
     }, FADE_MS);
   }
 
   useEffect(() => {
-    if (!visible) return;
+    if (shouldPlay !== true) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
@@ -44,7 +50,7 @@ export function HomeIntro() {
       window.removeEventListener("keydown", onKey);
       video?.removeEventListener("canplay", tryPlay);
     };
-  }, [visible]);
+  }, [shouldPlay]);
 
   function onTimeUpdate() {
     const video = videoRef.current;
@@ -52,7 +58,7 @@ export function HomeIntro() {
     if (video.duration - video.currentTime <= FADE_MS / 1000) startFade();
   }
 
-  if (!visible) return null;
+  if (shouldPlay !== true) return null;
 
   return (
     <div

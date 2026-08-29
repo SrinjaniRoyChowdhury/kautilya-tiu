@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CurvedLoop } from "@/components/public/curved-loop";
 import { announcementFingerprint } from "@/lib/announcement-ribbon";
 import { cn } from "@/lib/format";
-import { isHomeIntroDone, subscribeHomeIntro, syncHomeIntroPath } from "@/lib/intro-gate";
+import { isHomeIntroDone, subscribeHomeIntro } from "@/lib/intro-gate";
 
 type RibbonItem = {
   id: string;
@@ -27,7 +27,6 @@ export function AnnouncementRibbon({ announcements }: { announcements: RibbonIte
       ? polledItems
       : announcements;
 
-  syncHomeIntroPath(pathname);
   const introDone = useSyncExternalStore(
     subscribeHomeIntro,
     isHomeIntroDone,
@@ -96,7 +95,7 @@ export function AnnouncementRibbon({ announcements }: { announcements: RibbonIte
     >
       <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(-45deg,rgba(255,255,255,0.05)_0,rgba(255,255,255,0.05)_1px,transparent_1px,transparent_10px)]" />
       <Link
-        href="/#announcements"
+         href="/#announcements"
         onClick={(event) => {
           if (pathname === "/") {
             event.preventDefault();

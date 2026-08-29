@@ -8,7 +8,7 @@ import { logoutAction } from "@/app/actions/auth";
 import { BrandLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/format";
 import { CLUB_NAME, EVENT_NAME } from "@/lib/team";
-import { isHomeIntroDone, subscribeHomeIntro, syncHomeIntroPath } from "@/lib/intro-gate";
+import { isHomeIntroDone, subscribeHomeIntro } from "@/lib/intro-gate";
 
 const links = [
   { href: "/", label: "Home" },
@@ -37,7 +37,6 @@ type Props = {
 
 export function Header({ societyName, email, showAdmin, adminHref = "/admin", canScan }: Props) {
   const pathname = usePathname();
-  syncHomeIntroPath(pathname);
   const introDone = useSyncExternalStore(
     subscribeHomeIntro,
     isHomeIntroDone,
