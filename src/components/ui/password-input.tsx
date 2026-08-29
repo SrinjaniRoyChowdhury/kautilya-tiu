@@ -12,9 +12,9 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & {
 export function PasswordInput({ className, defaultVisible = false, ...props }: Props) {
   const [visible, setVisible] = useState(defaultVisible);
   const label = visible ? "Hide password" : "Show password";
-  const maskedStyle: CSSProperties | undefined = visible
+  const maskedStyle = visible
     ? undefined
-    : { WebkitTextSecurity: "disc" };
+    : ({ WebkitTextSecurity: "disc" } as CSSProperties);
   return (
     <div className="relative">
       <Input

@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { createEditionAction, updateEditionAction, type FormState } from "@/app/actions/editions";
-import { createCommitteeAction, updateCommitteeAction, updateCommitteeContentAction } from "@/app/actions/committees";
+import {
+  createCommitteeAction,
+  updateCommitteeAction,
+  updateCommitteeContentAction,
+  type FormState as CommitteeFormState,
+} from "@/app/actions/committees";
 import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
 import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
 import { SquareImageField } from "@/components/ui/square-image-field";
@@ -134,7 +139,7 @@ export function CommitteeForm({
     : committee
       ? updateCommitteeAction.bind(null, committee.id)
       : createCommitteeAction;
-  const [state, formAction, pending] = useActionState(action, {} as FormState);
+  const [state, formAction, pending] = useActionState(action, {} as CommitteeFormState);
   const draft = state.values;
   const formKey = state.formKey ?? "initial";
   const feeByKind = Object.fromEntries(
