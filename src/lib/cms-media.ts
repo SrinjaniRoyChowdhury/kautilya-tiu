@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { proofExtension, sniffImageMime, validateCommitteeLogoBytes } from "@/lib/upload";
+import { sniffImageMime, validateCommitteeLogoBytes } from "@/lib/upload";
 
 function photoError(message: string): string {
   return message.replace(/^Logo:/, "Photo:");

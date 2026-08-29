@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, getRoleNames } from "@/lib/auth";
 import { isContentEditorOnly, isReadOnlyStaff } from "@/lib/staff-access";

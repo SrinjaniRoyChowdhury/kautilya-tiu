@@ -1,35 +1,53 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { beginHomeIntro, markHomeIntroDone, releaseHomeIntroHold, shouldPlayHomeIntro } from "@/lib/intro-gate";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  beginHomeIntro,
+  markHomeIntroDone,
+  releaseHomeIntroHold,
+  shouldPlayHomeIntro,
+} from "@/lib/intro-gate";
 
 const FADE_MS = 1100;
+
+let cachedPlayDecision: boolean | null = null;
+
+function readPlayDecision() {
+  if (cachedPlayDecision === null) {
+    cachedPlayDecision = shouldPlayHomeIntro();
+  }
+  return cachedPlayDecision;
+}
+
+function subscribeNoop() {
+  return () => {};
+}
 
 export function HomeIntro() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fadingRef = useRef(false);
-  const [shouldPlay, setShouldPlay] = useState<boolean | null>(null);
+  const play = useSyncExternalStore(subscribeNoop, readPlayDecision, () => false);
+  const [dismissed, setDismissed] = useState(false);
   const [fading, setFading] = useState(false);
+  const shouldPlay = play && !dismissed;
 
-  useLayoutEffect(() => {
-    const play = shouldPlayHomeIntro();
-    setShouldPlay(play);
+  useEffect(() => {
     if (play) beginHomeIntro();
     else releaseHomeIntroHold();
-  }, []);
+  }, [play]);
 
   function startFade() {
     if (fadingRef.current) return;
     fadingRef.current = true;
     setFading(true);
     window.setTimeout(() => {
-      setShouldPlay(false);
+      setDismissed(true);
       markHomeIntroDone();
     }, FADE_MS);
   }
 
   useEffect(() => {
-    if (shouldPlay !== true) return;
+    if (!shouldPlay) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
@@ -58,7 +76,7 @@ export function HomeIntro() {
     if (video.duration - video.currentTime <= FADE_MS / 1000) startFade();
   }
 
-  if (shouldPlay !== true) return null;
+  if (!shouldPlay) return null;
 
   return (
     <div
