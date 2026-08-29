@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type HTMLMotionProps, type Variants } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { useSyncExternalStore, type ElementType, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,9 @@ type MotionRevealProps = {
   as?: RevealTag;
   /** Animate on mount instead of when scrolled into view. */
   immediate?: boolean;
-} & Omit<HTMLMotionProps<"div">, "children" | "className">;
+  id?: string;
+  "aria-labelledby"?: string;
+};
 
 export function MotionReveal({
   children,
@@ -42,14 +44,16 @@ export function MotionReveal({
   delay = 0,
   as = "div",
   immediate = false,
-  ...props
+  id,
+  "aria-labelledby": ariaLabelledby,
 }: MotionRevealProps) {
   const ready = useMotionReady();
   const StaticTag = STATIC_TAGS[as];
+  const htmlProps = { id, "aria-labelledby": ariaLabelledby };
 
   if (!ready) {
     return (
-      <StaticTag className={cn(className)} {...props}>
+      <StaticTag className={cn(className)} {...htmlProps}>
         {children}
       </StaticTag>
     );
@@ -60,12 +64,12 @@ export function MotionReveal({
   return (
     <Component
       className={cn(className)}
+      {...htmlProps}
       initial={{ opacity: 0, y: 22 }}
       {...(immediate
         ? { animate: { opacity: 1, y: 0 } }
         : { whileInView: { opacity: 1, y: 0 }, viewport: { once: true, amount: 0.15 } })}
       transition={{ duration: 0.55, delay, ease }}
-      {...props}
     >
       {children}
     </Component>
