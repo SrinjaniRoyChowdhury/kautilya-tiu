@@ -10,33 +10,15 @@
  *   node scripts/bootstrap-superadmin.mjs
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_INTERNAL_URL) and
- * SUPABASE_SERVICE_ROLE_KEY in the environment / .env.
+ * SUPABASE_SERVICE_ROLE_KEY in .env.production / .env on the server.
+ *
+ * Pass --production if you keep prod vars only in .env.production.
  */
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { loadEnvFiles } from "./load-env.mjs";
 
-function loadDotEnv() {
-  const path = resolve(process.cwd(), ".env");
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
-
-loadDotEnv();
+const production = process.argv.includes("--production");
+loadEnvFiles(process.cwd(), { production });
 
 const url =
   process.env.SUPABASE_INTERNAL_URL ||

@@ -17,9 +17,13 @@
     "secrets:check": "node scripts/check-secrets.mjs",
     "smoke": "node scripts/load-smoke.mjs",
     "bootstrap:admin": "node scripts/bootstrap-superadmin.mjs",
+    "bootstrap:admin:prod": "node scripts/bootstrap-superadmin.mjs --production",
+    "env:verify": "node scripts/verify-env.mjs",
+    "env:verify:prod": "node scripts/verify-env.mjs --production",
     "compose:up": "docker compose up --build",
     "compose:down": "docker compose down",
-    "compose:prod": "docker compose --profile prod up --build"
+    "compose:prod": "node scripts/compose-prod.mjs up --build",
+    "compose:prod:detached": "node scripts/compose-prod.mjs up -d --build app-prod"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

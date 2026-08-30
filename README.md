@@ -22,13 +22,19 @@ Multi-edition Model United Nations platform. Phases 1–7 are live: conference o
 ## Run locally (Windows / macOS / Linux)
 
 1. Install Docker Desktop and Node 20.9+.
-2. Copy environment:
+2. Copy environment (local only):
 
 ```bash
 cp .env.example .env
+# optional personal overrides:
+cp .env.example .env.local
 ```
 
 On PowerShell: `Copy-Item .env.example .env`
+
+Production uses a **separate** file on the Oracle VM — see `.env.production.example` and [DEPLOY.md](./DEPLOY.md).
+
+Verify before deploy: `npm run env:verify` (local) or `npm run env:verify:prod` (on the server).
 
 3. Start the full stack (Supabase + Next.js; pulls images on first run):
 
@@ -71,10 +77,12 @@ New signups must click the verification link in Mailpit before they can register
 Production-style image only (hosted Supabase):
 
 ```bash
-npm run compose:prod
+cp .env.production.example .env.production   # on the server, once
+npm run env:verify:prod
+npm run compose:prod:detached
 ```
 
-When Next.js runs in Docker, set in `.env`:
+When Next.js runs in Docker locally, `.env.example` already sets:
 
 ```
 SUPABASE_INTERNAL_URL=http://host.docker.internal:54321
@@ -82,7 +90,18 @@ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 MAILPIT_URL=http://host.docker.internal:54324
 ```
 
-The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit’s HTTP send API (no paid SMTP).
+The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit locally (no paid SMTP).
+
+### Environment files
+
+| File | Where | Purpose |
+| --- | --- | --- |
+| `.env.example` | git | Local template → copy to `.env` |
+| `.env.local` | gitignored | Optional local overrides |
+| `.env.production.example` | git | Production template → copy to `.env.production` on Oracle |
+| `.env.production` | gitignored (server) | Live Supabase + Brevo keys |
+
+Same machine never needs both prod and local secrets — your laptop keeps `.env` / `.env.local`; the VM keeps `.env.production` (or `.env` if you prefer one filename there).
 
 ## Hosted Free / Oracle
 
@@ -97,7 +116,7 @@ Quick production shape:
 
 ## Hosted Free (still ₹0) — short note
 
-Create a project at [supabase.com](https://supabase.com) (Free plan). Put the project URL, anon key, and service role key in `.env`. Run the SQL in `supabase/migrations/` in the SQL editor. Point `NEXT_PUBLIC_APP_URL` at `https://technokautilya.in`. Do **not** run local seed passwords in production — use `npm run bootstrap:admin` once on the server.
+Create a project at [supabase.com](https://supabase.com) (Free plan). On the Oracle VM, copy `.env.production.example` → `.env.production`, fill hosted Supabase + Brevo values, run `npm run env:verify:prod`. Apply `supabase/migrations/` to hosted DB. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once on the server.
 
 ## Tests, health, backups
 
