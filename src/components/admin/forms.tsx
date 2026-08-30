@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -15,7 +15,7 @@ import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
 import { COMMITTEE_CARD_BACKGROUND_HINT } from "@/lib/committee-card-background";
 import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
 import { SquareImageField } from "@/components/ui/square-image-field";
-import type { Committee, CommitteePhaseFee, Edition } from "@/types";
+import type { Committee, CommitteePhaseFee, Edition, PrizeMoneyEntry } from "@/types";
 
 function CommitteeLogoField({
   committee,
@@ -75,6 +75,113 @@ function toLocalInput(iso?: string | null) {
   if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+type PrizeDraft = { key: string; category: string; amount: string };
+
+function emptyPrizeRow(): PrizeDraft {
+  return { key: crypto.randomUUID(), category: "", amount: "" };
+}
+
+function prizesToDraft(
+  prizes: PrizeMoneyEntry[] | undefined,
+  draftRows?: { category: string; amount: string }[],
+): PrizeDraft[] {
+  if (draftRows?.length) {
+    return draftRows.map((row) => ({
+      key: crypto.randomUUID(),
+      category: row.category,
+      amount: row.amount,
+    }));
+  }
+  if (!prizes?.length) return [emptyPrizeRow()];
+  return prizes.map((prize) => ({
+    key: crypto.randomUUID(),
+    category: prize.category,
+    amount: String(prize.amount_minor / 100),
+  }));
+}
+
+function CommitteePrizeMoneyField({
+  committee,
+  draft,
+  readOnly,
+}: {
+  committee?: Committee;
+  draft?: CommitteeFormState["values"];
+  readOnly?: boolean;
+}) {
+  const [rows, setRows] = useState(() =>
+    prizesToDraft(committee?.prize_money_json, draft?.prize_rows),
+  );
+  const showPrizeMoney = draft?.show_prize_money ?? committee?.show_prize_money ?? false;
+
+  return (
+    <fieldset className="sm:col-span-2 grid gap-3">
+      <legend className="text-sm font-medium">Prize money</legend>
+      <p className="text-xs text-ink-muted">
+        Optional prize categories and amounts shown on the public committee page when enabled.
+      </p>
+      <label className="inline-flex w-fit items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="show_prize_money"
+          defaultChecked={showPrizeMoney}
+          disabled={readOnly}
+          className="h-4 w-4 shrink-0"
+        />
+        Show prize money on public page
+      </label>
+      <input type="hidden" name="prize_count" value={rows.length} />
+      <ul className="grid gap-3">
+        {rows.map((row, index) => (
+          <li
+            key={row.key}
+            className="grid gap-3 rounded-sm border border-gold-700/20 p-3 sm:grid-cols-[1fr_10rem_auto]"
+          >
+            <Field label="Category" htmlFor={`prize-category-${row.key}`}>
+              <Input
+                id={`prize-category-${row.key}`}
+                name={`prize_category_${index}`}
+                defaultValue={row.category}
+                placeholder="e.g. Best delegate"
+                disabled={readOnly}
+              />
+            </Field>
+            <Field label="Amount (₹)" htmlFor={`prize-amount-${row.key}`}>
+              <Input
+                id={`prize-amount-${row.key}`}
+                name={`prize_amount_${index}`}
+                type="number"
+                min={0}
+                step="1"
+                defaultValue={row.amount}
+                placeholder="5000"
+                disabled={readOnly}
+              />
+            </Field>
+            {!readOnly && rows.length > 1 ? (
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRows((current) => current.filter((item) => item.key !== row.key))}
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {!readOnly ? (
+        <Button type="button" variant="secondary" size="sm" onClick={() => setRows((current) => [...current, emptyPrizeRow()])}>
+          Add prize
+        </Button>
+      ) : null}
+    </fieldset>
+  );
 }
 
 export function EditionForm({ edition }: { edition?: Edition }) {
@@ -349,6 +456,7 @@ export function CommitteeForm({
           </tbody>
         </table>
       </div>
+      <CommitteePrizeMoneyField committee={committee} draft={draft} readOnly={readOnly} />
       <Field label="Display order" htmlFor="display_order">
         <Input
           id="display_order"

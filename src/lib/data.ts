@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isConferenceMeal } from "@/lib/meals";
 import { normalizePortfolios } from "@/lib/sheet";
+import { toPlainText } from "@/lib/sanitize";
 import { deskFromRoleNames, kindFromRoleNames } from "@/lib/username";
 import type {
   AdminParticipant,
@@ -11,6 +12,7 @@ import type {
   Committee,
   CommitteeDelegate,
   CommitteePhaseFee,
+  PrizeMoneyEntry,
   ConferenceDocument,
   Edition,
   EditionExpense,
@@ -154,10 +156,22 @@ export async function getEditionById(id: string): Promise<Edition | null> {
 }
 
 const COMMITTEE_SELECT =
-  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order, allows_single_del, allows_double_del";
+  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del";
 
 const REGISTRATION_SELECT =
   "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
+
+function normalizePrizeMoney(raw: unknown): PrizeMoneyEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as { category?: string; amount_minor?: number };
+    const category = toPlainText(row.category);
+    const amount_minor = Number(row.amount_minor);
+    if (!category || !Number.isFinite(amount_minor) || amount_minor < 0) return [];
+    return [{ category, amount_minor }];
+  });
+}
 
 function hydrateCommittee(committee: Committee): Committee {
   const portfolio_config = normalizePortfolios(committee.portfolio_config);
@@ -165,6 +179,8 @@ function hydrateCommittee(committee: Committee): Committee {
     ...committee,
     portfolio_config,
     capacity: portfolio_config.length || committee.capacity,
+    prize_money_json: normalizePrizeMoney(committee.prize_money_json),
+    show_prize_money: Boolean(committee.show_prize_money),
   };
 }
 

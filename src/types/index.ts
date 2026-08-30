@@ -63,6 +63,11 @@ export type RegistrationPhase = {
   is_active: boolean;
 };
 
+export type PrizeMoneyEntry = {
+  category: string;
+  amount_minor: number;
+};
+
 export type CommitteePhaseFee = {
   id?: string;
   committee_id: string;
@@ -103,6 +108,8 @@ export type Committee = {
   logo_url?: string | null;
   card_background_url?: string | null;
   portfolio_config: Portfolio[];
+  prize_money_json?: PrizeMoneyEntry[];
+  show_prize_money?: boolean;
   status: CommitteeStatus;
   display_order: number;
 };

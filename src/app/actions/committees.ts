@@ -13,7 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCommitteeCardBackgroundUpload, resolveSquareImageUpload, validateOptionalCommitteeCardBackgroundFile, validateOptionalSquareImageFile } from "@/lib/cms-media";
 import { proofExtension } from "@/lib/upload";
-import type { EbMember } from "@/types";
+import type { EbMember, PrizeMoneyEntry } from "@/types";
 
 export type CommitteeFormValues = {
   edition_id: string;
@@ -25,6 +25,8 @@ export type CommitteeFormValues = {
   eb_json: string;
   allows_single_del: boolean;
   allows_double_del: boolean;
+  show_prize_money: boolean;
+  prize_rows: { category: string; amount: string }[];
   phase_fees: Record<string, { single: string; double: string }>;
 };
 
@@ -71,6 +73,14 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
       double: String(formData.get(`fee_${kind}_double`) ?? ""),
     };
   }
+  const prizeCount = Number(formData.get("prize_count") ?? 0);
+  const prize_rows: CommitteeFormValues["prize_rows"] = [];
+  for (let i = 0; i < prizeCount; i += 1) {
+    prize_rows.push({
+      category: String(formData.get(`prize_category_${i}`) ?? ""),
+      amount: String(formData.get(`prize_amount_${i}`) ?? ""),
+    });
+  }
   return {
     edition_id: String(formData.get("edition_id") ?? ""),
     name: String(formData.get("name") ?? ""),
@@ -81,6 +91,8 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
     eb_json: String(formData.get("eb_json") ?? ""),
     allows_single_del: formData.get("allows_single_del") === "on",
     allows_double_del: formData.get("allows_double_del") === "on",
+    show_prize_money: formData.get("show_prize_money") === "on",
+    prize_rows,
     phase_fees,
   };
 }
@@ -184,6 +196,25 @@ async function validateOptionalCommitteeCardBackground(formData: FormData): Prom
   return validateOptionalCommitteeCardBackgroundFile(formData, "card_background_file");
 }
 
+function parsePrizeMoneyFromForm(formData: FormData): { prizes: PrizeMoneyEntry[]; error?: string } {
+  const count = Number(formData.get("prize_count") ?? 0);
+  const prizes: PrizeMoneyEntry[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const category = toPlainText(String(formData.get(`prize_category_${index}`) ?? ""));
+    const amountRaw = formData.get(`prize_amount_${index}`);
+    if (!category && !String(amountRaw ?? "").trim()) continue;
+    if (!category) {
+      return { prizes: [], error: `Prize money row ${index + 1}: enter a category name.` };
+    }
+    const amount_minor = rupeesFromForm(amountRaw, -1);
+    if (amount_minor < 0) {
+      return { prizes: [], error: `Prize money row ${index + 1}: enter a valid amount.` };
+    }
+    prizes.push({ category, amount_minor });
+  }
+  return { prizes };
+}
+
 async function requireCommitteeManager() {
   const supabase = await createClient();
   const {
@@ -279,6 +310,10 @@ export async function createCommitteeAction(
   const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
   if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
 
+  const prizeMoney = parsePrizeMoneyFromForm(formData);
+  if (prizeMoney.error) return failCommittee(formData, prizeMoney.error);
+  const showPrizeMoney = formData.get("show_prize_money") === "on";
+
   const slug = slugify(parsed.data.short_name);
 
   const { data, error } = await gate.supabase
@@ -298,6 +333,8 @@ export async function createCommitteeAction(
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
       portfolio_config: portfolios.rows,
+      prize_money_json: prizeMoney.prizes,
+      show_prize_money: showPrizeMoney,
     })
     .select("id")
     .single();
@@ -371,6 +408,10 @@ export async function updateCommitteeAction(
   const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
   if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
 
+  const prizeMoney = parsePrizeMoneyFromForm(formData);
+  if (prizeMoney.error) return failCommittee(formData, prizeMoney.error);
+  const showPrizeMoney = formData.get("show_prize_money") === "on";
+
   const { data: current } = await gate.supabase
     .from("committees")
     .select("logo_url, card_background_url")
@@ -401,6 +442,8 @@ export async function updateCommitteeAction(
       allows_double_del: allowsDouble,
       status: parsed.data.status,
       display_order: parsed.data.display_order,
+      prize_money_json: prizeMoney.prizes,
+      show_prize_money: showPrizeMoney,
     })
     .eq("id", committeeId);
 

@@ -44,4 +44,11 @@ describe("staffNavItems", () => {
     expect(isAdminPathAllowed("/admin/attendance", ["VIEWER"])).toBe(true);
     expect(isAdminPathAllowed("/admin/cms", ["VIEWER"])).toBe(true);
   });
+
+  it("allows /admin/partners for roles with content access", () => {
+    expect(isAdminPathAllowed("/admin/partners", ["SUPER_ADMIN"])).toBe(true);
+    expect(isAdminPathAllowed("/admin/partners", ["CONTENT_EDITOR"])).toBe(true);
+    expect(isAdminPathAllowed("/admin/partners", ["VIEWER"])).toBe(true);
+    expect(isAdminPathAllowed("/admin/partners", ["ATTENDANCE_OPERATOR"])).toBe(false);
+  });
 });
