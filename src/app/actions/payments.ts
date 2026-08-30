@@ -8,7 +8,8 @@ import { istDateTimeToIso, rupeesToMinor } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { parseEmailList } from "@/lib/payments";
 import { PAYMENT_LIMIT, PAYMENT_WINDOW_MS, clientKeyFromHeaders, rateLimit } from "@/lib/rate-limit";
-import { MAX_PROOF_BYTES, proofExtension, sniffImageMime } from "@/lib/upload";
+import { compressProofImage } from "@/lib/image-compress";
+import { MAX_PROOF_BYTES, sniffImageMime } from "@/lib/upload";
 import { isStorageObjectKey } from "@/lib/safe-path";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -156,9 +157,13 @@ export async function submitPaymentProofAction(
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const mime = sniffImageMime(buffer);
-  if (!mime) {
+  if (!sniffImageMime(buffer)) {
     return { error: "Use JPEG, PNG, or WebP." };
+  }
+
+  const compressed = await compressProofImage(buffer);
+  if ("error" in compressed) {
+    return { error: compressed.error };
   }
 
   const supabase = await createClient();
@@ -167,12 +172,11 @@ export async function submitPaymentProofAction(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sign in to continue." };
 
-  const sha = createHash("sha256").update(buffer).digest("hex");
-  const ext = proofExtension(mime);
-  const key = `${user.id}/${paymentId}/${Date.now()}.${ext}`;
+  const sha = createHash("sha256").update(compressed.buffer).digest("hex");
+  const key = `${user.id}/${paymentId}/${Date.now()}.${compressed.extension}`;
 
-  const upload = await supabase.storage.from("payment-proofs").upload(key, buffer, {
-    contentType: mime,
+  const upload = await supabase.storage.from("payment-proofs").upload(key, compressed.buffer, {
+    contentType: compressed.mime,
     upsert: false,
   });
   if (upload.error) {
@@ -275,12 +279,13 @@ async function storePaymentQrImage(
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_PROOF_BYTES) return { qrKey, error: "QR image must be 5 MB or smaller." };
     const buffer = Buffer.from(await file.arrayBuffer());
-    const mime = sniffImageMime(buffer);
-    if (!mime) return { qrKey, error: "Use JPEG, PNG, or WebP for the payment QR." };
-    const key = `payment-qr/${editionId}.${proofExtension(mime)}`;
+    if (!sniffImageMime(buffer)) return { qrKey, error: "Use JPEG, PNG, or WebP for the payment QR." };
+    const compressed = await compressProofImage(buffer);
+    if ("error" in compressed) return { qrKey, error: compressed.error };
+    const key = `payment-qr/${editionId}.${compressed.extension}`;
     const admin = createAdminClient();
-    const upload = await admin.storage.from("cms-media").upload(key, buffer, {
-      contentType: mime,
+    const upload = await admin.storage.from("cms-media").upload(key, compressed.buffer, {
+      contentType: compressed.mime,
       upsert: true,
     });
     if (upload.error) return { qrKey, error: "Could not store the payment QR." };

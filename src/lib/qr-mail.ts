@@ -1,6 +1,6 @@
 import { APP_NAME } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
-import { deliverLocalEmail } from "@/lib/mail";
+import { deliverEmail } from "@/lib/mail";
 import { qrPngBase64, qrPngDataUrl, renderTemplate } from "@/lib/qr";
 
 type TemplateRow = { subject: string; body_html: string };
@@ -79,7 +79,7 @@ export async function deliverQrEmail(registrationId: string): Promise<{
     display_code: credential.displayCode,
     app_url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   };
-  const result = await deliverLocalEmail({
+  const result = await deliverEmail({
     to: profile.email,
     toName: profile.full_name,
     subject: renderTemplate(template.subject, vars),

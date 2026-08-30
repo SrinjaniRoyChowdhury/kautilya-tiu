@@ -84,13 +84,20 @@ MAILPIT_URL=http://host.docker.internal:54324
 
 The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit’s HTTP send API (no paid SMTP).
 
-## Hosted Free (still ₹0)
+## Hosted Free / Oracle
 
-Create a project at [supabase.com](https://supabase.com) (Free plan). Put the project URL, anon key, and service role key in `.env`. Run the SQL in `supabase/migrations/` in the SQL editor, then `supabase/seed.sql` if you want demo data. Point `NEXT_PUBLIC_APP_URL` at wherever you serve Next.js (college VM, Oracle Always Free, your laptop).
+See **[DEPLOY.md](./DEPLOY.md)** for the full go-live guide (Supabase Free, Brevo, Oracle VM, DNS, CI → main deploy, superadmin bootstrap).
 
-Do not add paid SMTP, Redis, Sentry, or a payment gateway. Without `MAILPIT_URL`, credentials still work in `/dashboard/qr`; email stays queued.
+Quick production shape:
 
-Put the app behind HTTPS (Caddy, nginx, or a college reverse proxy). When `NEXT_PUBLIC_APP_URL` starts with `https:`, plain HTTP is redirected (localhost is left alone).
+- App: `docker compose --profile prod up -d --build app-prod` on Oracle  
+- DB/Auth: hosted Supabase Free  
+- Mail: Brevo (Supabase SMTP for auth + `BREVO_API_KEY` for QR emails)  
+- CI gates PRs; deploy workflow ships `main` only  
+
+## Hosted Free (still ₹0) — short note
+
+Create a project at [supabase.com](https://supabase.com) (Free plan). Put the project URL, anon key, and service role key in `.env`. Run the SQL in `supabase/migrations/` in the SQL editor. Point `NEXT_PUBLIC_APP_URL` at `https://technokautilya.in`. Do **not** run local seed passwords in production — use `npm run bootstrap:admin` once on the server.
 
 ## Tests, health, backups
 

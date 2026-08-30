@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { QrLightbox } from "@/components/dashboard/qr-lightbox";
 import { ResendQrEmail } from "@/components/dashboard/resend-qr-email";
 import { Card, Container, PageHeader } from "@/components/ui/card";
@@ -11,10 +11,11 @@ import { getActiveQrPayload } from "@/lib/qr-mail";
 export const metadata: Metadata = { title: "Credential" };
 
 export default async function CredentialPage() {
-  const [user, profile, edition] = await Promise.all([
+  const [user, profile, edition, { showTeam }] = await Promise.all([
     getSessionUser(),
     getProfile(),
     getActiveEdition(),
+    dashboardNavProps(),
   ]);
   const registration = edition ? await getMyRegistration(edition.id) : null;
   const committees = edition ? await getCommitteesForEdition(edition.id) : [];
@@ -33,7 +34,7 @@ export default async function CredentialPage() {
         title="Credential"
         description="Show this QR at every desk. The same code is used all three days and for meals."
       />
-      <DashboardNav current="/dashboard/qr" />
+      <DashboardNav current="/dashboard/qr" showTeam={showTeam} />
 
       {!registration || registration.status !== "CONFIRMED" ? (
         <Card>

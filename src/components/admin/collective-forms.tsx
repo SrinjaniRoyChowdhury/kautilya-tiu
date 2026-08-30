@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import {
   createCollectiveAction,
   deleteCollectiveAction,
@@ -13,11 +13,14 @@ import {
   updateInstitutionAction,
   type InstitutionState,
 } from "@/app/actions/institutions";
+import { loadGroupDetailAction } from "@/app/actions/groups";
+import { GroupManagePanel } from "@/components/admin/group-manage-panel";
 import { AdminTable } from "@/components/admin/admin-filters";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { Modal, ModalTrigger } from "@/components/ui/modal";
+import type { GroupDetail } from "@/lib/groups";
 import type { Collective, Institution } from "@/types";
 
 type NamedState = CollectiveState | InstitutionState;
@@ -133,31 +136,95 @@ function EditNamedModal({
   );
 }
 
+function ManageGroupModal({
+  row,
+  kind,
+  editionId,
+  onClose,
+}: {
+  row: { id: string; name: string };
+  kind: "collective" | "institution";
+  editionId: string;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<GroupDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    startTransition(async () => {
+      const loaded = await loadGroupDetailAction(kind, row.id, editionId);
+      if (!loaded) setError("Could not load group details.");
+      else setDetail(loaded);
+    });
+  }, [kind, row.id, editionId]);
+
+  return (
+    <Modal
+      open
+      title={`Manage ${kind === "collective" ? "collective" : "institution"}: ${row.name}`}
+      onClose={onClose}
+    >
+      {error ? <p className="text-sm text-red-800">{error}</p> : null}
+      {!detail && !error ? <p className="text-sm text-ink-muted">Loading…</p> : null}
+      {detail ? (
+        <GroupManagePanel detail={detail} editionId={editionId} onClose={onClose} />
+      ) : null}
+    </Modal>
+  );
+}
+
 function NamedRowActions({
   row,
   title,
+  kind,
+  editionId,
   update,
   remove,
 }: {
   row: { id: string; name: string };
   title: string;
+  kind: "collective" | "institution";
+  editionId: string;
   update: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
   remove: (id: string, prev: NamedState, formData: FormData) => Promise<NamedState>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        Edit
-      </Button>
-      {open ? (
-        <EditNamedModal row={row} title={title} update={update} remove={remove} onClose={() => setOpen(false)} />
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={() => setManageOpen(true)}>
+          Manage
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+          Edit
+        </Button>
+      </div>
+      {editOpen ? (
+        <EditNamedModal row={row} title={title} update={update} remove={remove} onClose={() => setEditOpen(false)} />
+      ) : null}
+      {manageOpen ? (
+        <ManageGroupModal
+          row={row}
+          kind={kind}
+          editionId={editionId}
+          onClose={() => setManageOpen(false)}
+        />
       ) : null}
     </>
   );
 }
 
-export function CollectiveTable({ rows, readOnly }: { rows: Collective[]; readOnly: boolean }) {
+export function CollectiveTable({
+  rows,
+  readOnly,
+  editionId,
+}: {
+  rows: Collective[];
+  readOnly: boolean;
+  editionId: string;
+}) {
   if (!rows.length) return <p className="text-sm text-ink-muted">No collectives yet.</p>;
   return (
     <AdminTable columns={readOnly ? ["Name"] : ["Name", ""]}>
@@ -169,6 +236,8 @@ export function CollectiveTable({ rows, readOnly }: { rows: Collective[]; readOn
               <NamedRowActions
                 row={row}
                 title="Edit collective"
+                kind="collective"
+                editionId={editionId}
                 update={updateCollectiveAction}
                 remove={deleteCollectiveAction}
               />
@@ -180,7 +249,15 @@ export function CollectiveTable({ rows, readOnly }: { rows: Collective[]; readOn
   );
 }
 
-export function InstitutionTable({ rows, readOnly }: { rows: Institution[]; readOnly: boolean }) {
+export function InstitutionTable({
+  rows,
+  readOnly,
+  editionId,
+}: {
+  rows: Institution[];
+  readOnly: boolean;
+  editionId: string;
+}) {
   if (!rows.length) return <p className="text-sm text-ink-muted">No institutions yet.</p>;
   return (
     <AdminTable columns={readOnly ? ["Name"] : ["Name", ""]}>
@@ -192,6 +269,8 @@ export function InstitutionTable({ rows, readOnly }: { rows: Institution[]; read
               <NamedRowActions
                 row={row}
                 title="Edit institution"
+                kind="institution"
+                editionId={editionId}
                 update={updateInstitutionAction}
                 remove={deleteInstitutionAction}
               />

@@ -149,6 +149,8 @@ export type Registration = {
   expected_fee_minor: number | null;
   submitted_at: string | null;
   confirmed_at: string | null;
+  confirmed_free?: boolean;
+  institution_id?: string | null;
   accepted_rules_at?: string | null;
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
@@ -202,7 +204,9 @@ export type AdminParticipant = {
   committee_short_name: string | null;
   food_preference: FoodPreference | null;
   paid: boolean;
+  confirmed_free?: boolean;
   collective_name?: string | null;
+  institution_name?: string | null;
   delegation_type?: DelegationType | null;
   partner_email?: string | null;
   allocated_slr?: number | null;

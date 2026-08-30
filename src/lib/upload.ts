@@ -113,8 +113,11 @@ export function validateCommitteeLogoBytes(bytes: Uint8Array): string | null {
   if (dims.width !== dims.height) {
     return `Logo: image must be square (1:1). Yours is ${dims.width}×${dims.height} px.`;
   }
-  if (dims.width !== COMMITTEE_LOGO_PX || dims.height !== COMMITTEE_LOGO_PX) {
-    return `Logo: use ${COMMITTEE_LOGO_PX}×${COMMITTEE_LOGO_PX} px. Yours is ${dims.width}×${dims.height} px.`;
+  if (dims.width < 256) {
+    return `Logo: image must be at least 256×256 px. Yours is ${dims.width}×${dims.height} px.`;
+  }
+  if (dims.width > 4096) {
+    return `Logo: image must be at most 4096×4096 px. Yours is ${dims.width}×${dims.height} px.`;
   }
   return null;
 }

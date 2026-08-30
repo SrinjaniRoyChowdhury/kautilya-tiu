@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import {
   PaymentInstructionsCard,
   PaymentParticipants,
@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Payment details" };
 
 export default async function PaymentDetailPage({ params }: Props) {
   const { id } = await params;
-  const payment = await getPaymentById(id);
+  const [payment, { showTeam }] = await Promise.all([getPaymentById(id), dashboardNavProps()]);
   if (!payment) notFound();
   const instructions = await getPaymentInstructions(payment.edition_id);
   const proofHref = paymentProofHref(payment.id, payment.proof_image_key);
@@ -33,7 +33,7 @@ export default async function PaymentDetailPage({ params }: Props) {
         title="Upload proof"
         description="Scan the secretariat QR, transfer the expected total, then attach the screenshot. Staff review is manual."
       />
-      <DashboardNav current="/dashboard/pay" />
+      <DashboardNav current="/dashboard/pay" showTeam={showTeam} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <PaymentInstructionsCard

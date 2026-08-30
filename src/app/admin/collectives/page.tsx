@@ -8,7 +8,7 @@ import {
 import { AdminFilters, AdminListShell, AdminPagination } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
 import { getRoleNames, hasPermission } from "@/lib/auth";
-import { getCollectives, getInstitutions } from "@/lib/data";
+import { getActiveEdition, getCollectives, getInstitutions } from "@/lib/data";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
 import { isLimitedStaff } from "@/lib/staff-access";
 
@@ -30,7 +30,12 @@ export default async function AdminCollectivesPage({
     );
   }
 
-  const [collectives, institutions] = await Promise.all([getCollectives(), getInstitutions()]);
+  const [collectives, institutions, edition] = await Promise.all([
+    getCollectives(),
+    getInstitutions(),
+    getActiveEdition(),
+  ]);
+  const editionId = edition?.id ?? "";
   const onCollectives = tab !== "institutions";
   const source = onCollectives ? collectives : institutions;
   const visible = source.filter((row) => matchesQuery(q, row.name));
@@ -84,9 +89,17 @@ export default async function AdminCollectivesPage({
         }
       >
         {onCollectives ? (
-          <CollectiveTable rows={paged.items as typeof collectives} readOnly={readOnly} />
+          <CollectiveTable
+            rows={paged.items as typeof collectives}
+            readOnly={readOnly}
+            editionId={editionId}
+          />
         ) : (
-          <InstitutionTable rows={paged.items as typeof institutions} readOnly={readOnly} />
+          <InstitutionTable
+            rows={paged.items as typeof institutions}
+            readOnly={readOnly}
+            editionId={editionId}
+          />
         )}
       </AdminListShell>
     </div>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { ProfileForm } from "@/components/dashboard/profile-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getProfile } from "@/lib/auth";
@@ -7,11 +7,11 @@ import { getProfile } from "@/lib/auth";
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
-  const profile = await getProfile();
+  const [profile, { showTeam }] = await Promise.all([getProfile(), dashboardNavProps()]);
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Participant" title="Profile" />
-      <DashboardNav current="/dashboard/profile" />
+      <DashboardNav current="/dashboard/profile" showTeam={showTeam} />
       <Card>
         {profile ? (
           <ProfileForm profile={profile} />

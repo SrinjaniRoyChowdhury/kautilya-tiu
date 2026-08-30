@@ -16,7 +16,7 @@ export type ParticipantAdminState = {
 async function paidRegistration(registrationId: string, admin = createAdminClient()) {
   const { data: registration } = await admin
     .from("registrations")
-    .select("id, status, user_id, edition_id, deleted_at")
+    .select("id, status, user_id, edition_id, deleted_at, confirmed_free")
     .eq("id", registrationId)
     .maybeSingle();
   if (!registration || registration.deleted_at) return { registration: null, paid: true };
@@ -31,7 +31,7 @@ async function paidRegistration(registrationId: string, admin = createAdminClien
     return Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status];
   });
   const paid =
-    registration.status === "CONFIRMED" ||
+    (registration.status === "CONFIRMED" && !registration.confirmed_free) ||
     registration.status === "PAYMENT_VERIFIED" ||
     statuses.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW");
   return { registration, paid };
@@ -121,4 +121,45 @@ export async function deleteParticipantAction(
   revalidatePath("/admin/credentials");
   revalidatePath("/admin");
   return { success: "Participant removed. They had not paid yet." };
+}
+
+export async function confirmParticipantFreeAction(
+  registrationId: string,
+  _prev: ParticipantAdminState,
+  _formData: FormData,
+): Promise<ParticipantAdminState> {
+  void _prev;
+  void _formData;
+  if (!isUuid(registrationId)) return { error: "Missing participant." };
+  const allowed = await hasPermission("registration.edit");
+  if (!allowed) return { error: "You need registration.edit to confirm without payment." };
+
+  const admin = createAdminClient();
+  const { registration, paid } = await paidRegistration(registrationId, admin);
+  if (!registration) return { error: "Participant not found." };
+  if (paid) return { error: "This delegate already has a payment or confirmation." };
+  if (registration.status === "DRAFT" || registration.status === "CANCELLED") {
+    return { error: "They must submit a registration before confirmation." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("confirm_registration_free", {
+    p_registration_id: registrationId,
+  });
+  if (error) {
+    const msg = error.message?.includes("ALREADY_PAID")
+      ? "This delegate already has a payment or confirmation."
+      : error.message?.includes("FORBIDDEN")
+        ? "You need registration.edit to confirm without payment."
+        : error.message || "Could not confirm.";
+    return { error: msg };
+  }
+
+  revalidatePath("/admin/participants");
+  revalidatePath(`/admin/participants/${registrationId}`);
+  revalidatePath("/admin/credentials");
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/qr");
+  return { success: "Confirmed as a free participant. No payment was recorded." };
 }

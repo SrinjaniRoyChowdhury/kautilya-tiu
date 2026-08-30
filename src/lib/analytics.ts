@@ -6,6 +6,7 @@ export type RegistrationKpis = {
   total: number;
   byStatus: Record<string, number>;
   confirmed: number;
+  freeConfirmed: number;
   veg: number;
   nonVeg: number;
 };
@@ -59,7 +60,7 @@ export async function getDashboardKpis(
     const [{ data: regs }, committees] = await Promise.all([
       supabase
         .from("registrations")
-        .select("status, food_preference")
+        .select("status, food_preference, confirmed_free")
         .eq("edition_id", editionId)
         .is("deleted_at", null),
       getCommitteesForEdition(editionId),
@@ -67,16 +68,23 @@ export async function getDashboardKpis(
     const byStatus: Record<string, number> = { ...EMPTY_REG };
     let veg = 0;
     let nonVeg = 0;
-    for (const row of (regs as { status: RegistrationStatus; food_preference: string | null }[] | null) ?? []) {
+    let freeConfirmed = 0;
+    for (const row of (regs as {
+      status: RegistrationStatus;
+      food_preference: string | null;
+      confirmed_free: boolean;
+    }[] | null) ?? []) {
       byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
       if (row.food_preference === "VEG") veg += 1;
       if (row.food_preference === "NON_VEG") nonVeg += 1;
+      if (row.confirmed_free) freeConfirmed += 1;
     }
     const total = Object.values(byStatus).reduce((sum, n) => sum + n, 0);
     result.registration = {
       total,
       byStatus,
       confirmed: byStatus.CONFIRMED ?? 0,
+      freeConfirmed,
       veg,
       nonVeg,
     };

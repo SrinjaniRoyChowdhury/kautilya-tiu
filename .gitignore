@@ -67,3 +67,4 @@ _p7_srs.txt
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+DEPLOY.md

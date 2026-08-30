@@ -83,7 +83,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      SUPABASE_INTERNAL_URL: ${SUPABASE_INTERNAL_URL:-http://host.docker.internal:54321}
+      # For hosted Supabase leave SUPABASE_INTERNAL_URL empty in .env
+      # (falls back to NEXT_PUBLIC_SUPABASE_URL). Only set it for special networking.
+      NODE_ENV: production
     restart: unless-stopped
     healthcheck:
       test:
