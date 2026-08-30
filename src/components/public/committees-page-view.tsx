@@ -23,13 +23,18 @@ export function CommitteesPageView({
         description={description}
       />
       {committees.length ? (
-        <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <>
+          <MotionReveal delay={0.04} className="-mt-6 mb-8">
+            <p className="text-sm text-ink-muted">Click a card to view committee details.</p>
+          </MotionReveal>
+          <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {committees.map((committee) => (
             <MotionStaggerItem key={committee.id} as="div">
-              <CommitteeCard committee={committee} href={`/committees/${committee.slug}`} />
+              <CommitteeCard committee={committee} href={`/committees/${committee.slug}`} flip />
             </MotionStaggerItem>
           ))}
-        </MotionStagger>
+          </MotionStagger>
+        </>
       ) : (
         <MotionReveal delay={0.08}>
           <Card>

@@ -3,6 +3,20 @@ type BrevoAttachment = {
   name: string;
 };
 
+type MailpitAddress = { Email: string; Name?: string };
+
+type MailpitSendBody = {
+  From: MailpitAddress;
+  To: MailpitAddress[];
+  Subject: string;
+  HTML: string;
+  Attachments?: Array<{
+    Content: string;
+    Filename: string;
+    ContentType: string;
+  }>;
+};
+
 export type MailResult = { delivered: boolean; error?: string };
 
 export type DeliverEmailOpts = {
@@ -74,7 +88,7 @@ async function deliverViaMailpit(opts: DeliverEmailOpts): Promise<MailResult> {
   }
 
   const from = sender();
-  const body: Record<string, unknown> = {
+  const body: MailpitSendBody = {
     From: { Email: from.email, Name: from.name },
     To: [{ Email: opts.to, Name: opts.toName }],
     Subject: opts.subject,

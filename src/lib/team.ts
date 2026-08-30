@@ -1,8 +1,8 @@
 import type { ContactDeskFaceRef, SiteSettings, TeamMember, TeamSection } from "@/types";
 
-export const CLUB_NAME = "Techno Kautilya";
-export const PRESENTER_LINE = "TECHNO KAUTILYA presents";
-export const EVENT_NAME = "Niti Sabha";
+export const CLUB_NAME = "Kautilya MUN Nitisabha";
+export const PRESENTER_LINE = "KAUTILYA MUN NITISABHA presents";
+export const EVENT_NAME = "Kautilya";
 export const EVENT_EDITION = "2026";
 export const HOST_UNIVERSITY = "Techno India University";
 

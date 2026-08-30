@@ -47,7 +47,7 @@ export default async function CredentialPage() {
       ) : image ? (
         <div className="grid gap-6 lg:grid-cols-[20rem_1fr]">
           <Card className="flex flex-col items-center text-center">
-            <QrLightbox src={image.dataUrl} alt="Niti Sabha credential QR" />
+            <QrLightbox src={image.dataUrl} alt="Kautilya credential QR" />
             <p className="mt-4 font-mono text-2xl tracking-widest">{image.displayCode}</p>
             <p className="mt-1 text-xs text-ink-muted">Display code · not valid for lookup</p>
           </Card>

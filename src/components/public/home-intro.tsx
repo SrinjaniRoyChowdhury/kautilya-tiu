@@ -87,7 +87,7 @@ export function HomeIntro() {
       style={{ transitionDuration: `${FADE_MS}ms` }}
       role="dialog"
       aria-modal="true"
-      aria-label="Niti Sabha introduction"
+      aria-label="Kautilya introduction"
     >
       <video
         ref={videoRef}

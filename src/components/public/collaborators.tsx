@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Container } from "@/components/ui/card";
 import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
-import { COLLABORATORS, type Collaborator } from "@/lib/collaborators";
+import { type Collaborator } from "@/lib/collaborators";
 
 function CollaboratorLogo({ collaborator }: { collaborator: Collaborator }) {
   const inner = collaborator.logoUrl ? (
@@ -19,19 +19,6 @@ function CollaboratorLogo({ collaborator }: { collaborator: Collaborator }) {
     <span className="font-serif text-lg text-gold-700">{collaborator.name}</span>
   );
 
-  if (collaborator.websiteUrl) {
-    return (
-      <a
-        href={collaborator.websiteUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex h-full min-h-24 items-center justify-center rounded-sm bg-parchment-50/90 px-6 py-5 transition hover:bg-parchment-100"
-      >
-        {inner}
-      </a>
-    );
-  }
-
   return (
     <div className="flex h-full min-h-24 items-center justify-center rounded-sm bg-parchment-50/90 px-6 py-5">
       {inner}
@@ -39,7 +26,7 @@ function CollaboratorLogo({ collaborator }: { collaborator: Collaborator }) {
   );
 }
 
-export function CollaboratorsSection() {
+export function CollaboratorsSection({ collaborators }: { collaborators: Collaborator[] }) {
   return (
     <section id="collaborators" className="border-t border-gold-700/20 bg-parchment-100/40 py-14">
       <Container>
@@ -53,10 +40,10 @@ export function CollaboratorsSection() {
           </p>
         </MotionReveal>
 
-        {COLLABORATORS.length ? (
+        {collaborators.length ? (
           <MotionStagger className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {COLLABORATORS.map((collaborator) => (
-              <MotionStaggerItem key={collaborator.name} as="div" className="frame-gold rounded-sm p-1">
+            {collaborators.map((collaborator) => (
+              <MotionStaggerItem key={collaborator.id} as="div" className="frame-gold rounded-sm p-1">
                 <CollaboratorLogo collaborator={collaborator} />
               </MotionStaggerItem>
             ))}

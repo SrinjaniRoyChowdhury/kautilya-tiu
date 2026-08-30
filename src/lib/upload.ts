@@ -1,5 +1,6 @@
 export const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 export const COMMITTEE_LOGO_PX = 512;
+export const COMMITTEE_CARD_BG_PX = 1080;
 
 export type ProofMime = "image/jpeg" | "image/png" | "image/webp";
 
@@ -103,21 +104,42 @@ export function readImageDimensions(bytes: Uint8Array): ImageDimensions | null {
 }
 
 export function validateCommitteeLogoBytes(bytes: Uint8Array): string | null {
+  return validateSquareImageBytes(bytes, COMMITTEE_LOGO_PX, "Logo", { minPx: 256, maxPx: 4096, exact: false });
+}
+
+export function validateCommitteeCardBackgroundBytes(bytes: Uint8Array): string | null {
+  return validateSquareImageBytes(bytes, COMMITTEE_CARD_BG_PX, "Card background", { exact: true });
+}
+
+function validateSquareImageBytes(
+  bytes: Uint8Array,
+  px: number,
+  label: string,
+  opts: { exact?: boolean; minPx?: number; maxPx?: number },
+): string | null {
   const mime = sniffImageMime(bytes);
-  if (!mime) return "Logo: use JPEG, PNG, or WebP.";
+  if (!mime) return `${label}: use JPEG, PNG, or WebP.`;
   if (bytes.length > MAX_PROOF_BYTES) {
-    return `Logo: file must be ${Math.round(MAX_PROOF_BYTES / (1024 * 1024))} MB or smaller.`;
+    return `${label}: file must be ${Math.round(MAX_PROOF_BYTES / (1024 * 1024))} MB or smaller.`;
   }
   const dims = readImageDimensions(bytes);
-  if (!dims) return "Logo: could not read image dimensions.";
+  if (!dims) return `${label}: could not read image dimensions.`;
   if (dims.width !== dims.height) {
-    return `Logo: image must be square (1:1). Yours is ${dims.width}×${dims.height} px.`;
+    return `${label}: image must be square (1:1). Yours is ${dims.width}×${dims.height} px.`;
   }
-  if (dims.width < 256) {
-    return `Logo: image must be at least 256×256 px. Yours is ${dims.width}×${dims.height} px.`;
+  if (opts.exact) {
+    if (dims.width !== px || dims.height !== px) {
+      return `${label}: use ${px}×${px} px. Yours is ${dims.width}×${dims.height} px.`;
+    }
+    return null;
   }
-  if (dims.width > 4096) {
-    return `Logo: image must be at most 4096×4096 px. Yours is ${dims.width}×${dims.height} px.`;
+  const minPx = opts.minPx ?? px;
+  const maxPx = opts.maxPx ?? px;
+  if (dims.width < minPx) {
+    return `${label}: image must be at least ${minPx}×${minPx} px. Yours is ${dims.width}×${dims.height} px.`;
+  }
+  if (dims.width > maxPx) {
+    return `${label}: image must be at most ${maxPx}×${maxPx} px. Yours is ${dims.width}×${dims.height} px.`;
   }
   return null;
 }

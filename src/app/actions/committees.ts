@@ -11,9 +11,9 @@ import { toPlainText } from "@/lib/sanitize";
 import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { resolveSquareImageUpload, validateOptionalSquareImageFile } from "@/lib/cms-media";
+import { resolveCommitteeCardBackgroundUpload, resolveSquareImageUpload, validateOptionalCommitteeCardBackgroundFile, validateOptionalSquareImageFile } from "@/lib/cms-media";
 import { proofExtension } from "@/lib/upload";
-import type { EbMember } from "@/types";
+import type { EbMember, PrizeMoneyEntry } from "@/types";
 
 export type CommitteeFormValues = {
   edition_id: string;
@@ -25,6 +25,8 @@ export type CommitteeFormValues = {
   eb_json: string;
   allows_single_del: boolean;
   allows_double_del: boolean;
+  show_prize_money: boolean;
+  prize_rows: { category: string; amount: string }[];
   phase_fees: Record<string, { single: string; double: string }>;
 };
 
@@ -71,6 +73,14 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
       double: String(formData.get(`fee_${kind}_double`) ?? ""),
     };
   }
+  const prizeCount = Number(formData.get("prize_count") ?? 0);
+  const prize_rows: CommitteeFormValues["prize_rows"] = [];
+  for (let i = 0; i < prizeCount; i += 1) {
+    prize_rows.push({
+      category: String(formData.get(`prize_category_${i}`) ?? ""),
+      amount: String(formData.get(`prize_amount_${i}`) ?? ""),
+    });
+  }
   return {
     edition_id: String(formData.get("edition_id") ?? ""),
     name: String(formData.get("name") ?? ""),
@@ -81,6 +91,8 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
     eb_json: String(formData.get("eb_json") ?? ""),
     allows_single_del: formData.get("allows_single_del") === "on",
     allows_double_del: formData.get("allows_double_del") === "on",
+    show_prize_money: formData.get("show_prize_money") === "on",
+    prize_rows,
     phase_fees,
   };
 }
@@ -157,9 +169,50 @@ async function resolveCommitteeLogo(
   };
 }
 
+async function resolveCommitteeCardBackground(
+  committeeId: string,
+  formData: FormData,
+  currentUrl: string | null,
+): Promise<{ cardBackgroundUrl: string | null; error?: string }> {
+  const background = await resolveCommitteeCardBackgroundUpload(
+    formData,
+    "card_background_file",
+    "remove_card_background",
+    currentUrl,
+    (mime) => `committee-card-backgrounds/${committeeId}.${proofExtension(mime!)}`,
+  );
+  return {
+    cardBackgroundUrl: background.url,
+    error: background.error,
+  };
+}
+
 async function validateOptionalCommitteeLogoFile(formData: FormData): Promise<string | null> {
   const error = await validateOptionalSquareImageFile(formData, "logo_file");
   return error?.replace(/^Photo:/, "Logo:") ?? null;
+}
+
+async function validateOptionalCommitteeCardBackground(formData: FormData): Promise<string | null> {
+  return validateOptionalCommitteeCardBackgroundFile(formData, "card_background_file");
+}
+
+function parsePrizeMoneyFromForm(formData: FormData): { prizes: PrizeMoneyEntry[]; error?: string } {
+  const count = Number(formData.get("prize_count") ?? 0);
+  const prizes: PrizeMoneyEntry[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const category = toPlainText(String(formData.get(`prize_category_${index}`) ?? ""));
+    const amountRaw = formData.get(`prize_amount_${index}`);
+    if (!category && !String(amountRaw ?? "").trim()) continue;
+    if (!category) {
+      return { prizes: [], error: `Prize money row ${index + 1}: enter a category name.` };
+    }
+    const amount_minor = rupeesFromForm(amountRaw, -1);
+    if (amount_minor < 0) {
+      return { prizes: [], error: `Prize money row ${index + 1}: enter a valid amount.` };
+    }
+    prizes.push({ category, amount_minor });
+  }
+  return { prizes };
 }
 
 async function requireCommitteeManager() {
@@ -254,6 +307,12 @@ export async function createCommitteeAction(
 
   const logoValidation = await validateOptionalCommitteeLogoFile(formData);
   if (logoValidation) return failCommittee(formData, logoValidation);
+  const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
+  if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
+
+  const prizeMoney = parsePrizeMoneyFromForm(formData);
+  if (prizeMoney.error) return failCommittee(formData, prizeMoney.error);
+  const showPrizeMoney = formData.get("show_prize_money") === "on";
 
   const slug = slugify(parsed.data.short_name);
 
@@ -274,6 +333,8 @@ export async function createCommitteeAction(
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
       portfolio_config: portfolios.rows,
+      prize_money_json: prizeMoney.prizes,
+      show_prize_money: showPrizeMoney,
     })
     .select("id")
     .single();
@@ -282,12 +343,19 @@ export async function createCommitteeAction(
 
   const logo = await resolveCommitteeLogo(data.id, formData, null);
   if (logo.error) return failCommittee(formData, logo.error);
-  if (logo.logoUrl) {
-    const { error: logoError } = await gate.supabase
+  const cardBackground = await resolveCommitteeCardBackground(data.id, formData, null);
+  if (cardBackground.error) return failCommittee(formData, cardBackground.error);
+  if (logo.logoUrl || cardBackground.cardBackgroundUrl) {
+    const { error: mediaError } = await gate.supabase
       .from("committees")
-      .update({ logo_url: logo.logoUrl })
+      .update({
+        ...(logo.logoUrl ? { logo_url: logo.logoUrl } : {}),
+        ...(cardBackground.cardBackgroundUrl
+          ? { card_background_url: cardBackground.cardBackgroundUrl }
+          : {}),
+      })
       .eq("id", data.id);
-    if (logoError) return failCommittee(formData, logoError.message);
+    if (mediaError) return failCommittee(formData, mediaError.message);
   }
 
   await upsertCommitteeFees(gate.supabase, data.id, parsed.data.edition_id, formData, fallbackRupees);
@@ -335,13 +403,28 @@ export async function updateCommitteeAction(
 
   const slug = slugify(parsed.data.short_name);
 
+  const logoValidation = await validateOptionalCommitteeLogoFile(formData);
+  if (logoValidation) return failCommittee(formData, logoValidation);
+  const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
+  if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
+
+  const prizeMoney = parsePrizeMoneyFromForm(formData);
+  if (prizeMoney.error) return failCommittee(formData, prizeMoney.error);
+  const showPrizeMoney = formData.get("show_prize_money") === "on";
+
   const { data: current } = await gate.supabase
     .from("committees")
-    .select("logo_url")
+    .select("logo_url, card_background_url")
     .eq("id", committeeId)
     .maybeSingle();
   const logo = await resolveCommitteeLogo(committeeId, formData, current?.logo_url ?? null);
   if (logo.error) return failCommittee(formData, logo.error);
+  const cardBackground = await resolveCommitteeCardBackground(
+    committeeId,
+    formData,
+    current?.card_background_url ?? null,
+  );
+  if (cardBackground.error) return failCommittee(formData, cardBackground.error);
 
   const { error } = await gate.supabase
     .from("committees")
@@ -353,11 +436,14 @@ export async function updateCommitteeAction(
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
       logo_url: logo.logoUrl,
+      card_background_url: cardBackground.cardBackgroundUrl,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
       status: parsed.data.status,
       display_order: parsed.data.display_order,
+      prize_money_json: prizeMoney.prizes,
+      show_prize_money: showPrizeMoney,
     })
     .eq("id", committeeId);
 
@@ -428,7 +514,7 @@ export async function updateCommitteeContentAction(
   const canContent = await hasPermission("committee.content");
   const canManage = await hasPermission("committee.manage");
   if (!canContent && !canManage) {
-    return { error: "You can only edit committee name, short name, description, and logo." };
+    return { error: "You can only edit committee name, short name, description, logo, and card background." };
   }
 
   const parsed = contentSchema.safeParse({
@@ -441,7 +527,7 @@ export async function updateCommitteeContentAction(
   const admin = createAdminClient();
   const { data: current } = await admin
     .from("committees")
-    .select("edition_id, logo_url")
+    .select("edition_id, logo_url, card_background_url")
     .eq("id", committeeId)
     .maybeSingle();
   if (!current) return { error: "Committee not found." };
@@ -461,6 +547,12 @@ export async function updateCommitteeContentAction(
 
   const logo = await resolveCommitteeLogo(committeeId, formData, current.logo_url ?? null);
   if (logo.error) return { error: logo.error };
+  const cardBackground = await resolveCommitteeCardBackground(
+    committeeId,
+    formData,
+    current.card_background_url ?? null,
+  );
+  if (cardBackground.error) return { error: cardBackground.error };
 
   const { error } = await admin
     .from("committees")
@@ -470,6 +562,7 @@ export async function updateCommitteeContentAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       logo_url: logo.logoUrl,
+      card_background_url: cardBackground.cardBackgroundUrl,
     })
     .eq("id", committeeId);
   if (error) return { error: error.message };
