@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Container } from "@/components/ui/card";
 import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
-import { SPONSORS, SPONSOR_TIER_LABELS, type Sponsor, type SponsorTier } from "@/lib/sponsors";
+import { SPONSOR_TIER_LABELS, type Sponsor, type SponsorTier } from "@/lib/sponsors";
 
 const TIER_ORDER: SponsorTier[] = ["title", "gold", "silver", "partner"];
 
@@ -20,19 +20,6 @@ function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
   ) : (
     <span className="font-serif text-lg text-gold-700">{sponsor.name}</span>
   );
-
-  if (sponsor.websiteUrl) {
-    return (
-      <a
-        href={sponsor.websiteUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex h-full min-h-24 items-center justify-center rounded-sm bg-parchment-50/90 px-6 py-5 transition hover:bg-parchment-100"
-      >
-        {inner}
-      </a>
-    );
-  }
 
   return (
     <div className="flex h-full min-h-24 items-center justify-center rounded-sm bg-parchment-50/90 px-6 py-5">
@@ -53,7 +40,7 @@ function SponsorTierGroup({ tier, sponsors }: { tier: SponsorTier; sponsors: Spo
       </p>
       <MotionStagger className={isTitle ? "mx-auto max-w-md" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
         {sponsors.map((sponsor) => (
-          <MotionStaggerItem key={sponsor.name} as="div" className="frame-gold rounded-sm p-1">
+          <MotionStaggerItem key={sponsor.id} as="div" className="frame-gold rounded-sm p-1">
             <SponsorLogo sponsor={sponsor} />
           </MotionStaggerItem>
         ))}
@@ -62,10 +49,10 @@ function SponsorTierGroup({ tier, sponsors }: { tier: SponsorTier; sponsors: Spo
   );
 }
 
-export function SponsorsSection() {
+export function SponsorsSection({ sponsors }: { sponsors: Sponsor[] }) {
   const grouped = TIER_ORDER.map((tier) => ({
     tier,
-    sponsors: SPONSORS.filter((sponsor) => sponsor.tier === tier),
+    sponsors: sponsors.filter((sponsor) => sponsor.tier === tier),
   })).filter((group) => group.sponsors.length > 0);
 
   return (
@@ -83,8 +70,8 @@ export function SponsorsSection() {
 
         {grouped.length ? (
           <div className="mt-10 space-y-10">
-            {grouped.map(({ tier, sponsors }) => (
-              <SponsorTierGroup key={tier} tier={tier} sponsors={sponsors} />
+            {grouped.map(({ tier, sponsors: tierSponsors }) => (
+              <SponsorTierGroup key={tier} tier={tier} sponsors={tierSponsors} />
             ))}
           </div>
         ) : (

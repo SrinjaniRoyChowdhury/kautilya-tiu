@@ -11,7 +11,7 @@ import { toPlainText } from "@/lib/sanitize";
 import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { resolveSquareImageUpload, validateOptionalSquareImageFile } from "@/lib/cms-media";
+import { resolveCommitteeCardBackgroundUpload, resolveSquareImageUpload, validateOptionalCommitteeCardBackgroundFile, validateOptionalSquareImageFile } from "@/lib/cms-media";
 import { proofExtension } from "@/lib/upload";
 import type { EbMember } from "@/types";
 
@@ -157,9 +157,31 @@ async function resolveCommitteeLogo(
   };
 }
 
+async function resolveCommitteeCardBackground(
+  committeeId: string,
+  formData: FormData,
+  currentUrl: string | null,
+): Promise<{ cardBackgroundUrl: string | null; error?: string }> {
+  const background = await resolveCommitteeCardBackgroundUpload(
+    formData,
+    "card_background_file",
+    "remove_card_background",
+    currentUrl,
+    (mime) => `committee-card-backgrounds/${committeeId}.${proofExtension(mime!)}`,
+  );
+  return {
+    cardBackgroundUrl: background.url,
+    error: background.error,
+  };
+}
+
 async function validateOptionalCommitteeLogoFile(formData: FormData): Promise<string | null> {
   const error = await validateOptionalSquareImageFile(formData, "logo_file");
   return error?.replace(/^Photo:/, "Logo:") ?? null;
+}
+
+async function validateOptionalCommitteeCardBackground(formData: FormData): Promise<string | null> {
+  return validateOptionalCommitteeCardBackgroundFile(formData, "card_background_file");
 }
 
 async function requireCommitteeManager() {
@@ -254,6 +276,8 @@ export async function createCommitteeAction(
 
   const logoValidation = await validateOptionalCommitteeLogoFile(formData);
   if (logoValidation) return failCommittee(formData, logoValidation);
+  const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
+  if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
 
   const slug = slugify(parsed.data.short_name);
 
@@ -282,12 +306,19 @@ export async function createCommitteeAction(
 
   const logo = await resolveCommitteeLogo(data.id, formData, null);
   if (logo.error) return failCommittee(formData, logo.error);
-  if (logo.logoUrl) {
-    const { error: logoError } = await gate.supabase
+  const cardBackground = await resolveCommitteeCardBackground(data.id, formData, null);
+  if (cardBackground.error) return failCommittee(formData, cardBackground.error);
+  if (logo.logoUrl || cardBackground.cardBackgroundUrl) {
+    const { error: mediaError } = await gate.supabase
       .from("committees")
-      .update({ logo_url: logo.logoUrl })
+      .update({
+        ...(logo.logoUrl ? { logo_url: logo.logoUrl } : {}),
+        ...(cardBackground.cardBackgroundUrl
+          ? { card_background_url: cardBackground.cardBackgroundUrl }
+          : {}),
+      })
       .eq("id", data.id);
-    if (logoError) return failCommittee(formData, logoError.message);
+    if (mediaError) return failCommittee(formData, mediaError.message);
   }
 
   await upsertCommitteeFees(gate.supabase, data.id, parsed.data.edition_id, formData, fallbackRupees);
@@ -335,13 +366,24 @@ export async function updateCommitteeAction(
 
   const slug = slugify(parsed.data.short_name);
 
+  const logoValidation = await validateOptionalCommitteeLogoFile(formData);
+  if (logoValidation) return failCommittee(formData, logoValidation);
+  const cardBackgroundValidation = await validateOptionalCommitteeCardBackground(formData);
+  if (cardBackgroundValidation) return failCommittee(formData, cardBackgroundValidation);
+
   const { data: current } = await gate.supabase
     .from("committees")
-    .select("logo_url")
+    .select("logo_url, card_background_url")
     .eq("id", committeeId)
     .maybeSingle();
   const logo = await resolveCommitteeLogo(committeeId, formData, current?.logo_url ?? null);
   if (logo.error) return failCommittee(formData, logo.error);
+  const cardBackground = await resolveCommitteeCardBackground(
+    committeeId,
+    formData,
+    current?.card_background_url ?? null,
+  );
+  if (cardBackground.error) return failCommittee(formData, cardBackground.error);
 
   const { error } = await gate.supabase
     .from("committees")
@@ -353,6 +395,7 @@ export async function updateCommitteeAction(
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
       logo_url: logo.logoUrl,
+      card_background_url: cardBackground.cardBackgroundUrl,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
@@ -428,7 +471,7 @@ export async function updateCommitteeContentAction(
   const canContent = await hasPermission("committee.content");
   const canManage = await hasPermission("committee.manage");
   if (!canContent && !canManage) {
-    return { error: "You can only edit committee name, short name, description, and logo." };
+    return { error: "You can only edit committee name, short name, description, logo, and card background." };
   }
 
   const parsed = contentSchema.safeParse({
@@ -441,7 +484,7 @@ export async function updateCommitteeContentAction(
   const admin = createAdminClient();
   const { data: current } = await admin
     .from("committees")
-    .select("edition_id, logo_url")
+    .select("edition_id, logo_url, card_background_url")
     .eq("id", committeeId)
     .maybeSingle();
   if (!current) return { error: "Committee not found." };
@@ -461,6 +504,12 @@ export async function updateCommitteeContentAction(
 
   const logo = await resolveCommitteeLogo(committeeId, formData, current.logo_url ?? null);
   if (logo.error) return { error: logo.error };
+  const cardBackground = await resolveCommitteeCardBackground(
+    committeeId,
+    formData,
+    current.card_background_url ?? null,
+  );
+  if (cardBackground.error) return { error: cardBackground.error };
 
   const { error } = await admin
     .from("committees")
@@ -470,6 +519,7 @@ export async function updateCommitteeContentAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       logo_url: logo.logoUrl,
+      card_background_url: cardBackground.cardBackgroundUrl,
     })
     .eq("id", committeeId);
   if (error) return { error: error.message };

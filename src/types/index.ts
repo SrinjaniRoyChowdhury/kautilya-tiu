@@ -101,6 +101,7 @@ export type Committee = {
   allows_double_del?: boolean;
   eb_json: EbMember[];
   logo_url?: string | null;
+  card_background_url?: string | null;
   portfolio_config: Portfolio[];
   status: CommitteeStatus;
   display_order: number;
@@ -257,6 +258,30 @@ export type TeamMember = {
   role_title: string;
   bio: string | null;
   photo_url: string | null;
+  display_order: number;
+  published?: boolean;
+};
+
+export type SponsorCategory = "title" | "gold" | "silver" | "partner";
+
+export type CollaboratorCategory = "society" | "institution" | "media" | "partner";
+
+export type CmsSponsor = {
+  id: string;
+  edition_id?: string | null;
+  name: string;
+  category: SponsorCategory;
+  logo_url: string | null;
+  display_order: number;
+  published?: boolean;
+};
+
+export type CmsCollaborator = {
+  id: string;
+  edition_id?: string | null;
+  name: string;
+  category: CollaboratorCategory;
+  logo_url: string | null;
   display_order: number;
   published?: boolean;
 };

@@ -6,7 +6,7 @@ import { EVENT_EDITION, EVENT_NAME, resolvePublicRoster } from "@/lib/team";
 
 export const metadata: Metadata = {
   title: "Team",
-  description: `Secretariat of ${EVENT_NAME} ${EVENT_EDITION}, the annual Model United Nations conference of Techno India University.`,
+  description: `Secretariat of ${EVENT_NAME} ${EVENT_EDITION} — Kautilya MUN Nitisabha at Techno India University.`,
 };
 
 export default async function TeamPage() {

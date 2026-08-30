@@ -1,4 +1,4 @@
-# Niti Sabha
+# Kautilya
 
 Multi-edition Model United Nations platform. Phases 1–7 are live: conference ops plus hardening (headers, rate limits, tests, backups, health checks).
 

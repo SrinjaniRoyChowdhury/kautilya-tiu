@@ -12,6 +12,7 @@ import {
   type FormState as CommitteeFormState,
 } from "@/app/actions/committees";
 import { PHASE_KINDS, PHASE_LABELS } from "@/lib/phases";
+import { COMMITTEE_CARD_BACKGROUND_HINT } from "@/lib/committee-card-background";
 import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
 import { SquareImageField } from "@/components/ui/square-image-field";
 import type { Committee, CommitteePhaseFee, Edition } from "@/types";
@@ -37,6 +38,32 @@ function CommitteeLogoField({
         showRemove={showRemove}
         hint={COMMITTEE_LOGO_HINT}
         previewClassName="h-20 w-20 rounded-sm border border-gold-700/25 bg-parchment-100 object-contain p-1"
+      />
+    </div>
+  );
+}
+
+function CommitteeCardBackgroundField({
+  committee,
+  readOnly,
+  showRemove,
+}: {
+  committee?: Committee;
+  readOnly?: boolean;
+  showRemove?: boolean;
+}) {
+  return (
+    <div className="sm:col-span-2">
+      <SquareImageField
+        label="Card background"
+        htmlFor="card_background_file"
+        fileName="card_background_file"
+        removeName="remove_card_background"
+        currentUrl={committee?.card_background_url}
+        readOnly={readOnly}
+        showRemove={showRemove}
+        hint={COMMITTEE_CARD_BACKGROUND_HINT}
+        previewClassName="h-28 w-28 rounded-sm border border-gold-700/25 bg-parchment-100 object-cover p-0.5"
       />
     </div>
   );
@@ -164,6 +191,7 @@ export function CommitteeForm({
           </Field>
         </div>
         <CommitteeLogoField committee={committee} readOnly={readOnly} showRemove />
+        <CommitteeCardBackgroundField committee={committee} readOnly={readOnly} showRemove />
         <div className="sm:col-span-2">
           <Field label="Description" htmlFor="description" hint="Plain text. Line breaks are kept.">
             <Textarea id="description" name="description" defaultValue={committee.description ?? ""} disabled={readOnly} />
@@ -331,6 +359,7 @@ export function CommitteeForm({
         />
       </Field>
       <CommitteeLogoField committee={committee} readOnly={readOnly} showRemove={!isCreate} />
+      <CommitteeCardBackgroundField committee={committee} readOnly={readOnly} showRemove={!isCreate} />
       {!isCreate ? (
         <Field label="Rules URL" htmlFor="rules_url">
           <Input id="rules_url" name="rules_url" type="url" defaultValue={committee?.rules_url ?? ""} disabled={readOnly} />

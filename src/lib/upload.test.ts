@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { COMMITTEE_LOGO_PX, sniffImageMime, sniffPdf, validateCommitteeLogoBytes } from "./upload";
+import {
+  COMMITTEE_LOGO_PX,
+  sniffImageMime,
+  sniffPdf,
+  validateCommitteeCardBackgroundBytes,
+  validateCommitteeLogoBytes,
+} from "./upload";
+describe("validateCommitteeCardBackgroundBytes", () => {
+  it("accepts a square 1080×1080 PNG header and rejects wrong sizes", () => {
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16, 1080, false);
+    view.setUint32(20, 1080, false);
+    expect(validateCommitteeCardBackgroundBytes(bytes)).toBeNull();
+    view.setUint32(16, 512, false);
+    view.setUint32(20, 512, false);
+    expect(validateCommitteeCardBackgroundBytes(bytes)).toContain("1080×1080");
+  });
+});
 
 describe("sniffImageMime", () => {
   it("detects JPEG/PNG/WebP magic bytes and rejects other bytes", () => {

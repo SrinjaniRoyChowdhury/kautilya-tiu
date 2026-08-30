@@ -1,5 +1,6 @@
 export const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 export const COMMITTEE_LOGO_PX = 512;
+export const COMMITTEE_CARD_BG_PX = 1080;
 
 export type ProofMime = "image/jpeg" | "image/png" | "image/webp";
 
@@ -103,18 +104,26 @@ export function readImageDimensions(bytes: Uint8Array): ImageDimensions | null {
 }
 
 export function validateCommitteeLogoBytes(bytes: Uint8Array): string | null {
+  return validateSquareImageBytes(bytes, COMMITTEE_LOGO_PX, "Logo");
+}
+
+export function validateCommitteeCardBackgroundBytes(bytes: Uint8Array): string | null {
+  return validateSquareImageBytes(bytes, COMMITTEE_CARD_BG_PX, "Card background");
+}
+
+function validateSquareImageBytes(bytes: Uint8Array, px: number, label: string): string | null {
   const mime = sniffImageMime(bytes);
-  if (!mime) return "Logo: use JPEG, PNG, or WebP.";
+  if (!mime) return `${label}: use JPEG, PNG, or WebP.`;
   if (bytes.length > MAX_PROOF_BYTES) {
-    return `Logo: file must be ${Math.round(MAX_PROOF_BYTES / (1024 * 1024))} MB or smaller.`;
+    return `${label}: file must be ${Math.round(MAX_PROOF_BYTES / (1024 * 1024))} MB or smaller.`;
   }
   const dims = readImageDimensions(bytes);
-  if (!dims) return "Logo: could not read image dimensions.";
+  if (!dims) return `${label}: could not read image dimensions.`;
   if (dims.width !== dims.height) {
-    return `Logo: image must be square (1:1). Yours is ${dims.width}×${dims.height} px.`;
+    return `${label}: image must be square (1:1). Yours is ${dims.width}×${dims.height} px.`;
   }
-  if (dims.width !== COMMITTEE_LOGO_PX || dims.height !== COMMITTEE_LOGO_PX) {
-    return `Logo: use ${COMMITTEE_LOGO_PX}×${COMMITTEE_LOGO_PX} px. Yours is ${dims.width}×${dims.height} px.`;
+  if (dims.width !== px || dims.height !== px) {
+    return `${label}: use ${px}×${px} px. Yours is ${dims.width}×${dims.height} px.`;
   }
   return null;
 }

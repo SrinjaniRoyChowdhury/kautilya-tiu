@@ -43,6 +43,7 @@ function revalidatePublic() {
   revalidatePath("/gallery");
   revalidatePath("/admin/cms");
   revalidatePath("/admin/team");
+  revalidatePath("/admin/partners");
   revalidatePath("/api/announcements");
 }
 
@@ -535,4 +536,187 @@ export async function deleteGalleryImageAction(formData: FormData): Promise<void
     p_new: null,
   });
   revalidatePublic();
+}
+
+const sponsorSchema = z.object({
+  id: optionalHexId,
+  name: z.string().trim().min(2).max(120),
+  category: z.enum(["title", "gold", "silver", "partner"]),
+  display_order: z.coerce.number().int().min(0).max(999),
+  published: z.coerce.boolean().optional(),
+});
+
+const collaboratorSchema = z.object({
+  id: optionalHexId,
+  name: z.string().trim().min(2).max(120),
+  category: z.enum(["society", "institution", "media", "partner"]),
+  display_order: z.coerce.number().int().min(0).max(999),
+  published: z.coerce.boolean().optional(),
+});
+
+async function savePartnerWithLogo(
+  gate: { supabase: Awaited<ReturnType<typeof createClient>>; allowed: true },
+  table: "cms_sponsors" | "cms_collaborators",
+  parsed: { id?: string; name: string; category: string; display_order: number; published?: boolean },
+  formData: FormData,
+  logoPrefix: string,
+  auditCreate: string,
+  auditUpdate: string,
+): Promise<FormState> {
+  const logoValidation = await validateOptionalSquareImageFile(formData, "logo_file");
+  if (logoValidation) return { error: logoValidation };
+
+  const admin = createAdminClient();
+  const rowId = parsed.id;
+  let currentLogo: string | null = null;
+  if (rowId) {
+    const { data: existing } = await admin.from(table).select("logo_url").eq("id", rowId).maybeSingle();
+    currentLogo = existing?.logo_url ?? null;
+  }
+
+  const row = {
+    edition_id: null,
+    name: toPlainText(parsed.name),
+    category: parsed.category,
+    display_order: parsed.display_order,
+    published: Boolean(parsed.published),
+  };
+
+  if (parsed.id) {
+    const logo = await resolveSquareImageUpload(
+      formData,
+      "logo_file",
+      "remove_logo",
+      currentLogo,
+      (mime) => `${logoPrefix}/${parsed.id}.${proofExtension(mime!)}`,
+    );
+    if (logo.error) return { error: logo.error };
+
+    const { error } = await gate.supabase
+      .from(table)
+      .update({ ...row, logo_url: logo.url })
+      .eq("id", parsed.id);
+    if (error) return { error: error.message };
+    await gate.supabase.rpc("write_audit", {
+      p_action: auditUpdate,
+      p_entity: table,
+      p_entity_id: parsed.id,
+      p_old: null,
+      p_new: { name: row.name, category: row.category },
+    });
+  } else {
+    const { data, error } = await gate.supabase.from(table).insert(row).select("id").single();
+    if (error || !data) return { error: error?.message ?? "Could not save entry" };
+
+    const logo = await resolveSquareImageUpload(
+      formData,
+      "logo_file",
+      "remove_logo",
+      null,
+      (mime) => `${logoPrefix}/${data.id}.${proofExtension(mime!)}`,
+    );
+    if (logo.error) return { error: logo.error };
+    if (logo.url) {
+      const { error: logoError } = await gate.supabase
+        .from(table)
+        .update({ logo_url: logo.url })
+        .eq("id", data.id);
+      if (logoError) return { error: logoError.message };
+    }
+
+    await gate.supabase.rpc("write_audit", {
+      p_action: auditCreate,
+      p_entity: table,
+      p_entity_id: data.id,
+      p_old: null,
+      p_new: { name: row.name, category: row.category },
+    });
+  }
+
+  revalidatePublic();
+  return { success: "Saved." };
+}
+
+export async function saveSponsorAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const gate = await requireCms();
+  if (!gate.allowed) return { error: "You need cms.manage to edit sponsors." };
+
+  const parsed = sponsorSchema.safeParse({
+    id: String(formData.get("id") ?? ""),
+    name: formData.get("name"),
+    category: formData.get("category"),
+    display_order: formData.get("display_order"),
+    published: formData.get("published") === "on",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid sponsor" };
+
+  return savePartnerWithLogo(
+    gate,
+    "cms_sponsors",
+    parsed.data,
+    formData,
+    "sponsor-logos",
+    "cms.sponsor.create",
+    "cms.sponsor.update",
+  );
+}
+
+export async function deleteSponsorAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const gate = await requireCms();
+  if (!gate.allowed) return { error: "You need cms.manage to edit sponsors." };
+  const id = String(formData.get("id") ?? "");
+  if (!isUuid(id)) return { error: "Missing sponsor." };
+  const { error } = await gate.supabase.from("cms_sponsors").delete().eq("id", id);
+  if (error) return { error: error.message };
+  await gate.supabase.rpc("write_audit", {
+    p_action: "cms.sponsor.delete",
+    p_entity: "cms_sponsors",
+    p_entity_id: id,
+    p_old: null,
+    p_new: null,
+  });
+  revalidatePublic();
+  return { success: "Removed." };
+}
+
+export async function saveCollaboratorAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const gate = await requireCms();
+  if (!gate.allowed) return { error: "You need cms.manage to edit collaborators." };
+
+  const parsed = collaboratorSchema.safeParse({
+    id: String(formData.get("id") ?? ""),
+    name: formData.get("name"),
+    category: formData.get("category"),
+    display_order: formData.get("display_order"),
+    published: formData.get("published") === "on",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid collaborator" };
+
+  return savePartnerWithLogo(
+    gate,
+    "cms_collaborators",
+    parsed.data,
+    formData,
+    "collaborator-logos",
+    "cms.collaborator.create",
+    "cms.collaborator.update",
+  );
+}
+
+export async function deleteCollaboratorAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const gate = await requireCms();
+  if (!gate.allowed) return { error: "You need cms.manage to edit collaborators." };
+  const id = String(formData.get("id") ?? "");
+  if (!isUuid(id)) return { error: "Missing collaborator." };
+  const { error } = await gate.supabase.from("cms_collaborators").delete().eq("id", id);
+  if (error) return { error: error.message };
+  await gate.supabase.rpc("write_audit", {
+    p_action: "cms.collaborator.delete",
+    p_entity: "cms_collaborators",
+    p_entity_id: id,
+    p_old: null,
+    p_new: null,
+  });
+  revalidatePublic();
+  return { success: "Removed." };
 }
