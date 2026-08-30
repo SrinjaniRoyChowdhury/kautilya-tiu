@@ -49,7 +49,28 @@ const fallbackSettings: SiteSettings = {
   instagram_url: "https://www.instagram.com/kautilya_tiu/",
   linkedin_url: null,
   hero_stats: [],
+  contact_desk_faces: [],
+  contact_desk_limit: 3,
 };
+
+function normalizeContactDeskFaces(value: unknown): SiteSettings["contact_desk_faces"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const member_id = "member_id" in row ? String(row.member_id ?? "").trim() : "";
+      const name = "name" in row ? String(row.name ?? "").trim() : "";
+      if (!member_id || !name) return null;
+      return { member_id, name };
+    })
+    .filter((row): row is SiteSettings["contact_desk_faces"][number] => row !== null);
+}
+
+function normalizeContactDeskLimit(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(24, Math.max(0, Math.trunc(n)));
+}
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {
@@ -59,6 +80,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     return {
       ...row,
       hero_stats: Array.isArray(row.hero_stats) ? row.hero_stats : [],
+      contact_desk_faces: normalizeContactDeskFaces(row.contact_desk_faces),
+      contact_desk_limit: normalizeContactDeskLimit(row.contact_desk_limit),
     };
   } catch {
     return fallbackSettings;

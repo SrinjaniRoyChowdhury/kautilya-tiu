@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { HiArrowRight } from "react-icons/hi";
 import { BrandLogo } from "@/components/brand/logo";
 import { CommitteeFeeBlock } from "@/components/public/committee-fees";
+import SpecularButton from "@/components/SpecularButton";
+import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
 import { cn } from "@/lib/format";
 import { formatDateRange, seatsRemaining } from "@/lib/format";
 import { seatsHeld } from "@/lib/registration";
@@ -21,10 +25,11 @@ export function Hero({
   stats: HeroStat[];
 }) {
   return (
-    <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-24">
+    <MotionReveal as="section" className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-24" immediate>
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-10">
           <BrandLogo
+            src="/nitisabhaLogo.png"
             className="h-28 w-28 shrink-0 sm:h-40 sm:w-40"
             sizes="(max-width: 640px) 112px, 160px"
             priority
@@ -53,27 +58,37 @@ export function Hero({
               >
                 Register as a delegate <HiArrowRight />
               </Link>
-              <Link
+              <SpecularButton
                 href="/committees"
-                className="inline-flex h-12 items-center rounded-sm border border-gold-700/40 px-6 text-sm font-medium text-gold-700"
+                size="md"
+                radius={4}
+                tint="#fffdf7"
+                tintOpacity={0.7}
+                blur={4}
+                textColor="#8c6828"
+                lineColor="#d4af62"
+                baseColor="#8c6828"
+                intensity={1.1}
+                autoAnimate
+                className="h-12 text-sm"
               >
                 View committees
-              </Link>
+              </SpecularButton>
             </div>
           </div>
         </div>
         {stats.length ? (
-          <dl className="mt-14 grid max-w-2xl grid-cols-3 gap-6 border-t border-gold-700/20 pt-8">
+          <MotionStagger as="dl" className="mt-14 grid max-w-2xl grid-cols-3 gap-6 border-t border-gold-700/20 pt-8">
             {stats.map((stat) => (
-              <div key={stat.label}>
+              <MotionStaggerItem key={stat.label} as="div">
                 <dt className="text-xs uppercase tracking-widest text-ink-muted">{stat.label}</dt>
                 <dd className="mt-1 font-serif text-3xl text-gold-700">{stat.value}</dd>
-              </div>
+              </MotionStaggerItem>
             ))}
-          </dl>
+          </MotionStagger>
         ) : null}
       </div>
-    </section>
+    </MotionReveal>
   );
 }
 

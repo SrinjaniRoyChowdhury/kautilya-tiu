@@ -19,7 +19,7 @@ export default async function ContactPage() {
 
   return (
     <Container className="py-12 sm:py-16">
-      <ContactDesk settings={settings} members={contactFaces(members)} edition={edition} />
+      <ContactDesk settings={settings} members={contactFaces(members, settings)} edition={edition} />
     </Container>
   );
 }
