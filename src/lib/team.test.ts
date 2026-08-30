@@ -4,6 +4,7 @@ import {
   CORE_SECRETARIAT,
   coreFromMembers,
   defaultUsgDepartments,
+  expandTeamFaces,
   resolvePublicRoster,
   splitOfficerNames,
   usgFromMembers,
@@ -52,14 +53,62 @@ describe("resolvePublicRoster", () => {
 });
 
 describe("contactFaces", () => {
-  it("expands co-holders into separate faces", () => {
-    const faces = contactFaces([
-      member({
-        id: "sg",
-        full_name: "Pratik & Nilanjana",
-        role_title: "Secretary-General",
-      }),
-    ]);
-    expect(faces.map((face) => face.full_name)).toEqual(["Pratik", "Nilanjana"]);
+  const roster = [
+    member({
+      id: "sg",
+      full_name: "Pratik & Nilanjana",
+      role_title: "Secretary-General",
+    }),
+    member({
+      id: "cda",
+      full_name: "Bipul",
+      role_title: "Chargé d’Affaires",
+      display_order: 20,
+    }),
+    member({
+      id: "usg-1",
+      section: "USG",
+      full_name: "Meera",
+      role_title: "Hospitality",
+      display_order: 100,
+    }),
+  ];
+
+  it("expands co-holders and falls back to first core faces with default limit 3", () => {
+    const faces = contactFaces(roster);
+    expect(faces.map((face) => face.full_name)).toEqual(["Pratik", "Nilanjana", "Bipul"]);
+  });
+
+  it("uses CMS order, drops stale refs, and respects display limit", () => {
+    const faces = contactFaces(roster, {
+      contact_desk_faces: [
+        { member_id: "cda", name: "Bipul" },
+        { member_id: "missing", name: "Ghost" },
+        { member_id: "sg", name: "Nilanjana" },
+        { member_id: "usg-1", name: "Meera" },
+        { member_id: "sg", name: "Pratik" },
+      ],
+      contact_desk_limit: 2,
+    });
+    expect(faces.map((face) => face.full_name)).toEqual(["Bipul", "Nilanjana"]);
+  });
+
+  it("falls back when every CMS ref is stale", () => {
+    const faces = contactFaces(roster, {
+      contact_desk_faces: [{ member_id: "gone", name: "Nobody" }],
+      contact_desk_limit: 1,
+    });
+    expect(faces.map((face) => face.full_name)).toEqual(["Pratik"]);
+  });
+});
+
+describe("expandTeamFaces", () => {
+  it("expands CORE and USG co-holders", () => {
+    expect(
+      expandTeamFaces([
+        member({ id: "sg", full_name: "A & B", role_title: "SG" }),
+        member({ id: "u", section: "USG", full_name: "C", role_title: "Hospitality" }),
+      ]).map((face) => face.full_name),
+    ).toEqual(["A", "B", "C"]);
   });
 });

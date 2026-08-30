@@ -6,6 +6,12 @@ export type HeroStat = {
   value: string;
 };
 
+/** Ordered CMS pick for /contact "Who reads the desk". */
+export type ContactDeskFaceRef = {
+  member_id: string;
+  name: string;
+};
+
 export type SiteSettings = {
   society_name: string;
   tagline: string | null;
@@ -18,6 +24,8 @@ export type SiteSettings = {
   instagram_url: string | null;
   linkedin_url: string | null;
   hero_stats: HeroStat[];
+  contact_desk_faces: ContactDeskFaceRef[];
+  contact_desk_limit: number;
 };
 
 export type Edition = {

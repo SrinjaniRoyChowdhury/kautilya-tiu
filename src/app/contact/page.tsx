@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ContactDesk } from "@/components/public/contact-desk";import { Container } from "@/components/ui/card";
+import { ContactDesk } from "@/components/public/contact-desk";
+import { Container } from "@/components/ui/card";
 import { getActiveEdition, getSiteSettings, getTeamMembers } from "@/lib/data";
 import { contactFaces } from "@/lib/team";
 
@@ -18,7 +19,7 @@ export default async function ContactPage() {
 
   return (
     <Container className="py-12 sm:py-16">
-      <ContactDesk settings={settings} members={contactFaces(members)} edition={edition} />
+      <ContactDesk settings={settings} members={contactFaces(members, settings)} edition={edition} />
     </Container>
   );
 }

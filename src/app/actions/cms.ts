@@ -345,6 +345,62 @@ export async function deleteTeamMemberAction(
   return { success: "Removed." };
 }
 
+const contactDeskFaceSchema = z.object({
+  member_id: hexId,
+  name: z.string().trim().min(1).max(80),
+});
+
+export async function updateContactDeskFacesAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const gate = await requireCms();
+  if (!gate.allowed) return { error: "You need cms.manage to edit the contact desk." };
+
+  const limitParsed = z.coerce.number().int().min(0).max(24).safeParse(formData.get("contact_desk_limit"));
+  if (!limitParsed.success) return { error: "Display limit must be between 0 and 24." };
+
+  const count = Number(formData.get("face_count") ?? 0);
+  if (!Number.isFinite(count) || count < 0 || count > 48) {
+    return { error: "Invalid desk face list." };
+  }
+
+  const faces: { member_id: string; name: string }[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < count; i++) {
+    const member_id = String(formData.get(`face_member_${i}`) ?? "").trim();
+    const name = String(formData.get(`face_name_${i}`) ?? "").trim();
+    if (!member_id && !name) continue;
+    const parsed = contactDeskFaceSchema.safeParse({ member_id, name });
+    if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid desk face." };
+    const key = `${parsed.data.member_id}\0${parsed.data.name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    faces.push({
+      member_id: parsed.data.member_id,
+      name: toPlainText(parsed.data.name),
+    });
+  }
+
+  const payload = {
+    contact_desk_faces: faces,
+    contact_desk_limit: limitParsed.data,
+  };
+
+  const { error } = await gate.supabase.from("site_settings").update(payload).eq("id", true);
+  if (error) return { error: error.message };
+
+  await gate.supabase.rpc("write_audit", {
+    p_action: "cms.contact_desk.update",
+    p_entity: "site_settings",
+    p_entity_id: null,
+    p_old: null,
+    p_new: { limit: payload.contact_desk_limit, count: faces.length },
+  });
+  revalidatePublic();
+  return { success: "Contact desk faces saved." };
+}
+
 const albumSchema = z.object({
   id: optionalHexId,
   edition_id: hexId,
