@@ -66,12 +66,12 @@ export function instagramHandle(url: string) {
 export function deskMailto(to: string, desk: ContactDeskId) {
   const subject =
     desk === "delegate"
-      ? "Delegate desk — Niti Sabha"
+      ? "Delegate desk — Kautilya"
       : desk === "partner"
-        ? "Partnership enquiry — Niti Sabha"
+        ? "Partnership enquiry — Kautilya"
         : desk === "press"
-          ? "Press / faculty — Niti Sabha"
-          : "Secretariat — Niti Sabha";
+          ? "Press / faculty — Kautilya"
+          : "Secretariat — Kautilya";
   return `mailto:${to}?subject=${encodeURIComponent(subject)}`;
 }
 
@@ -83,7 +83,7 @@ export function letterMailto(opts: {
   message: string;
 }) {
   const deskLabel = CONTACT_DESKS.find((d) => d.id === opts.desk)?.label ?? "Secretariat";
-  const subject = `[Niti Sabha · ${deskLabel}] ${opts.name}`;
+  const subject = `[Kautilya · ${deskLabel}] ${opts.name}`;
   const body = `From: ${opts.name} <${opts.email}>\nDesk: ${deskLabel}\n\n${opts.message}\n`;
   return `mailto:${opts.to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }

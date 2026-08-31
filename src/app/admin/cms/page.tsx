@@ -111,6 +111,34 @@ export default async function AdminCmsPage() {
 
       <Card className="mt-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-serif text-2xl text-gold-700">Sponsors & collaborators</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Homepage partner logos with name and category.
+              {canEdit && !readOnly ? (
+                <>
+                  {" "}
+                  Manage on{" "}
+                  <Link href="/admin/partners" className="text-gold-700 hover:underline">
+                    Sponsors & collaborators
+                  </Link>
+                  .
+                </>
+              ) : null}
+            </p>
+          </div>
+          {canEdit && !readOnly ? (
+            <Link href="/admin/partners">
+              <Button variant="secondary" size="sm">
+                Manage
+              </Button>
+            </Link>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card className="mt-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="font-serif text-2xl text-gold-700">Announcements</p>
           {!readOnly ? <CreateAnnouncementModalButton editions={editions} /> : null}
         </div>

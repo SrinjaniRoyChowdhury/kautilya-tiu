@@ -4,14 +4,28 @@ import { HomeSections } from "@/components/public/home-sections";
 import { CollaboratorsSection } from "@/components/public/collaborators";
 import { SponsorsSection } from "@/components/public/sponsors";
 import { Container } from "@/components/ui/card";
-import { getActiveEdition, getAnnouncements, getPublicCommittees, getSiteSettings } from "@/lib/data";
+import { mapCmsCollaborator } from "@/lib/collaborators";
+import {
+  getActiveEdition,
+  getAnnouncements,
+  getCollaborators,
+  getPublicCommittees,
+  getSiteSettings,
+  getSponsors,
+} from "@/lib/data";
+import { mapCmsSponsor } from "@/lib/sponsors";
 
 export default async function HomePage() {
   const settings = await getSiteSettings();
   const edition = await getActiveEdition();
-  const [committees, announcements] = edition
-    ? await Promise.all([getPublicCommittees(edition.id), getAnnouncements(edition.id)])
-    : [[], []];
+  const [committees, announcements, sponsors, collaborators] = edition
+    ? await Promise.all([
+        getPublicCommittees(edition.id),
+        getAnnouncements(edition.id),
+        getSponsors(),
+        getCollaborators(),
+      ])
+    : [[], [], await getSponsors(), await getCollaborators()];
 
   return (
     <>
@@ -27,8 +41,8 @@ export default async function HomePage() {
       <Container className="pb-16">
         <HomeSections committees={committees} announcements={announcements} />
       </Container>
-      <CollaboratorsSection />
-      <SponsorsSection />
+      <CollaboratorsSection collaborators={collaborators.map(mapCmsCollaborator)} />
+      <SponsorsSection sponsors={sponsors.map(mapCmsSponsor)} />
     </>
   );
 }

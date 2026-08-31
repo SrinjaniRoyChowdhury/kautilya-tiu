@@ -98,7 +98,13 @@ export async function hasScanAccess(): Promise<boolean> {
   }
 }
 
-export const PROTECTED_ADMIN_EMAILS = ["admin@kautilya.local"];
+export const PROTECTED_ADMIN_EMAILS = [
+  "admin@kautilya.local",
+  ...(process.env.PROTECTED_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean),
+];
 
 export function isProtectedAdminEmail(email?: string | null): boolean {
   return Boolean(email && PROTECTED_ADMIN_EMAILS.includes(email.trim().toLowerCase()));

@@ -75,7 +75,7 @@ end $$;
 
 alter table public.registrations
   add column if not exists delegation_type public.delegation_type not null default 'SINGLE',
-  add column if not exists partner_email citext,
+  add column if not exists partner_email extensions.citext,
   add column if not exists partner_registration_id uuid references public.registrations (id) on delete set null,
   add column if not exists pair_id uuid,
   add column if not exists is_pair_lead boolean not null default true;
@@ -318,8 +318,8 @@ as $$
 declare
   v_reg public.registrations%rowtype;
   v_committee public.committees%rowtype;
-  v_email citext;
-  v_self citext;
+  v_email extensions.citext;
+  v_self extensions.citext;
   v_partner public.users%rowtype;
   v_partner_reg public.registrations%rowtype;
   v_pair uuid;
@@ -658,11 +658,11 @@ as $$
 declare
   v_user uuid := auth.uid();
   v_pay public.payments%rowtype;
-  v_email citext;
+  v_email extensions.citext;
   v_item text;
-  v_seen citext[] := '{}';
-  v_norm citext;
-  v_partner citext;
+  v_seen extensions.citext[] := '{}';
+  v_norm extensions.citext;
+  v_partner extensions.citext;
 begin
   perform public.ensure_email_verified();
 

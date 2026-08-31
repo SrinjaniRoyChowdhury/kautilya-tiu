@@ -5,7 +5,7 @@ import { getConferenceDocuments } from "@/lib/data";
 
 export const metadata: Metadata = {
   title: "Rulebook & guidelines",
-  description: "Conference rules of procedure and delegate guidelines for Niti Sabha.",
+  description: "Conference rules of procedure and delegate guidelines for Kautilya.",
 };
 
 export default async function RulebookPage() {

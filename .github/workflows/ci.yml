@@ -1,5 +1,8 @@
 name: ci
 
+# Staging gate: every PR and every push must pass before main can deploy.
+# There is no public staging site — CI is the safety net.
+
 on:
   push:
     branches: [main]

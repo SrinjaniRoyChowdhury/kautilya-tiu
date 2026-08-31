@@ -245,7 +245,14 @@ export function ContactDesk({
               Full secretariat
             </Link>
           </div>
-          <MotionStagger as="ul" className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MotionStagger
+            as="ul"
+            className={
+              members.length <= 3
+                ? "mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                : "mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            }
+          >
             {members.map((member) => (
               <MotionStaggerItem key={member.id} as="li" className="flex items-center gap-3">
                 {member.photo_url ? (

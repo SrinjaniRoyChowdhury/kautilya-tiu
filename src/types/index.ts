@@ -6,6 +6,12 @@ export type HeroStat = {
   value: string;
 };
 
+/** Ordered CMS pick for /contact "Who reads the desk". */
+export type ContactDeskFaceRef = {
+  member_id: string;
+  name: string;
+};
+
 export type SiteSettings = {
   society_name: string;
   tagline: string | null;
@@ -18,6 +24,8 @@ export type SiteSettings = {
   instagram_url: string | null;
   linkedin_url: string | null;
   hero_stats: HeroStat[];
+  contact_desk_faces: ContactDeskFaceRef[];
+  contact_desk_limit: number;
 };
 
 export type Edition = {
@@ -53,6 +61,11 @@ export type RegistrationPhase = {
   edition_id: string;
   kind: RegistrationPhaseKind;
   is_active: boolean;
+};
+
+export type PrizeMoneyEntry = {
+  category: string;
+  amount_minor: number;
 };
 
 export type CommitteePhaseFee = {
@@ -93,7 +106,10 @@ export type Committee = {
   allows_double_del?: boolean;
   eb_json: EbMember[];
   logo_url?: string | null;
+  card_background_url?: string | null;
   portfolio_config: Portfolio[];
+  prize_money_json?: PrizeMoneyEntry[];
+  show_prize_money?: boolean;
   status: CommitteeStatus;
   display_order: number;
 };
@@ -149,6 +165,8 @@ export type Registration = {
   expected_fee_minor: number | null;
   submitted_at: string | null;
   confirmed_at: string | null;
+  confirmed_free?: boolean;
+  institution_id?: string | null;
   accepted_rules_at?: string | null;
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
@@ -202,7 +220,9 @@ export type AdminParticipant = {
   committee_short_name: string | null;
   food_preference: FoodPreference | null;
   paid: boolean;
+  confirmed_free?: boolean;
   collective_name?: string | null;
+  institution_name?: string | null;
   delegation_type?: DelegationType | null;
   partner_email?: string | null;
   allocated_slr?: number | null;
@@ -249,6 +269,30 @@ export type TeamMember = {
   role_title: string;
   bio: string | null;
   photo_url: string | null;
+  display_order: number;
+  published?: boolean;
+};
+
+export type SponsorCategory = "title" | "gold" | "silver" | "partner";
+
+export type CollaboratorCategory = "society" | "institution" | "media" | "partner";
+
+export type CmsSponsor = {
+  id: string;
+  edition_id?: string | null;
+  name: string;
+  category: SponsorCategory;
+  logo_url: string | null;
+  display_order: number;
+  published?: boolean;
+};
+
+export type CmsCollaborator = {
+  id: string;
+  edition_id?: string | null;
+  name: string;
+  category: CollaboratorCategory;
+  logo_url: string | null;
   display_order: number;
   published?: boolean;
 };

@@ -111,7 +111,7 @@ export default async function AdminParticipantsPage({
               </td>
               <td className="px-2 py-1.5 text-ink-muted">
                 {STATUS_COPY[row.status] ?? row.status}
-                {row.paid ? " · paid" : ""}
+                {row.confirmed_free ? " · free" : row.paid ? " · paid" : ""}
               </td>
               <td className="px-2 py-1.5 font-mono text-sm tracking-wider">{row.display_code ?? ""}</td>
               <td className="px-2 py-1.5 text-right">

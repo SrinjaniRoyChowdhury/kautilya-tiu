@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   description:
-    "Registration, credentials, and conference operations for Niti Sabha — Techno Kautilya's Model United Nations conference.",
+    "Registration, credentials, and conference operations for Kautilya — Kautilya MUN Nitisabha's Model United Nations conference.",
   icons: {
     icon: "/KautilyaLogo.png",
     apple: "/KautilyaLogo.png",

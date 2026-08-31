@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteParticipantForm, ParticipantPasswordForm } from "@/components/admin/participant-forms";
+import { DeleteParticipantForm, ConfirmFreeParticipantForm, ParticipantPasswordForm } from "@/components/admin/participant-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
 import { getAdminParticipant } from "@/lib/data";
@@ -50,7 +50,11 @@ export default async function AdminParticipantPage({
           <p className="mb-2 font-serif text-2xl text-gold-700">Status</p>
           <p className="text-sm text-ink-muted">
             {participant.status}
-            {participant.paid ? " · payment verified or under review" : " · not yet paid"}
+            {participant.confirmed_free
+              ? " · free participant (no payment)"
+              : participant.paid
+                ? " · payment verified or under review"
+                : " · not yet paid"}
           </p>
         </Card>
         {canChangePassword ? (
@@ -60,6 +64,12 @@ export default async function AdminParticipantPage({
               <p className="mb-4 text-sm text-ink-muted">Only an admin can set this password.</p>
             ) : null}
             <ParticipantPasswordForm registrationId={participant.id} />
+          </Card>
+        ) : null}
+        {canEdit && !protectedAdmin ? (
+          <Card>
+            <p className="mb-4 font-serif text-2xl text-gold-700">Free confirmation</p>
+            <ConfirmFreeParticipantForm participant={participant} />
           </Card>
         ) : null}
         {canEdit && !protectedAdmin ? (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommitteeFeeBlock } from "@/components/public/committee-fees";
+import { CommitteePrizeBlock } from "@/components/public/committee-prizes";
 import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { seatsRemaining } from "@/lib/format";
@@ -96,6 +97,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
         </article>
         <Card className="h-fit space-y-3">
           <CommitteeFeeBlock committee={committee} size="lg" />
+          <CommitteePrizeBlock committee={committee} size="lg" />
           <p className="text-sm text-ink-muted">
             {remaining} of {committee.capacity} delegations remaining
           </p>

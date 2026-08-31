@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { RegistrationForm } from "@/components/dashboard/registration-form";
 import { ResendVerification } from "@/components/dashboard/resend-verification";
 import { RulesAcceptance } from "@/components/dashboard/rules-acceptance";
@@ -29,10 +29,11 @@ export default async function RegisterPage({
   searchParams: Promise<{ committee?: string }>;
 }) {
   const { committee: committeeSlug } = await searchParams;
-  const [user, profile, edition] = await Promise.all([
+  const [user, profile, edition, { showTeam }] = await Promise.all([
     getSessionUser(),
     getProfile(),
     getActiveEdition(),
+    dashboardNavProps(),
   ]);
   const verified = Boolean(profile?.email_verified_at || user?.email_confirmed_at);
 
@@ -43,7 +44,7 @@ export default async function RegisterPage({
         title="Registration"
         description="One person, one registration per edition. Someone else may pay for you later."
       />
-      <DashboardNav current="/dashboard/register" />
+      <DashboardNav current="/dashboard/register" showTeam={showTeam} />
 
       {!verified ? (
         <Card>
