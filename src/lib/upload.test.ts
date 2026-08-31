@@ -4,6 +4,7 @@ import {
   sniffPdf,
   validateCommitteeCardBackgroundBytes,
   validateCommitteeLogoBytes,
+  validateSquareCardBytes,
 } from "./upload";
 
 describe("validateCommitteeCardBackgroundBytes", () => {
@@ -53,5 +54,18 @@ describe("validateCommitteeLogoBytes", () => {
     view.setUint32(16, 128, false);
     view.setUint32(20, 128, false);
     expect(validateCommitteeLogoBytes(bytes)).toContain("256×256");
+  });
+});
+
+describe("validateSquareCardBytes", () => {
+  it("accepts a square 1080×1080 PNG header and rejects non-square", () => {
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16, 1080, false);
+    view.setUint32(20, 1080, false);
+    expect(validateSquareCardBytes(bytes)).toBeNull();
+    view.setUint32(20, 720, false);
+    expect(validateSquareCardBytes(bytes)).toContain("square");
   });
 });
