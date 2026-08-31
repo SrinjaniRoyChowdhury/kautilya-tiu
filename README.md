@@ -32,9 +32,9 @@ cp .env.example .env.local
 
 On PowerShell: `Copy-Item .env.example .env`
 
-Production uses a **separate** file on the Oracle VM — see `.env.production.example` and [DEPLOY.md](./DEPLOY.md).
+Production env vars live in **Vercel** (and optionally a local `.env.production` for verify/bootstrap) — see `.env.production.example` and [DEPLOY.md](./DEPLOY.md).
 
-Verify before deploy: `npm run env:verify` (local) or `npm run env:verify:prod` (on the server).
+Verify before deploy: `npm run env:verify` (local) or `npm run env:verify:prod` (production values).
 
 3. Start the full stack (Supabase + Next.js; pulls images on first run):
 
@@ -74,10 +74,10 @@ New signups must click the verification link in Mailpit before they can register
 
 `docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both and **keeps your local database** (uses `supabase stop`, not `--no-backup`).
 
-Production-style image only (hosted Supabase):
+Optional — run a production-style Docker build locally (hosted Supabase; not used when live on Vercel):
 
 ```bash
-cp .env.production.example .env.production   # on the server, once
+cp .env.production.example .env.production
 npm run env:verify:prod
 npm run compose:prod:detached
 ```
@@ -98,25 +98,23 @@ The browser still talks to `127.0.0.1:54321`; the container uses the internal UR
 | --- | --- | --- |
 | `.env.example` | git | Local template → copy to `.env` |
 | `.env.local` | gitignored | Optional local overrides |
-| `.env.production.example` | git | Production template → copy to `.env.production` on Oracle |
-| `.env.production` | gitignored (server) | Live Supabase + Brevo keys |
+| `.env.production.example` | git | Production template → Vercel env + local `.env.production` |
+| `.env.production` | gitignored | Local copy for verify, bootstrap, `db push` |
 
-Same machine never needs both prod and local secrets — your laptop keeps `.env` / `.env.local`; the VM keeps `.env.production` (or `.env` if you prefer one filename there).
+Production secrets are set in Vercel; keep a local `.env.production` only if you run bootstrap or migrations from your machine.
 
-## Hosted Free / Oracle
+## Hosted production (Vercel + Supabase Free)
 
-See **[DEPLOY.md](./DEPLOY.md)** for the full go-live guide (Supabase Free, Brevo, Oracle VM, DNS, CI → main deploy, superadmin bootstrap).
+See **[DEPLOY.md](./DEPLOY.md)** for the full go-live guide (Supabase Free, Brevo, Vercel, DNS, CI gate, superadmin bootstrap).
 
 Quick production shape:
 
-- App: `docker compose --profile prod up -d --build app-prod` on Oracle  
+- App: **Vercel** (auto-deploy from `main`)  
 - DB/Auth: hosted Supabase Free  
 - Mail: Brevo (Supabase SMTP for auth + `BREVO_API_KEY` for QR emails)  
-- CI gates PRs; deploy workflow ships `main` only  
+- CI gates PRs; Vercel ships `main` after merge  
 
-## Hosted Free (still ₹0) — short note
-
-Create a project at [supabase.com](https://supabase.com) (Free plan). On the Oracle VM, copy `.env.production.example` → `.env.production`, fill hosted Supabase + Brevo values, run `npm run env:verify:prod`. Apply `supabase/migrations/` to hosted DB. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once on the server.
+Create a project at [supabase.com](https://supabase.com) (Free plan). Copy `.env.production.example` → `.env.production` locally, fill hosted Supabase + Brevo values, paste the same vars into Vercel, run `npm run env:verify:prod`. Apply `supabase/migrations/` to hosted DB. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once from your machine.
 
 ## Tests, health, backups
 
