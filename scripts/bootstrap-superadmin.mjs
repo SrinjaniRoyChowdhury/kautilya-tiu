@@ -14,8 +14,8 @@
  *
  * Pass --production if you keep prod vars only in .env.production.
  */
-import { createClient } from "@supabase/supabase-js";
 import { loadEnvFiles } from "./load-env.mjs";
+import { createClient } from "@supabase/supabase-js";
 
 const production = process.argv.includes("--production");
 loadEnvFiles(process.cwd(), { production });
