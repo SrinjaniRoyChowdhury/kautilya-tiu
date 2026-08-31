@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import {
-  COMMITTEE_LOGO_PX,
   MAX_PROOF_BYTES,
+  SQUARE_CARD_PX,
   proofExtension,
   sniffImageMime,
   type ProofMime,
@@ -19,9 +19,12 @@ const SQUARE_WEBP_QUALITY = 85;
 
 /**
  * Re-encode uploads as WebP (or keep JPEG if WebP fails) at high quality.
- * Display size stays the same for square assets; proofs are capped at PROOF_MAX_EDGE.
+ * Display size is 1:1 1080p × 1080p (SQUARE_CARD_PX); proofs are capped at PROOF_MAX_EDGE.
  */
-export async function compressSquareImage(input: Buffer): Promise<CompressedImage | { error: string }> {
+export async function compressSquareImage(
+  input: Buffer,
+  targetPx = SQUARE_CARD_PX,
+): Promise<CompressedImage | { error: string }> {
   if (input.length > MAX_PROOF_BYTES) {
     return { error: `File must be ${Math.round(MAX_PROOF_BYTES / (1024 * 1024))} MB or smaller.` };
   }
@@ -31,7 +34,7 @@ export async function compressSquareImage(input: Buffer): Promise<CompressedImag
   try {
     const pipeline = sharp(input, { failOn: "none" })
       .rotate()
-      .resize(COMMITTEE_LOGO_PX, COMMITTEE_LOGO_PX, {
+      .resize(targetPx, targetPx, {
         fit: "cover",
         position: "centre",
       })

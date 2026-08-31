@@ -1,4 +1,4 @@
-import { COMMITTEE_LOGO_HINT } from "@/lib/committee-logo";
+import { SQUARE_CARD_HINT } from "@/lib/upload";
 import { Field, Input } from "@/components/ui/field";
 
 type Props = {
@@ -21,7 +21,7 @@ export function SquareImageField({
   currentUrl,
   readOnly,
   showRemove = Boolean(currentUrl),
-  hint = COMMITTEE_LOGO_HINT,
+  hint = SQUARE_CARD_HINT,
   previewClassName = "h-20 w-20 rounded-sm border border-gold-700/25 bg-parchment-100 object-cover p-0.5",
 }: Props) {
   return (
