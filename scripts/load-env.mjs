@@ -1,6 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+if (typeof globalThis.WebSocket === "undefined") {
+  globalThis.WebSocket = class DummyWebSocket {};
+}
+
 function parseEnvFile(path) {
   if (!existsSync(path)) return {};
   const out = {};
