@@ -1,23 +1,25 @@
 # Production go-live guide — Niti Sabha / technokautilya.in
 #
 # Model: main is live. There is no public staging site.
-# GitHub Actions CI (lint/test/build) gates every PR; deploy runs only from main after CI passes.
+# GitHub Actions CI (lint/test/build) gates every PR; Vercel deploys production from main.
 
 ## Superadmin username / password (live)
 
 **Do not put the password in git, `.env.example`, or GitHub Actions logs.**
 
-Create the first admin once on the Oracle host after Supabase is connected:
+Create the first admin once after hosted Supabase is connected (run from your laptop with production env loaded):
 
 ```bash
-cd /opt/kautilya
+cp .env.production.example .env.production
+# fill .env.production with hosted Supabase + Brevo values
+
 export BOOTSTRAP_ADMIN_EMAIL='you@yourdomain.com'   # real inbox you control
 export BOOTSTRAP_ADMIN_PASSWORD='long-random-secret' # ≥12 chars
 export BOOTSTRAP_ADMIN_NAME='Secretariat'
 npm run bootstrap:admin:prod
 ```
 
-That script uses `SUPABASE_SERVICE_ROLE_KEY` from `.env.production` (or `.env`) on the server to:
+That script uses `SUPABASE_SERVICE_ROLE_KEY` from `.env.production` to:
 
 1. Create (or update) the Auth user  
 2. Upsert `public.users`  
@@ -25,7 +27,7 @@ That script uses `SUPABASE_SERVICE_ROLE_KEY` from `.env.production` (or `.env`) 
 
 Then sign in at `https://technokautilya.in/login`.
 
-Optional: set `PROTECTED_ADMIN_EMAILS=you@yourdomain.com` in `.env` so that account cannot be deleted via the admin UI.
+Optional: set `PROTECTED_ADMIN_EMAILS=you@yourdomain.com` in Vercel env so that account cannot be deleted via the admin UI.
 
 Local seed accounts (`admin@kautilya.local`) are **local only** — do not rely on them in production.
 
@@ -60,7 +62,7 @@ Local seed accounts (`admin@kautilya.local`) are **local only** — do not rely 
 
 ### B) QR credential emails — app
 
-In Oracle `/opt/kautilya/.env.production` (see `.env.production.example`):
+Set these in **Vercel → Project → Settings → Environment Variables** (see `.env.production.example`):
 
 ```
 BREVO_API_KEY=xkeysib-...
@@ -74,74 +76,58 @@ Add SPF/DKIM DNS records from Brevo for `technokautilya.in` (GoDaddy DNS).
 
 ---
 
-## 3. Oracle Cloud VM (Always Free)
+## 3. Vercel (app hosting)
 
-1. Create an Ubuntu VM (Ampere A1 or x86) with a public IP  
-2. Security list / NSG: allow **22**, **80**, **443** inbound  
-3. SSH in and install Docker + Git + Caddy:
+1. Import this GitHub repo at https://vercel.com/new  
+2. Framework preset: **Next.js** (auto-detected)  
+3. Production branch: **`main`**  
+4. Add environment variables for **Production** (copy from `.env.production.example`):
 
-```bash
-sudo apt update && sudo apt install -y git curl
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER   # then re-login
-# Caddy: https://caddyserver.com/docs/install#debian-ubuntu-raspbian
-```
+| Variable | Notes |
+|----------|--------|
+| `NEXT_PUBLIC_APP_URL` | `https://technokautilya.in` |
+| `NEXT_PUBLIC_SUPABASE_URL` | Hosted Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; never expose to client |
+| `BREVO_API_KEY` | QR credential emails |
+| `MAIL_FROM` | Verified Brevo sender |
+| `MAIL_FROM_NAME` | Display name |
+| `PROTECTED_ADMIN_EMAILS` | optional |
+| `MAILPIT_URL` | leave **empty** |
+| `SUPABASE_INTERNAL_URL` | leave **empty** |
 
-4. Clone the repo:
+`DATABASE_URL` is only needed locally for `supabase db push` / bootstrap — not required on Vercel unless you add server-side migration tooling.
 
-```bash
-sudo mkdir -p /opt/kautilya
-sudo chown $USER:$USER /opt/kautilya
-git clone https://github.com/<you>/kautilya-tiu.git /opt/kautilya
-cd /opt/kautilya
-```
+5. Deploy once from the Vercel dashboard (or push to `main` after connecting the repo).
 
-5. Create production env (never commit):
+6. **Settings → Domains**: add `technokautilya.in` and `www.technokautilya.in`. Vercel shows the DNS records to add at GoDaddy.
 
-```bash
-cp .env.production.example .env.production
-nano .env.production
-npm run env:verify:prod
-```
-
-Fill every value — hosted Supabase URL/keys, `DATABASE_URL`, Brevo, `NEXT_PUBLIC_APP_URL=https://technokautilya.in`. Leave `MAILPIT_URL` and `SUPABASE_INTERNAL_URL` empty.
-
-Alternatively you may name the file `.env` on the server; `docker compose` loads `.env.production` first, then `.env` as fallback.
-
-6. First deploy:
-
-```bash
-npm run compose:prod:detached
-curl -fsS http://127.0.0.1:3000/api/health
-```
-
-7. Caddy HTTPS:
-
-```bash
-sudo cp deploy/oracle/Caddyfile /etc/caddy/Caddyfile
-# edit email/domain if needed
-sudo systemctl enable --now caddy
-sudo systemctl reload caddy
-```
+7. Optional — wait for CI before production: **Settings → Git → Deployment Checks** → require the **ci / check** status on `main`.
 
 8. Bootstrap superadmin (section above).
+
+9. Smoke test:
+
+```bash
+curl -fsS https://technokautilya.in/api/health
+```
 
 ---
 
 ## 4. GoDaddy DNS
 
-| Type  | Name | Value              |
-|-------|------|--------------------|
-| A     | @    | Oracle public IP   |
-| A     | www  | Oracle public IP   |
-| TXT   | @    | Brevo SPF (as shown in Brevo) |
+| Type | Name | Value |
+|------|------|-------|
+| A / CNAME | @ | Vercel apex record (shown in Vercel Domains) |
+| CNAME | www | `cname.vercel-dns.com` (or value Vercel shows) |
+| TXT | @ | Brevo SPF (as shown in Brevo) |
 | CNAME / TXT | (Brevo DKIM) | as shown in Brevo |
 
 Wait for DNS propagation, then open `https://technokautilya.in`.
 
 ---
 
-## 5. GitHub: CI gate + deploy (no public staging)
+## 5. GitHub: CI gate (no separate deploy workflow)
 
 ### Branch protection (Settings → Branches → main)
 
@@ -152,19 +138,9 @@ Wait for DNS propagation, then open `https://technokautilya.in`.
 ### Workflows
 
 - `.github/workflows/ci.yml` — lint, test, build on every PR and push  
-- `.github/workflows/deploy.yml` — SSH deploy to Oracle when CI succeeds on `main`
+- **Vercel** — production deploy when `main` is updated (Git integration; no SSH secrets in GitHub Actions)
 
-### Actions secrets
-
-| Secret           | Value                          |
-|------------------|--------------------------------|
-| `ORACLE_HOST`    | VM public IP or hostname       |
-| `ORACLE_USER`    | SSH user (e.g. `ubuntu`)       |
-| `ORACLE_SSH_KEY` | Private key (full PEM)         |
-| `ORACLE_PORT`    | optional, default `22`         |
-| `ORACLE_APP_DIR` | optional, default `/opt/kautilya` |
-
-On the VM, the deploy user needs passwordless `docker` (docker group) and a checkout of this repo at `ORACLE_APP_DIR` with a remote that can `git pull`.
+No `ORACLE_*` or other deploy secrets are needed in GitHub.
 
 ---
 
@@ -185,8 +161,8 @@ On the VM, the deploy user needs passwordless `docker` (docker group) and a chec
 # Local development (unchanged)
 docker compose up -d --build
 
-# Production update (or wait for GitHub deploy)
-cd /opt/kautilya && git pull && npm run compose:prod:detached
+# Production: merge PR to main → Vercel redeploys automatically
+# Preview URLs: every PR gets a Vercel preview deployment
 ```
 
 Images (logos, team photos, payment proofs) are compressed with Sharp to WebP before Storage upload. Previews still use the public URL at full display size — quality stays high; storage stays small enough for Supabase Free at ~400 registrations.

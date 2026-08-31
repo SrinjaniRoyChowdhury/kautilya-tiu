@@ -2,7 +2,7 @@
 /**
  * One-time production bootstrap: create (or promote) a SUPER_ADMIN.
  *
- * Usage on the Oracle host (never commit the password):
+ * Usage from your machine with production env loaded (never commit the password):
  *
  *   BOOTSTRAP_ADMIN_EMAIL=you@technokautilya.in \
  *   BOOTSTRAP_ADMIN_PASSWORD='choose-a-long-secret' \
@@ -10,7 +10,7 @@
  *   node scripts/bootstrap-superadmin.mjs
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL (or SUPABASE_INTERNAL_URL) and
- * SUPABASE_SERVICE_ROLE_KEY in .env.production / .env on the server.
+ * SUPABASE_SERVICE_ROLE_KEY in .env.production (local copy for bootstrap).
  *
  * Pass --production if you keep prod vars only in .env.production.
  */
