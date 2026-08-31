@@ -65,7 +65,7 @@ $$;
 
 create table public.users (
   id uuid primary key references auth.users (id) on delete restrict,
-  email citext not null unique,
+  email extensions.citext not null unique,
   email_verified_at timestamptz,
   full_name text not null,
   phone text,
@@ -363,7 +363,7 @@ create table public.payment_participants (
   payment_id uuid not null references public.payments (id) on delete restrict,
   registration_id uuid references public.registrations (id) on delete restrict,
   user_id uuid references public.users (id) on delete restrict,
-  unmatched_email citext,
+  unmatched_email extensions.citext,
   amount_minor int not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -601,7 +601,7 @@ create trigger email_templates_set_updated_at
 create table public.email_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references public.users (id) on delete restrict,
-  to_email citext not null,
+  to_email extensions.citext not null,
   template_key text not null,
   status public.email_log_status not null default 'QUEUED',
   error text,

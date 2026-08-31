@@ -1048,10 +1048,12 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     .from("registrations")
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
+       confirmed_free,
        allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name),
        collectives:collective_id (name),
+       institutions:institution_id (name),
        qr_tokens (display_code, status, issued_at)`,
     )
     .is("deleted_at", null)
@@ -1069,9 +1071,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     partner_email: string | null;
     allocated_slr: number | null;
     allocated_portfolio: string | null;
+    confirmed_free: boolean;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
+    institutions: { name: string } | { name: string }[] | null;
     qr_tokens:
       | { display_code: string; status: string; issued_at: string }[]
       | { display_code: string; status: string; issued_at: string }
@@ -1102,10 +1106,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
     const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
+    const institution = Array.isArray(row.institutions) ? row.institutions[0] : row.institutions;
     const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
     const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
     const paid =
-      row.status === "CONFIRMED" ||
+      (row.status === "CONFIRMED" && !row.confirmed_free) ||
       row.status === "PAYMENT_VERIFIED" ||
       paidIds.has(row.id);
     return {
@@ -1118,7 +1123,9 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       committee_short_name: committee?.short_name ?? null,
       food_preference: row.food_preference,
       paid,
+      confirmed_free: row.confirmed_free,
       collective_name: collective?.name ?? null,
+      institution_name: institution?.name ?? null,
       delegation_type: row.delegation_type ?? "SINGLE",
       partner_email: row.partner_email,
       allocated_slr: row.allocated_slr,

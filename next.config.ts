@@ -25,7 +25,8 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Standalone is for Docker self-hosting; Vercel uses its own output layout.
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
   poweredByHeader: false,
   images: {
     remotePatterns: [],

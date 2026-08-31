@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { compressSquareImage } from "@/lib/image-compress";
 import {
   sniffImageMime,
   validateCommitteeCardBackgroundBytes,
@@ -38,7 +39,21 @@ export async function uploadCmsMediaImage(
   storageKey: string,
   buffer: Buffer,
 ): Promise<{ url: string | null; error?: string }> {
-  return uploadValidatedSquareImage(storageKey, buffer, validateCommitteeLogoBytes, "Photo");
+  const dimError = validateCommitteeLogoBytes(new Uint8Array(buffer));
+  if (dimError) return { url: null, error: photoError(dimError) };
+
+  const compressed = await compressSquareImage(buffer);
+  if ("error" in compressed) return { url: null, error: photoError(compressed.error) };
+
+  const key = storageKey.replace(/\.(jpg|jpeg|png|webp)$/i, `.${compressed.extension}`);
+  const admin = createAdminClient();
+  const upload = await admin.storage.from("cms-media").upload(key, compressed.buffer, {
+    contentType: compressed.mime,
+    upsert: true,
+  });
+  if (upload.error) return { url: null, error: "Photo: could not store the image." };
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") ?? "";
+  return { url: `${base}/storage/v1/object/public/cms-media/${key}` };
 }
 
 export async function uploadCommitteeCardBackgroundImage(
@@ -99,18 +114,15 @@ export async function resolveSquareImageUpload(
   fileField: string,
   removeField: string,
   currentUrl: string | null,
-  buildKey: (mime: ReturnType<typeof sniffImageMime>) => string,
+  buildKey: (mime: "image/webp") => string,
 ): Promise<{ url: string | null; error?: string }> {
-  return resolveSquareImageUploadWithValidator(
-    formData,
-    fileField,
-    removeField,
-    currentUrl,
-    buildKey,
-    validateCommitteeLogoBytes,
-    uploadCmsMediaImage,
-    "Photo",
-  );
+  if (formData.get(removeField) === "on") return { url: null };
+  const file = formData.get(fileField);
+  if (!(file instanceof File) || file.size === 0) return { url: currentUrl };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const dimError = validateCommitteeLogoBytes(new Uint8Array(buffer));
+  if (dimError) return { url: null, error: photoError(dimError) };
+  return uploadCmsMediaImage(buildKey("image/webp"), buffer);
 }
 
 export async function resolveCommitteeCardBackgroundUpload(

@@ -22,13 +22,19 @@ Multi-edition Model United Nations platform. Phases 1–7 are live: conference o
 ## Run locally (Windows / macOS / Linux)
 
 1. Install Docker Desktop and Node 20.9+.
-2. Copy environment:
+2. Copy environment (local only):
 
 ```bash
 cp .env.example .env
+# optional personal overrides:
+cp .env.example .env.local
 ```
 
 On PowerShell: `Copy-Item .env.example .env`
+
+Production env vars live in **Vercel** (and optionally a local `.env.production` for verify/bootstrap) — see `.env.production.example` and [DEPLOY.md](./DEPLOY.md).
+
+Verify before deploy: `npm run env:verify` (local) or `npm run env:verify:prod` (production values).
 
 3. Start the full stack (Supabase + Next.js; pulls images on first run):
 
@@ -68,13 +74,15 @@ New signups must click the verification link in Mailpit before they can register
 
 `docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both and **keeps your local database** (uses `supabase stop`, not `--no-backup`).
 
-Production-style image only (hosted Supabase):
+Optional — run a production-style Docker build locally (hosted Supabase; not used when live on Vercel):
 
 ```bash
-npm run compose:prod
+cp .env.production.example .env.production
+npm run env:verify:prod
+npm run compose:prod:detached
 ```
 
-When Next.js runs in Docker, set in `.env`:
+When Next.js runs in Docker locally, `.env.example` already sets:
 
 ```
 SUPABASE_INTERNAL_URL=http://host.docker.internal:54321
@@ -82,15 +90,31 @@ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 MAILPIT_URL=http://host.docker.internal:54324
 ```
 
-The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit’s HTTP send API (no paid SMTP).
+The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit locally (no paid SMTP).
 
-## Hosted Free (still ₹0)
+### Environment files
 
-Create a project at [supabase.com](https://supabase.com) (Free plan). Put the project URL, anon key, and service role key in `.env`. Run the SQL in `supabase/migrations/` in the SQL editor, then `supabase/seed.sql` if you want demo data. Point `NEXT_PUBLIC_APP_URL` at wherever you serve Next.js (college VM, Oracle Always Free, your laptop).
+| File | Where | Purpose |
+| --- | --- | --- |
+| `.env.example` | git | Local template → copy to `.env` |
+| `.env.local` | gitignored | Optional local overrides |
+| `.env.production.example` | git | Production template → Vercel env + local `.env.production` |
+| `.env.production` | gitignored | Local copy for verify, bootstrap, `db push` |
 
-Do not add paid SMTP, Redis, Sentry, or a payment gateway. Without `MAILPIT_URL`, credentials still work in `/dashboard/qr`; email stays queued.
+Production secrets are set in Vercel; keep a local `.env.production` only if you run bootstrap or migrations from your machine.
 
-Put the app behind HTTPS (Caddy, nginx, or a college reverse proxy). When `NEXT_PUBLIC_APP_URL` starts with `https:`, plain HTTP is redirected (localhost is left alone).
+## Hosted production (Vercel + Supabase Free)
+
+See **[DEPLOY.md](./DEPLOY.md)** for the full go-live guide (Supabase Free, Brevo, Vercel, DNS, CI gate, superadmin bootstrap).
+
+Quick production shape:
+
+- App: **Vercel** (auto-deploy from `main`)  
+- DB/Auth: hosted Supabase Free  
+- Mail: Brevo (Supabase SMTP for auth + `BREVO_API_KEY` for QR emails)  
+- CI gates PRs; Vercel ships `main` after merge  
+
+Create a project at [supabase.com](https://supabase.com) (Free plan). Copy `.env.production.example` → `.env.production` locally, fill hosted Supabase + Brevo values, paste the same vars into Vercel, run `npm run env:verify:prod`. Apply `supabase/migrations/` to hosted DB. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once from your machine.
 
 ## Tests, health, backups
 
