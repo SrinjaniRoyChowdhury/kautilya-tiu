@@ -14,6 +14,7 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { SquareImageField } from "@/components/ui/square-image-field";
 import { Modal, ModalTrigger } from "@/components/ui/modal";
 import { splitOfficerNames } from "@/lib/team";
+import { SQUARE_CARD_HINT } from "@/lib/upload";
 import type { ContactDeskFaceRef, TeamMember, TeamSection } from "@/types";
 
 function Feedback({ state }: { state: FormState }) {
@@ -80,7 +81,8 @@ function TeamMemberFields({
           fileName="photo_file"
           removeName="remove_photo"
           currentUrl={member?.photo_url}
-          label="Photo"
+          label="Photo (1:1 1080p)"
+          hint={SQUARE_CARD_HINT}
         />
       </div>
     </>

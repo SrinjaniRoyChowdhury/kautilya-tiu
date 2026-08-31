@@ -8,6 +8,7 @@ import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { SquareImageField } from "@/components/ui/square-image-field";
+import { SQUARE_CARD_HINT } from "@/lib/upload";
 import type { Committee, EbMember, Edition } from "@/types";
 
 type EbDraft = EbMember & { key: string };
@@ -68,7 +69,8 @@ function EbEditModal({
                   fileName={`eb_photo_file_${index}`}
                   removeName={`eb_remove_photo_${index}`}
                   currentUrl={member.photo_url}
-                  label="Photo"
+                  label="Photo (1:1 1080p)"
+                  hint={SQUARE_CARD_HINT}
                 />
               </div>
               {members.length > 1 ? (

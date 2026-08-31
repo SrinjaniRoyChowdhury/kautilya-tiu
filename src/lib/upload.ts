@@ -1,6 +1,11 @@
 export const MAX_PROOF_BYTES = 5 * 1024 * 1024;
 export const COMMITTEE_LOGO_PX = 512;
 export const COMMITTEE_CARD_BG_PX = 1080;
+export const SQUARE_CARD_PX = 1080;
+export const EB_PHOTO_PX = 1080;
+export const TEAM_PHOTO_PX = 1080;
+export const SQUARE_CARD_HINT =
+  "Square 1:1, 1080×1080 px (1080p) recommended (max 5 MB). Stored in cms-media.";
 
 export type ProofMime = "image/jpeg" | "image/png" | "image/webp";
 
@@ -105,6 +110,10 @@ export function readImageDimensions(bytes: Uint8Array): ImageDimensions | null {
 
 export function validateCommitteeLogoBytes(bytes: Uint8Array): string | null {
   return validateSquareImageBytes(bytes, COMMITTEE_LOGO_PX, "Logo", { minPx: 256, maxPx: 4096, exact: false });
+}
+
+export function validateSquareCardBytes(bytes: Uint8Array, label = "Photo"): string | null {
+  return validateSquareImageBytes(bytes, SQUARE_CARD_PX, label, { minPx: 256, maxPx: 4096, exact: false });
 }
 
 export function validateCommitteeCardBackgroundBytes(bytes: Uint8Array): string | null {

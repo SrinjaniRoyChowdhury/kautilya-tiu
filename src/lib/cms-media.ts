@@ -3,12 +3,8 @@ import { compressSquareImage } from "@/lib/image-compress";
 import {
   sniffImageMime,
   validateCommitteeCardBackgroundBytes,
-  validateCommitteeLogoBytes,
+  validateSquareCardBytes,
 } from "@/lib/upload";
-
-function photoError(message: string): string {
-  return message.replace(/^Logo:/, "Photo:");
-}
 
 function cardBackgroundError(message: string): string {
   return message.replace(/^Card background:/, "Card background:");
@@ -39,11 +35,11 @@ export async function uploadCmsMediaImage(
   storageKey: string,
   buffer: Buffer,
 ): Promise<{ url: string | null; error?: string }> {
-  const dimError = validateCommitteeLogoBytes(new Uint8Array(buffer));
-  if (dimError) return { url: null, error: photoError(dimError) };
+  const dimError = validateSquareCardBytes(new Uint8Array(buffer), "Photo");
+  if (dimError) return { url: null, error: dimError };
 
   const compressed = await compressSquareImage(buffer);
-  if ("error" in compressed) return { url: null, error: photoError(compressed.error) };
+  if ("error" in compressed) return { url: null, error: `Photo: ${compressed.error}` };
 
   const key = storageKey.replace(/\.(jpg|jpeg|png|webp)$/i, `.${compressed.extension}`);
   const admin = createAdminClient();
@@ -72,8 +68,8 @@ export async function validateOptionalSquareImageFile(formData: FormData, fieldN
   const file = formData.get(fieldName);
   if (!(file instanceof File) || file.size === 0) return null;
   const buffer = Buffer.from(await file.arrayBuffer());
-  const error = validateCommitteeLogoBytes(new Uint8Array(buffer));
-  return error ? photoError(error) : null;
+  const error = validateSquareCardBytes(new Uint8Array(buffer), "Photo");
+  return error ?? null;
 }
 
 export async function validateOptionalCommitteeCardBackgroundFile(
@@ -120,8 +116,8 @@ export async function resolveSquareImageUpload(
   const file = formData.get(fileField);
   if (!(file instanceof File) || file.size === 0) return { url: currentUrl };
   const buffer = Buffer.from(await file.arrayBuffer());
-  const dimError = validateCommitteeLogoBytes(new Uint8Array(buffer));
-  if (dimError) return { url: null, error: photoError(dimError) };
+  const dimError = validateSquareCardBytes(new Uint8Array(buffer), "Photo");
+  if (dimError) return { url: null, error: dimError };
   return uploadCmsMediaImage(buildKey("image/webp"), buffer);
 }
 
