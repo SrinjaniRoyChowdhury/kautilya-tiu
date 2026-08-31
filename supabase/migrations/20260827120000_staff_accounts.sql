@@ -1,7 +1,7 @@
 -- Staff accounts: username logins + Delegate Affairs / Viewer roles.
 
 alter table public.users
-  add column if not exists username citext;
+  add column if not exists username extensions.citext;
 
 create unique index if not exists users_username_unique
   on public.users (username)

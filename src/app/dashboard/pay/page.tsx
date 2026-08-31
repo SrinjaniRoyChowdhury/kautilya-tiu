@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { StartPaymentForm } from "@/components/dashboard/start-payment-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { getProfile, getSessionUser } from "@/lib/auth";
@@ -11,10 +11,11 @@ import { PAYMENT_STATUS_COPY } from "@/lib/payments";
 export const metadata: Metadata = { title: "Payment" };
 
 export default async function PayIndexPage() {
-  const [user, profile, edition] = await Promise.all([
+  const [user, profile, edition, { showTeam }] = await Promise.all([
     getSessionUser(),
     getProfile(),
     getActiveEdition(),
+    dashboardNavProps(),
   ]);
   const verified = Boolean(profile?.email_verified_at || user?.email_confirmed_at);
   const registration = edition ? await getMyRegistration(edition.id) : null;
@@ -31,7 +32,7 @@ export default async function PayIndexPage() {
         title="Payment"
         description="Pay for yourself or several delegates in one UPI transfer. Each person still registers individually."
       />
-      <DashboardNav current="/dashboard/pay" />
+      <DashboardNav current="/dashboard/pay" showTeam={showTeam} />
 
       {!verified ? (
         <Card>

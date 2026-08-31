@@ -96,6 +96,21 @@ export default async function AdminHomePage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis?.registration ? (
           <Card>
+            <p className="text-xs uppercase tracking-widest text-gold-700">Free participants</p>
+            <p className="mt-2 font-serif text-4xl text-gold-700">{kpis.registration.freeConfirmed}</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Admin-confirmed without payment · not counted in revenue
+            </p>
+            <Link
+              href="/admin/participants"
+              className="mt-3 inline-block text-sm text-gold-700 hover:underline"
+            >
+              View participants
+            </Link>
+          </Card>
+        ) : null}
+        {kpis?.registration ? (
+          <Card>
             <p className="text-xs uppercase tracking-widest text-gold-700">Registrations</p>
             <p className="mt-2 font-serif text-4xl text-gold-700">{kpis.registration.total}</p>
             <p className="mt-1 text-sm text-ink-muted">

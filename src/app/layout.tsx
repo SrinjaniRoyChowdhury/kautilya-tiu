@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Montserrat, Poppins } from "next/font/google";
+import { Montserrat, Poppins, Geist } from "next/font/google";
 import { AnnouncementRibbon } from "@/components/public/announcement-ribbon";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -9,6 +9,9 @@ import { staffHomePath } from "@/lib/staff-access";
 import { APP_NAME } from "@/lib/constants";
 import { getActiveEdition, getAnnouncements, getSiteSettings } from "@/lib/data";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -30,7 +33,7 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   description:
-    "Registration, credentials, and conference operations for Niti Sabha — Techno Kautilya's Model United Nations conference.",
+    "Registration, credentials, and conference operations for Kautilya — Kautilya MUN Nitisabha's Model United Nations conference.",
   icons: {
     icon: "/KautilyaLogo.png",
     apple: "/KautilyaLogo.png",
@@ -53,7 +56,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${poppins.variable} ${montserrat.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", poppins.variable, montserrat.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col font-sans text-ink">
         <Header

@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { COMMITTEE_LOGO_PX, sniffImageMime, sniffPdf, validateCommitteeLogoBytes } from "./upload";
+import {
+  sniffImageMime,
+  sniffPdf,
+  validateCommitteeCardBackgroundBytes,
+  validateCommitteeLogoBytes,
+} from "./upload";
+
+describe("validateCommitteeCardBackgroundBytes", () => {
+  it("accepts a square 1080×1080 PNG header and rejects wrong sizes", () => {
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16, 1080, false);
+    view.setUint32(20, 1080, false);
+    expect(validateCommitteeCardBackgroundBytes(bytes)).toBeNull();
+    view.setUint32(16, 512, false);
+    view.setUint32(20, 512, false);
+    expect(validateCommitteeCardBackgroundBytes(bytes)).toContain("1080×1080");
+  });
+});
 
 describe("sniffImageMime", () => {
   it("detects JPEG/PNG/WebP magic bytes and rejects other bytes", () => {
@@ -22,18 +41,17 @@ describe("sniffImageMime", () => {
 });
 
 describe("validateCommitteeLogoBytes", () => {
-  it("accepts a square 512×512 PNG header and rejects wrong sizes", () => {
+  it("accepts a square PNG of any size ≥256 and rejects non-square", () => {
     const bytes = new Uint8Array(24);
     bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     const view = new DataView(bytes.buffer);
-    view.setUint32(16, COMMITTEE_LOGO_PX, false);
-    view.setUint32(20, COMMITTEE_LOGO_PX, false);
+    view.setUint32(16, 400, false);
+    view.setUint32(20, 400, false);
     expect(validateCommitteeLogoBytes(bytes)).toBeNull();
     view.setUint32(20, 256, false);
     expect(validateCommitteeLogoBytes(bytes)).toContain("square");
-    view.setUint32(20, COMMITTEE_LOGO_PX, false);
-    view.setUint32(16, 400, false);
-    view.setUint32(20, 400, false);
-    expect(validateCommitteeLogoBytes(bytes)).toContain(`${COMMITTEE_LOGO_PX}×${COMMITTEE_LOGO_PX}`);
+    view.setUint32(16, 128, false);
+    view.setUint32(20, 128, false);
+    expect(validateCommitteeLogoBytes(bytes)).toContain("256×256");
   });
 });

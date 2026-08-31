@@ -1,0 +1,50 @@
+name: deploy
+
+# Production deploy to Oracle — only from main, only after CI succeeds.
+# Secrets (repo Settings → Secrets and variables → Actions):
+#   ORACLE_HOST, ORACLE_USER, ORACLE_SSH_KEY
+# Optional: ORACLE_PORT (default 22), ORACLE_APP_DIR (default /opt/kautilya)
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          port: ${{ secrets.ORACLE_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ secrets.ORACLE_APP_DIR }}"
+            APP_DIR="${APP_DIR:-/opt/kautilya}"
+            cd "$APP_DIR"
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            ENV_FILE=".env.production"
+            if [ ! -f "$ENV_FILE" ]; then ENV_FILE=".env"; fi
+            docker compose --env-file "$ENV_FILE" --profile prod up -d --build app-prod
+            sleep 8
+            curl -fsS "http://127.0.0.1:3000/api/health"
+            echo "Deploy OK"

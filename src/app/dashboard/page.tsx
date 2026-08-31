@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { RegistrationStatusCard } from "@/components/dashboard/status-card";
 import { ResendVerification } from "@/components/dashboard/resend-verification";
 import { Card, Container, PageHeader } from "@/components/ui/card";
@@ -40,6 +40,7 @@ export default async function DashboardPage() {
     registration?.status === "CONFIRMED"
       ? await getActiveQrForRegistration(registration.id)
       : null;
+  const { showTeam } = await dashboardNavProps();
 
   return (
     <Container className="py-12">
@@ -48,7 +49,7 @@ export default async function DashboardPage() {
         title={`Hello, ${profile?.full_name ?? "delegate"}`}
         description={edition?.name ?? "No edition is open for registration."}
       />
-      <DashboardNav current="/dashboard" />
+      <DashboardNav current="/dashboard" showTeam={showTeam} />
 
       {!verified ? (
         <Card className="mb-6">

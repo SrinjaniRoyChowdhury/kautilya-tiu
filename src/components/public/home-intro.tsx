@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import SpecularButton from "@/components/SpecularButton";
 import {
   beginHomeIntro,
   markHomeIntroDone,
@@ -86,7 +87,7 @@ export function HomeIntro() {
       style={{ transitionDuration: `${FADE_MS}ms` }}
       role="dialog"
       aria-modal="true"
-      aria-label="Niti Sabha introduction"
+      aria-label="Kautilya introduction"
     >
       <video
         ref={videoRef}
@@ -102,13 +103,23 @@ export function HomeIntro() {
         onEnded={startFade}
         onError={startFade}
       />
-      <button
-        type="button"
-        onClick={startFade}
-        className="absolute bottom-6 right-6 rounded-sm border border-parchment-50/30 bg-ink/50 px-3 py-1.5 text-xs font-medium tracking-wide text-parchment-50 backdrop-blur-sm hover:bg-ink/70"
-      >
-        Skip intro
-      </button>
+      <div className="absolute bottom-6 right-6">
+        <SpecularButton
+          size="sm"
+          radius={4}
+          tint="#3a2a12"
+          tintOpacity={0.55}
+          blur={8}
+          textColor="#fffdf7"
+          lineColor="#d4af62"
+          baseColor="#8c6828"
+          intensity={1.15}
+          autoAnimate
+          onClick={startFade}
+        >
+          Skip intro
+        </SpecularButton>
+      </div>
     </div>
   );
 }

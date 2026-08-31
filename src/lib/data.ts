@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isConferenceMeal } from "@/lib/meals";
 import { normalizePortfolios } from "@/lib/sheet";
+import { toPlainText } from "@/lib/sanitize";
 import { deskFromRoleNames, kindFromRoleNames } from "@/lib/username";
 import type {
   AdminParticipant,
@@ -11,6 +12,7 @@ import type {
   Committee,
   CommitteeDelegate,
   CommitteePhaseFee,
+  PrizeMoneyEntry,
   ConferenceDocument,
   Edition,
   EditionExpense,
@@ -33,12 +35,14 @@ import type {
   RegistrationPhase,
   SiteSettings,
   TeamMember,
+  CmsSponsor,
+  CmsCollaborator,
   StaffAccount,
   AdminUser,
 } from "@/types";
 
 const fallbackSettings: SiteSettings = {
-  society_name: "Niti Sabha",
+  society_name: "Kautilya",
   tagline: "Strategy. Diplomacy. Statecraft.",
   about_html: null,
   mission_html: null,
@@ -49,7 +53,28 @@ const fallbackSettings: SiteSettings = {
   instagram_url: "https://www.instagram.com/kautilya_tiu/",
   linkedin_url: null,
   hero_stats: [],
+  contact_desk_faces: [],
+  contact_desk_limit: 3,
 };
+
+function normalizeContactDeskFaces(value: unknown): SiteSettings["contact_desk_faces"] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const member_id = "member_id" in row ? String(row.member_id ?? "").trim() : "";
+      const name = "name" in row ? String(row.name ?? "").trim() : "";
+      if (!member_id || !name) return null;
+      return { member_id, name };
+    })
+    .filter((row): row is SiteSettings["contact_desk_faces"][number] => row !== null);
+}
+
+function normalizeContactDeskLimit(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(24, Math.max(0, Math.trunc(n)));
+}
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {
@@ -59,6 +84,8 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     return {
       ...row,
       hero_stats: Array.isArray(row.hero_stats) ? row.hero_stats : [],
+      contact_desk_faces: normalizeContactDeskFaces(row.contact_desk_faces),
+      contact_desk_limit: normalizeContactDeskLimit(row.contact_desk_limit),
     };
   } catch {
     return fallbackSettings;
@@ -129,10 +156,22 @@ export async function getEditionById(id: string): Promise<Edition | null> {
 }
 
 const COMMITTEE_SELECT =
-  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, status, display_order, allows_single_del, allows_double_del";
+  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del";
 
 const REGISTRATION_SELECT =
   "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
+
+function normalizePrizeMoney(raw: unknown): PrizeMoneyEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as { category?: string; amount_minor?: number };
+    const category = toPlainText(row.category);
+    const amount_minor = Number(row.amount_minor);
+    if (!category || !Number.isFinite(amount_minor) || amount_minor < 0) return [];
+    return [{ category, amount_minor }];
+  });
+}
 
 function hydrateCommittee(committee: Committee): Committee {
   const portfolio_config = normalizePortfolios(committee.portfolio_config);
@@ -140,6 +179,8 @@ function hydrateCommittee(committee: Committee): Committee {
     ...committee,
     portfolio_config,
     capacity: portfolio_config.length || committee.capacity,
+    prize_money_json: normalizePrizeMoney(committee.prize_money_json),
+    show_prize_money: Boolean(committee.show_prize_money),
   };
 }
 
@@ -201,6 +242,26 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     .eq("published", true)
     .order("display_order", { ascending: true });
   return (data as TeamMember[]) ?? [];
+}
+
+export async function getSponsors(): Promise<CmsSponsor[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cms_sponsors")
+    .select("id, name, category, logo_url, display_order")
+    .eq("published", true)
+    .order("display_order", { ascending: true });
+  return (data as CmsSponsor[]) ?? [];
+}
+
+export async function getCollaborators(): Promise<CmsCollaborator[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cms_collaborators")
+    .select("id, name, category, logo_url, display_order")
+    .eq("published", true)
+    .order("display_order", { ascending: true });
+  return (data as CmsCollaborator[]) ?? [];
 }
 
 export async function getCommitteeById(id: string): Promise<Committee | null> {
@@ -867,6 +928,24 @@ export async function getTeamMembersAdmin(): Promise<TeamMember[]> {
   return (data as TeamMember[]) ?? [];
 }
 
+export async function getSponsorsAdmin(): Promise<CmsSponsor[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cms_sponsors")
+    .select("id, edition_id, name, category, logo_url, display_order, published")
+    .order("display_order", { ascending: true });
+  return (data as CmsSponsor[]) ?? [];
+}
+
+export async function getCollaboratorsAdmin(): Promise<CmsCollaborator[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cms_collaborators")
+    .select("id, edition_id, name, category, logo_url, display_order, published")
+    .order("display_order", { ascending: true });
+  return (data as CmsCollaborator[]) ?? [];
+}
+
 export async function getGalleryAlbums(publishedOnly = true): Promise<GalleryAlbum[]> {
   const supabase = await createClient();
   let query = supabase
@@ -969,10 +1048,12 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     .from("registrations")
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
+       confirmed_free,
        allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name),
        collectives:collective_id (name),
+       institutions:institution_id (name),
        qr_tokens (display_code, status, issued_at)`,
     )
     .is("deleted_at", null)
@@ -990,9 +1071,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     partner_email: string | null;
     allocated_slr: number | null;
     allocated_portfolio: string | null;
+    confirmed_free: boolean;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
+    institutions: { name: string } | { name: string }[] | null;
     qr_tokens:
       | { display_code: string; status: string; issued_at: string }[]
       | { display_code: string; status: string; issued_at: string }
@@ -1023,10 +1106,11 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
     const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
+    const institution = Array.isArray(row.institutions) ? row.institutions[0] : row.institutions;
     const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
     const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
     const paid =
-      row.status === "CONFIRMED" ||
+      (row.status === "CONFIRMED" && !row.confirmed_free) ||
       row.status === "PAYMENT_VERIFIED" ||
       paidIds.has(row.id);
     return {
@@ -1039,7 +1123,9 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       committee_short_name: committee?.short_name ?? null,
       food_preference: row.food_preference,
       paid,
+      confirmed_free: row.confirmed_free,
       collective_name: collective?.name ?? null,
+      institution_name: institution?.name ?? null,
       delegation_type: row.delegation_type ?? "SINGLE",
       partner_email: row.partner_email,
       allocated_slr: row.allocated_slr,

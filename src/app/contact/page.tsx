@@ -7,7 +7,7 @@ import { contactFaces } from "@/lib/team";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Write the Niti Sabha secretariat — delegates, sponsors, faculty, and press are all welcome at the desk.",
+    "Write the Kautilya secretariat — delegates, sponsors, faculty, and press are all welcome at the desk.",
 };
 
 export default async function ContactPage() {
@@ -19,7 +19,7 @@ export default async function ContactPage() {
 
   return (
     <Container className="py-12 sm:py-16">
-      <ContactDesk settings={settings} members={contactFaces(members)} edition={edition} />
+      <ContactDesk settings={settings} members={contactFaces(members, settings)} edition={edition} />
     </Container>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import {
+  confirmParticipantFreeAction,
   deleteParticipantAction,
   setParticipantPasswordAction,
   type ParticipantAdminState,
@@ -35,10 +36,12 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
 export function DeleteParticipantForm({ participant }: { participant: AdminParticipant }) {
   const action = deleteParticipantAction.bind(null, participant.id);
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
-  if (participant.paid) {
+  if (participant.paid || participant.confirmed_free) {
     return (
       <p className="text-sm text-ink-muted">
-        This delegate cannot be deleted because a payment is verified or still under review.
+        {participant.confirmed_free
+          ? "This delegate was confirmed for free and cannot be deleted here."
+          : "This delegate cannot be deleted because a payment is verified or still under review."}
       </p>
     );
   }
@@ -51,6 +54,40 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
         {pending ? "Deleting…" : "Delete unpaid participant"}
       </Button>
       <ActionFeedback error={state.error} />
+    </form>
+  );
+}
+
+export function ConfirmFreeParticipantForm({ participant }: { participant: AdminParticipant }) {
+  const action = confirmParticipantFreeAction.bind(null, participant.id);
+  const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
+
+  if (participant.confirmed_free) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Confirmed as a free participant. No payment was recorded.
+      </p>
+    );
+  }
+  if (participant.paid || participant.status === "CONFIRMED") {
+    return null;
+  }
+  if (participant.status === "DRAFT" || participant.status === "CANCELLED") {
+    return (
+      <p className="text-sm text-ink-muted">They must submit a registration before confirmation.</p>
+    );
+  }
+
+  return (
+    <form action={formAction} className="grid gap-3">
+      <p className="text-sm text-ink-muted">
+        Confirm without payment. They receive a credential and appear under Free Participants on the
+        admin overview. Revenue is unaffected.
+      </p>
+      <Button type="submit" disabled={pending}>
+        {pending ? "Confirming…" : "Confirm as free participant"}
+      </Button>
+      <ActionFeedback error={state.error} success={state.success} />
     </form>
   );
 }

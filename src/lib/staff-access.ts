@@ -32,6 +32,9 @@ const STAFF_READ_HREFS = new Set<AdminNavItem["href"]>(
   ADMIN_NAV_ITEMS.filter((item) => item.href !== "/admin/accounts").map((item) => item.href),
 );
 
+/** Sub-pages linked from Content; not shown in the admin sidebar. */
+const CMS_LINKED_PATHS = ["/admin/partners"] as const;
+
 export function staffHomePath(roles: string[]): string {
   if (isOperatorOnly(roles)) return "/scan";
   if (isContentEditorOnly(roles)) return "/admin/cms";
@@ -53,6 +56,12 @@ export function isAdminPathAllowed(pathname: string, roles: string[]): boolean {
   if (isOperatorOnly(roles)) return false;
   if (isContentEditorOnly(roles) && pathname.startsWith("/admin/committees/new")) return false;
   const allowed = new Set(staffNavItems(roles).map((item) => item.href));
+  if (
+    CMS_LINKED_PATHS.some((href) => pathname === href || pathname.startsWith(`${href}/`)) &&
+    allowed.has("/admin/cms")
+  ) {
+    return true;
+  }
   if (pathname === "/admin" || pathname === "/admin/") return allowed.has("/admin");
   const match = [...allowed]
     .filter((href) => href !== "/admin")

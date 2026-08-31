@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { FaInstagram } from "react-icons/fa";
 import { HiArrowRight, HiOutlineLocationMarker, HiOutlineMail } from "react-icons/hi";
 import { ContactLetterForm } from "@/components/public/contact-letter-form";
 import { BrandLogo } from "@/components/brand/logo";
+import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
 import {
   ARTHASHASTRA,
   CONTACT_DESKS,
@@ -46,7 +49,7 @@ export function ContactDesk({
 
   return (
     <div className="flex flex-col gap-14">
-      <header className="max-w-3xl">
+      <MotionReveal as="header" className="max-w-3xl" immediate>
         <div className="flex items-center gap-4">
           <BrandLogo className="h-16 w-16 sm:h-20 sm:w-20" sizes="80px" priority />
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold-700">
@@ -66,18 +69,18 @@ export function ContactDesk({
           Delegates, sponsors, faculty, press, and anyone else who needs the conference — this is
           the desk. Write a letter, pick a desk, or open the work you already started.
         </p>
-      </header>
+      </MotionReveal>
 
-      <section aria-labelledby="desks-heading">
+      <MotionReveal as="section" aria-labelledby="desks-heading" delay={0.05}>
         <h2 id="desks-heading" className="font-serif text-2xl text-gold-700">
           Three desks
         </h2>
         <p className="mt-2 max-w-xl text-sm text-ink-muted">
           One action each. Call the help desk if you need someone now.
         </p>
-        <div className="mt-6 grid border-y border-gold-700/25 md:grid-cols-3 md:divide-x md:divide-gold-700/20">
+        <MotionStagger className="mt-6 grid border-y border-gold-700/25 md:grid-cols-3 md:divide-x md:divide-gold-700/20">
           {desks.map((desk, index) => (
-            <article key={desk.id} className="flex flex-col py-6 md:px-6 md:first:pl-0 md:last:pr-0">
+            <MotionStaggerItem key={desk.id} as="article" className="flex flex-col py-6 md:px-6 md:first:pl-0 md:last:pr-0">
               <p className="font-heading text-xs font-semibold tracking-[0.22em] text-gold-400">
                 {String(index + 1).padStart(2, "0")}
               </p>
@@ -108,13 +111,13 @@ export function ContactDesk({
                   </a>
                 )}
               </div>
-            </article>
+            </MotionStaggerItem>
           ))}
-        </div>
-      </section>
+        </MotionStagger>
+      </MotionReveal>
 
       <div className="grid gap-8 lg:grid-cols-5">
-        <section className="relative lg:col-span-3" aria-labelledby="letter-heading">
+        <MotionReveal as="section" className="relative lg:col-span-3" aria-labelledby="letter-heading" delay={0.08}>
           <div className="frame-gold bg-parchment-50/90 p-6 sm:p-8">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
@@ -134,9 +137,9 @@ export function ContactDesk({
             </div>
             <ContactLetterForm to={email} />
           </div>
-        </section>
+        </MotionReveal>
 
-        <aside className="flex flex-col gap-4 lg:col-span-2">
+        <MotionReveal as="aside" className="flex flex-col gap-4 lg:col-span-2" delay={0.14}>
           <section className="bg-[#1a1208] p-6 text-parchment-100" aria-labelledby="hours-heading">
             <h2 id="hours-heading" className="font-serif text-2xl text-gold-400">
               When the desk replies
@@ -187,10 +190,10 @@ export function ContactDesk({
               <span className="font-heading text-sm">{instagramHandle(instagram)}</span>
             </span>
           </a>
-        </aside>
+        </MotionReveal>
       </div>
 
-      <section aria-labelledby="venue-heading">
+      <MotionReveal as="section" aria-labelledby="venue-heading" delay={0.06}>
         <div className="mt-2 grid overflow-hidden border border-gold-700/25 bg-parchment-50/80 md:grid-cols-2">
           <div className="flex flex-col justify-center p-6 sm:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">
@@ -230,10 +233,10 @@ export function ContactDesk({
             />
           </div>
         </div>
-      </section>
+      </MotionReveal>
 
       {members.length ? (
-        <section aria-labelledby="faces-heading">
+        <MotionReveal as="section" aria-labelledby="faces-heading" delay={0.08}>
           <div className="flex items-end justify-between gap-4">
             <h2 id="faces-heading" className="font-serif text-2xl text-gold-700">
               Who reads the desk
@@ -242,9 +245,16 @@ export function ContactDesk({
               Full secretariat
             </Link>
           </div>
-          <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MotionStagger
+            as="ul"
+            className={
+              members.length <= 3
+                ? "mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+                : "mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            }
+          >
             {members.map((member) => (
-              <li key={member.id} className="flex items-center gap-3">
+              <MotionStaggerItem key={member.id} as="li" className="flex items-center gap-3">
                 {member.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -261,10 +271,10 @@ export function ContactDesk({
                     {member.role_title}
                   </p>
                 </div>
-              </li>
+              </MotionStaggerItem>
             ))}
-          </ul>
-        </section>
+          </MotionStagger>
+        </MotionReveal>
       ) : null}
     </div>
   );

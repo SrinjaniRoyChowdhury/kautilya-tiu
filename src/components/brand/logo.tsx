@@ -6,15 +6,19 @@ export function BrandLogo({
   className,
   priority = false,
   sizes = "48px",
+  src = "/KautilyaLogo.png",
+  alt = APP_NAME,
 }: {
   className?: string;
   priority?: boolean;
   sizes?: string;
+  src?: string;
+  alt?: string;
 }) {
   return (
     <Image
-      src="/KautilyaLogo.png"
-      alt={APP_NAME}
+      src={src}
+      alt={alt}
       width={500}
       height={500}
       sizes={sizes}
