@@ -60,8 +60,8 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
         <Link href="/" className="flex shrink-0 items-center gap-3" aria-label={societyName}>
           <BrandLogo className="h-11 w-11 shrink-0 sm:h-12 sm:w-12" priority />
           <span className="flex flex-col leading-none">
-            <span className="font-serif text-xl font-bold tracking-wide whitespace-nowrap text-gold-700 sm:text-2xl">
-              {APP_NAME}
+            <span className="font-serif text-xl font-bold tracking-wide whitespace-nowrap text-gold-700 sm:text-2xl uppercase">
+              {APP_NAME.toUpperCase()}
             </span>
             <span className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] whitespace-nowrap text-gold-700">
               {CLUB_NAME}

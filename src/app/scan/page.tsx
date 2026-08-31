@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { ScanDesk } from "@/components/scan/scan-desk";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { eventDayFromEdition, getActiveEdition, getMealSchedules } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Scan" };
+export const metadata: Metadata = { title: "Scan Desk" };
 
 export default async function ScanPage() {
   const edition = await getActiveEdition();
@@ -15,27 +15,24 @@ export default async function ScanPage() {
   ]);
 
   return (
-    <Container className="py-6 sm:py-12">
-      <PageHeader
-        eyebrow="Venue"
-        title="Scanner"
-        description="Pick the day (and meal) first. Use the laptop webcam against a phone showing the enlarged QR. Participants cannot open this desk."
-      />
-      {canAttendance || canFood ? (
-        <ScanDesk
-          canAttendance={canAttendance}
-          canFood={canFood}
-          meals={meals}
-          defaultDay={eventDayFromEdition(edition?.start_date)}
-        />
-      ) : (
-        <Card>
-          <p className="text-ink-muted">
-            This login can open the scanner, but it has no attendance or food permission on the
-            public-active edition.
-          </p>
-        </Card>
-      )}
-    </Container>
+    <main className="w-full bg-parchment-100/50 px-2 py-2 sm:px-4 sm:py-4">
+      <div className="mx-auto max-w-5xl">
+        {canAttendance || canFood ? (
+          <ScanDesk
+            canAttendance={canAttendance}
+            canFood={canFood}
+            meals={meals}
+            defaultDay={eventDayFromEdition(edition?.start_date)}
+          />
+        ) : (
+          <Card className="p-6 text-center">
+            <p className="text-ink-muted">
+              This login has no attendance or food scanning permission on the active edition.
+            </p>
+          </Card>
+        )}
+      </div>
+    </main>
   );
 }
+
