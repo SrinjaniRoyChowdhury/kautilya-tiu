@@ -1,6 +1,6 @@
 -- Payable delegates only: no unmatched emails; search by registered email/name.
 
-create or replace function public.attach_email_to_payment(p_payment_id uuid, p_email citext)
+create or replace function public.attach_email_to_payment(p_payment_id uuid, p_email extensions.citext)
 returns uuid
 language plpgsql
 security definer

@@ -74,12 +74,12 @@ create policy payment_participants_select on public.payment_participants
 -- ---------------------------------------------------------------------------
 
 create or replace function public.normalize_email(p_email text)
-returns citext
+returns extensions.citext
 language sql
 immutable
 set search_path = public, extensions
 as $$
-  select nullif(lower(btrim(coalesce(p_email, ''))), '')::citext;
+  select nullif(lower(btrim(coalesce(p_email, ''))), '')::extensions.citext;
 $$;
 
 create or replace function public.payment_blocks_email(p_status public.payment_status)
@@ -92,7 +92,7 @@ $$;
 
 create or replace function public.assert_email_free_for_payment(
   p_edition_id uuid,
-  p_email citext,
+  p_email extensions.citext,
   p_exclude_payment_id uuid
 )
 returns void
@@ -295,7 +295,7 @@ begin
 end;
 $$;
 
-create or replace function public.attach_email_to_payment(p_payment_id uuid, p_email citext)
+create or replace function public.attach_email_to_payment(p_payment_id uuid, p_email extensions.citext)
 returns uuid
 language plpgsql
 security definer
@@ -380,7 +380,7 @@ set search_path = public, extensions
 as $$
 declare
   v_reg public.registrations%rowtype;
-  v_email citext;
+  v_email extensions.citext;
   v_pay_id uuid;
 begin
   select * into v_reg from public.registrations where id = p_registration_id;
@@ -434,7 +434,7 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  v_email citext;
+  v_email extensions.citext;
   v_reg public.registrations%rowtype;
 begin
   select email into v_email from public.users where id = p_user_id;
@@ -500,10 +500,10 @@ as $$
 declare
   v_user uuid := auth.uid();
   v_pay public.payments%rowtype;
-  v_email citext;
+  v_email extensions.citext;
   v_item text;
-  v_seen citext[] := '{}';
-  v_norm citext;
+  v_seen extensions.citext[] := '{}';
+  v_norm extensions.citext;
 begin
   perform public.ensure_email_verified();
 
@@ -606,7 +606,7 @@ declare
   v_user uuid := auth.uid();
   v_pay public.payments%rowtype;
   v_item text;
-  v_norm citext;
+  v_norm extensions.citext;
 begin
   perform public.ensure_email_verified();
   select * into v_pay from public.payments where id = p_payment_id for update;
@@ -638,7 +638,7 @@ declare
   v_user uuid := auth.uid();
   v_pp public.payment_participants%rowtype;
   v_pay public.payments%rowtype;
-  v_norm citext;
+  v_norm extensions.citext;
 begin
   perform public.ensure_email_verified();
   v_norm := public.normalize_email(p_email);
@@ -1110,12 +1110,12 @@ revoke all on function public.registration_payment_locked(uuid) from public;
 revoke all on function public.can_view_payment(uuid) from public;
 revoke all on function public.normalize_email(text) from public;
 revoke all on function public.payment_blocks_email(public.payment_status) from public;
-revoke all on function public.assert_email_free_for_payment(uuid, citext, uuid) from public;
+revoke all on function public.assert_email_free_for_payment(uuid, extensions.citext, uuid) from public;
 revoke all on function public.refresh_payment_amount_flag(uuid) from public;
 revoke all on function public.recalculate_payment_expected(uuid) from public;
 revoke all on function public.issue_qr_for_registration(uuid) from public;
 revoke all on function public.confirm_registration_from_payment(uuid) from public;
-revoke all on function public.attach_email_to_payment(uuid, citext) from public;
+revoke all on function public.attach_email_to_payment(uuid, extensions.citext) from public;
 revoke all on function public.link_registration_to_payments(uuid) from public;
 revoke all on function public.link_user_to_unmatched_payments(uuid) from public;
 revoke all on function public.payment_payload(uuid) from public;
