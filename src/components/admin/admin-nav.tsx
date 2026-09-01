@@ -14,7 +14,7 @@ function isCurrent(pathname: string, href: string) {
 export function AdminNav({ items, canScan }: { items: AdminNavItem[]; canScan: boolean }) {
   const pathname = usePathname();
   return (
-    <aside className="flex shrink-0 flex-col border-b border-gold-700/20 bg-parchment-50/95 md:h-full md:w-52 md:overflow-y-auto md:border-b-0 md:border-r">
+    <aside className="flex shrink-0 flex-col border-b border-gold-700/20 bg-parchment-50 md:h-full md:w-52 md:overflow-y-auto md:border-b-0 md:border-r">
       <nav className="flex gap-1 overflow-x-auto px-3 py-2 font-heading md:flex-1 md:flex-col md:gap-0.5 md:px-3 md:py-4" aria-label="Admin">
         {items.map((item) => {
           const current = isCurrent(pathname, item.href);
