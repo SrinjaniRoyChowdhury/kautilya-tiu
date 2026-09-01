@@ -139,6 +139,15 @@ export function AnnouncementForm({
           defaultValue={toPlainText(announcement?.body_html)}
         />
       </Field>
+      <Field label="Link URL" htmlFor={`ann-url-${announcement?.id ?? "new"}`} hint="Optional web link (e.g. registration portal, drive folder, external document)">
+        <Input
+          id={`ann-url-${announcement?.id ?? "new"}`}
+          name="link_url"
+          type="url"
+          placeholder="https://..."
+          defaultValue={announcement?.link_url ?? ""}
+        />
+      </Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Edition" htmlFor={`ann-edition-${announcement?.id ?? "new"}`}>
           <Select
@@ -285,6 +294,16 @@ function AnnouncementRow({
       <td className="px-2 py-1.5">
         <p className="font-medium">{item.title}</p>
         <p className="line-clamp-1 text-xs text-ink-muted">{toPlainText(item.body_html)}</p>
+        {item.link_url ? (
+          <a
+            href={item.link_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-gold-700 hover:underline break-all inline-block mt-0.5"
+          >
+            {item.link_url}
+          </a>
+        ) : null}
       </td>
       <td className="px-2 py-1.5 text-sm text-ink-muted">
         {item.edition_id ? editionName[item.edition_id] ?? "Edition" : "All editions"}

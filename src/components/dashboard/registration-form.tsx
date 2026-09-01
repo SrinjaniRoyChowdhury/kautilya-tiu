@@ -86,6 +86,7 @@ export function RegistrationForm({
   institutions,
   preferredCommitteeId,
   paymentLocked = false,
+  publishedDocs,
 }: {
   editionId: string;
   registration: Registration;
@@ -96,6 +97,7 @@ export function RegistrationForm({
   institutions: { id: string; name: string }[];
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
+  publishedDocs?: { rulebook?: boolean; guidelines?: boolean };
 }) {
   const editable =
     (PRE_PAYMENT_STATUSES as readonly string[]).includes(registration.status) && !paymentLocked;
@@ -116,6 +118,10 @@ export function RegistrationForm({
     registration.status !== "DRAFT" &&
     registration.status !== "CANCELLED";
 
+  const [readRulebook, setReadRulebook] = useState(Boolean(registration.accepted_rules_at));
+  const [readGuidelines, setReadGuidelines] = useState(Boolean(registration.accepted_rules_at));
+  const bothChecked = readRulebook && readGuidelines;
+
   function dispatch(intent: "draft" | "submit", data: RegistrationFormValues) {
     const committee = committees.find((item) => item.id === data.committee_id);
     if (committee?.allows_double_del && !committee.allows_single_del) data.delegation_type = "DOUBLE";
@@ -124,6 +130,10 @@ export function RegistrationForm({
     fd.set("intent", intent);
     fd.set("registration_id", registration.id);
     fd.set("edition_id", editionId);
+    if (intent === "submit") {
+      fd.set("read_rulebook", readRulebook ? "on" : "off");
+      fd.set("read_guidelines", readGuidelines ? "on" : "off");
+    }
     appendValues(fd, data, fields);
     startTransition(() => formAction(fd));
   }
@@ -308,9 +318,62 @@ export function RegistrationForm({
       ))}
 
       {editable ? (
-        <div>
+        <div className="space-y-6">
+          <div className="space-y-4 rounded-sm border border-gold-700/25 bg-parchment-100/70 p-5">
+            <div>
+              <p className="font-serif text-lg text-gold-800">Rules & Guidelines</p>
+              <p className="mt-1 text-xs text-ink-muted">
+                Please review the conference rulebook and guidelines before submitting. Both checkboxes must be agreed to before submitting registration.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={publishedDocs?.rulebook ? "/api/docs/rulebook" : "/rulebook"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 items-center justify-center rounded-sm border border-gold-700/40 bg-parchment-50 px-4 text-xs font-medium text-gold-800 transition hover:bg-parchment-200"
+              >
+                View Rulebook ↗
+              </a>
+              <a
+                href={publishedDocs?.guidelines ? "/api/docs/guidelines" : "/rulebook"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 items-center justify-center rounded-sm border border-gold-700/40 bg-parchment-50 px-4 text-xs font-medium text-gold-800 transition hover:bg-parchment-200"
+              >
+                View Guidelines ↗
+              </a>
+            </div>
+            <div className="space-y-2.5 border-t border-gold-700/15 pt-3">
+              <label className="flex cursor-pointer select-none items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  name="read_rulebook"
+                  checked={readRulebook}
+                  onChange={(e) => setReadRulebook(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+                />
+                <span>I have read and agree to the Rulebook.</span>
+              </label>
+              <label className="flex cursor-pointer select-none items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  name="read_guidelines"
+                  checked={readGuidelines}
+                  onChange={(e) => setReadGuidelines(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+                />
+                <span>I have read and agree to the Conference Guidelines.</span>
+              </label>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={busy}>
+            <Button
+              type="submit"
+              disabled={busy || !bothChecked}
+              title={!bothChecked ? "Please agree to both the Rulebook and Guidelines to submit" : undefined}
+            >
               {busy ? "Working…" : registration.status === "DRAFT" ? "Submit registration" : "Update submission"}
             </Button>
             <Button

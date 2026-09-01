@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildRegistrationSchema, isRegistrationOpen, needsConferenceRulesAcceptance, seatsHeld } from "./registration";
+import {
+  buildRegistrationSchema,
+  isCommitteeRegistrationLive,
+  isRegistrationOpen,
+  needsConferenceRulesAcceptance,
+  seatsHeld,
+} from "./registration";
 
 describe("isRegistrationOpen", () => {
   const base = {
@@ -11,12 +17,40 @@ describe("isRegistrationOpen", () => {
   it("opens only published editions inside the window", () => {
     expect(isRegistrationOpen(base)).toBe("open");
     expect(isRegistrationOpen({ ...base, status: "DRAFT" })).toBe("closed");
+    expect(isRegistrationOpen({ ...base, registration_status: "CLOSED" })).toBe("closed");
     expect(
       isRegistrationOpen({
         ...base,
         registration_open_at: "2099-01-01T00:00:00.000Z",
       }),
     ).toBe("not_open");
+  });
+});
+
+describe("isCommitteeRegistrationLive", () => {
+  const edition = {
+    status: "PUBLISHED",
+    registration_open_at: "2020-01-01T00:00:00.000Z",
+    registration_close_at: "2099-01-01T00:00:00.000Z",
+    registration_status: "OPEN",
+  };
+
+  it("is live when edition and committee are open", () => {
+    expect(isCommitteeRegistrationLive(edition, { status: "OPEN" })).toBe(true);
+  });
+
+  it("is not live when edition registration is closed", () => {
+    expect(
+      isCommitteeRegistrationLive(
+        { ...edition, registration_status: "CLOSED" },
+        { status: "OPEN" },
+      ),
+    ).toBe(false);
+  });
+
+  it("is not live when committee is closed or hidden", () => {
+    expect(isCommitteeRegistrationLive(edition, { status: "CLOSED" })).toBe(false);
+    expect(isCommitteeRegistrationLive(edition, { status: "HIDDEN" })).toBe(false);
   });
 });
 

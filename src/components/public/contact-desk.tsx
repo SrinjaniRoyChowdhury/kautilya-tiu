@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { FaInstagram } from "react-icons/fa";
-import { HiArrowRight, HiOutlineLocationMarker, HiOutlineMail } from "react-icons/hi";
+import { HiArrowRight, HiOutlineLocationMarker } from "react-icons/hi";
 import { ContactLetterForm } from "@/components/public/contact-letter-form";
 import { BrandLogo } from "@/components/brand/logo";
 import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
@@ -11,14 +12,13 @@ import {
   CONTACT_DESKS,
   CONTACT_PEOPLE,
   VENUE,
-  deskMailto,
   instagramHandle,
   mapsEmbedSrc,
   mapsOpenUrl,
   telHref,
 } from "@/lib/contact";
 import { formatDateRange } from "@/lib/format";
-import type { Edition, SiteSettings, TeamMember } from "@/types";
+import type { Edition, HelpDeskQueryType, SiteSettings, TeamMember } from "@/types";
 
 function Initials({ name }: { name: string }) {
   const letters = name
@@ -43,9 +43,27 @@ export function ContactDesk({
   members: TeamMember[];
   edition: Edition | null;
 }) {
-  const email = settings.contact_email ?? "tiukautilya@gmail.com";
+  const [selectedType, setSelectedType] = useState<HelpDeskQueryType>("Delegate Queries");
   const instagram = settings.instagram_url || "https://www.instagram.com/kautilya_tiu/";
   const desks = CONTACT_DESKS.filter((desk) => desk.id !== "other");
+
+  const handleWriteDesk = (deskId: string) => {
+    let type: HelpDeskQueryType = "Delegate Queries";
+    if (deskId === "partner") type = "Partnership";
+    else if (deskId === "press") type = "Press and Faculty";
+
+    setSelectedType(type);
+    const target = document.getElementById("query-form");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => {
+        const input =
+          target.querySelector<HTMLInputElement>("input[name='subject']") ||
+          target.querySelector<HTMLInputElement>("input[name='name']");
+        input?.focus({ preventScroll: true });
+      }, 400);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-14">
@@ -103,12 +121,13 @@ export function ContactDesk({
                     </Link>
                   </>
                 ) : (
-                  <a
-                    href={deskMailto(email, desk.id)}
-                    className="inline-flex h-10 items-center gap-2 rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50"
+                  <button
+                    type="button"
+                    onClick={() => handleWriteDesk(desk.id)}
+                    className="inline-flex h-10 items-center gap-2 rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50 hover:bg-gold-800 transition-colors"
                   >
-                    Write this desk <HiOutlineMail />
-                  </a>
+                    Write this desk <HiArrowRight />
+                  </button>
                 )}
               </div>
             </MotionStaggerItem>
@@ -117,25 +136,25 @@ export function ContactDesk({
       </MotionReveal>
 
       <div className="grid gap-8 lg:grid-cols-5">
-        <MotionReveal as="section" className="relative lg:col-span-3" aria-labelledby="letter-heading" delay={0.08}>
+        <MotionReveal as="section" id="query-form" className="relative scroll-mt-24 lg:col-span-3" aria-labelledby="letter-heading" delay={0.08}>
           <div className="frame-gold bg-parchment-50/90 p-6 sm:p-8">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold-700">
-                  A letter, not a ticket
+                  Help Desk
                 </p>
                 <h2 id="letter-heading" className="mt-2 font-serif text-3xl text-ink">
-                  Write the secretariat
+                  Submit a query
                 </h2>
                 <p className="mt-2 text-sm text-ink-muted">
-                  Seal the note and send it from your own mail app to {email}.
+                  Leave your query with the secretariat. Our desk monitors and addresses all inquiries directly.
                 </p>
               </div>
               <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#1a1208] ring-2 ring-gold-400 sm:flex">
                 <BrandLogo className="h-10 w-10 drop-shadow-[0_0_8px_rgba(212,175,98,0.45)]" sizes="40px" />
               </div>
             </div>
-            <ContactLetterForm to={email} />
+            <ContactLetterForm selectedType={selectedType} onTypeChange={setSelectedType} />
           </div>
         </MotionReveal>
 

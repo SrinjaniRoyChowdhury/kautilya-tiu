@@ -29,8 +29,10 @@ export function isRegistrationOpen(edition: {
   registration_open_at: string | null;
   registration_close_at: string | null;
   status: string;
+  registration_status?: string | null;
 }): "not_open" | "open" | "closed" {
   if (edition.status !== "PUBLISHED") return "closed";
+  if (edition.registration_status === "CLOSED") return "closed";
   const now = Date.now();
   if (edition.registration_open_at && now < new Date(edition.registration_open_at).getTime()) {
     return "not_open";
@@ -39,6 +41,22 @@ export function isRegistrationOpen(edition: {
     return "closed";
   }
   return "open";
+}
+
+export function isCommitteeRegistrationLive(
+  edition: {
+    registration_open_at: string | null;
+    registration_close_at: string | null;
+    status: string;
+    registration_status?: string | null;
+  } | null | undefined,
+  committee: {
+    status: string;
+  } | null | undefined,
+): boolean {
+  if (!edition || !committee) return false;
+  if (committee.status !== "OPEN") return false;
+  return isRegistrationOpen(edition) === "open";
 }
 
 function parseOptions(options: RegistrationFieldDefinition["options"]): string[] {

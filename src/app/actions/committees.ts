@@ -85,7 +85,17 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
     edition_id: String(formData.get("edition_id") ?? ""),
     name: String(formData.get("name") ?? ""),
     short_name: String(formData.get("short_name") ?? ""),
-    status: String(formData.get("status") ?? "OPEN"),
+    status: (() => {
+      const regOpen = formData.has("registration_open_present")
+        ? formData.get("registration_open") === "on"
+        : undefined;
+      let s = String(formData.get("status") ?? "OPEN");
+      if (regOpen !== undefined) {
+        if (regOpen && s === "CLOSED") s = "OPEN";
+        if (!regOpen && s === "OPEN") s = "CLOSED";
+      }
+      return s;
+    })(),
     display_order: Number(formData.get("display_order") ?? 0),
     description: String(formData.get("description") ?? ""),
     eb_json: String(formData.get("eb_json") ?? ""),
@@ -302,6 +312,13 @@ export async function createCommitteeAction(
   }
   const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
+  let status = parsed.data.status;
+  if (formData.has("registration_open_present")) {
+    const isRegOpen = formData.get("registration_open") === "on";
+    if (isRegOpen && status === "CLOSED") status = "OPEN";
+    if (!isRegOpen && status === "OPEN") status = "CLOSED";
+  }
+
   const portfolios = await portfoliosFromForm(formData);
   if (portfolios.error) return failCommittee(formData, portfolios.error);
 
@@ -329,7 +346,7 @@ export async function createCommitteeAction(
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
-      status: parsed.data.status,
+      status,
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
       portfolio_config: portfolios.rows,
@@ -401,6 +418,13 @@ export async function updateCommitteeAction(
   }
   const fallbackRupees = Number(formData.get("fee_EARLY_BIRD_single") || formData.get("fee_rupees") || 1500);
 
+  let status = parsed.data.status;
+  if (formData.has("registration_open_present")) {
+    const isRegOpen = formData.get("registration_open") === "on";
+    if (isRegOpen && status === "CLOSED") status = "OPEN";
+    if (!isRegOpen && status === "OPEN") status = "CLOSED";
+  }
+
   const slug = slugify(parsed.data.short_name);
 
   const logoValidation = await validateOptionalCommitteeLogoFile(formData);
@@ -440,7 +464,7 @@ export async function updateCommitteeAction(
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
-      status: parsed.data.status,
+      status,
       display_order: parsed.data.display_order,
       prize_money_json: prizeMoney.prizes,
       show_prize_money: showPrizeMoney,
