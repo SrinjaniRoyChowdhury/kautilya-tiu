@@ -132,6 +132,7 @@ const announcementSchema = z.object({
   edition_id: optionalHexId,
   title: z.string().trim().min(2).max(160),
   body_html: z.string().trim().min(1).max(8000),
+  link_url: optionalUrl,
   display_order: z.coerce.number().int().min(0).max(999),
   published: z.coerce.boolean().optional(),
 });
@@ -148,6 +149,7 @@ export async function saveAnnouncementAction(
     edition_id: String(formData.get("edition_id") ?? ""),
     title: formData.get("title"),
     body_html: formData.get("body_html"),
+    link_url: formData.get("link_url"),
     display_order: formData.get("display_order"),
     published: formData.get("published") === "on",
   });
@@ -160,6 +162,7 @@ export async function saveAnnouncementAction(
     edition_id: parsed.data.edition_id || null,
     title: toPlainText(parsed.data.title),
     body_html: body,
+    link_url: parsed.data.link_url ? parsed.data.link_url.trim() : null,
     display_order: parsed.data.display_order,
     published,
     published_at: published ? new Date().toISOString() : null,

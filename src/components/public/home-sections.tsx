@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { HiOutlineSpeakerphone } from "react-icons/hi";
+import { HiArrowRight, HiOutlineSpeakerphone } from "react-icons/hi";
 import { CommitteeCard, PlainCopy } from "@/components/public/marketing";
 import { MotionReveal, MotionStagger, MotionStaggerItem } from "@/components/motion/reveal";
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,7 @@ export function HomeSections({
           </Link>
         </div>
         {committees.length ? (
-          <MotionStagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {committees.map((committee) => (
               <MotionStaggerItem key={committee.id} as="div">
                 <CommitteeCard committee={committee} href={`/committees/${committee.slug}`} />
@@ -32,11 +32,7 @@ export function HomeSections({
             ))}
           </MotionStagger>
         ) : (
-          <Card>
-            <p className="text-ink-muted">
-              No published edition yet. An admin can create one from the portal.
-            </p>
-          </Card>
+          <p className="text-ink-muted">No committees are open yet for this edition.</p>
         )}
       </MotionReveal>
 
@@ -57,6 +53,18 @@ export function HomeSections({
                   </p>
                   <h3 className="mt-2 font-serif text-2xl">{item.title}</h3>
                   <PlainCopy className="mt-2 text-sm" text={item.body_html} />
+                  {item.link_url ? (
+                    <div className="mt-3">
+                      <a
+                        href={item.link_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-gold-700 hover:underline"
+                      >
+                        Open link <HiArrowRight className="h-4 w-4" />
+                      </a>
+                    </div>
+                  ) : null}
                 </Card>
               </MotionStaggerItem>
             ))}

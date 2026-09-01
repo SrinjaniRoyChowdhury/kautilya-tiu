@@ -17,6 +17,8 @@ export const CONTACT_PEOPLE = [
 
 export const HELP_DESK_PHONE = CONTACT_PEOPLE[0].phone;
 
+export { HELP_DESK_TYPES, type HelpDeskQueryType, type HelpDeskQuery } from "@/types";
+
 export function telHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }

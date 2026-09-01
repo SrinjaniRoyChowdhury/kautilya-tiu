@@ -24,6 +24,7 @@ const editionSchema = z.object({
   registration_close_at: z.string().optional().or(z.literal("")),
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
   is_public_active: z.coerce.boolean().optional(),
+  registration_status: z.enum(["OPEN", "CLOSED"]).optional(),
 });
 
 async function requireEditionManager() {
@@ -103,6 +104,13 @@ export async function createEditionAction(
     registration_close_at: formData.get("registration_close_at"),
     status: formData.get("status"),
     is_public_active: formData.get("is_public_active") === "on",
+    registration_status: formData.has("registration_open_present")
+      ? formData.get("registration_open") === "on"
+        ? "OPEN"
+        : "CLOSED"
+      : formData.get("registration_status") === "CLOSED"
+        ? "CLOSED"
+        : "OPEN",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -126,6 +134,7 @@ export async function createEditionAction(
         : null,
       status: parsed.data.status,
       is_public_active: isPublicActive,
+      registration_status: parsed.data.registration_status ?? "OPEN",
       created_by: gate.user.id,
     })
     .select("id")
@@ -170,6 +179,13 @@ export async function updateEditionAction(
     registration_close_at: formData.get("registration_close_at"),
     status: formData.get("status"),
     is_public_active: formData.get("is_public_active") === "on",
+    registration_status: formData.has("registration_open_present")
+      ? formData.get("registration_open") === "on"
+        ? "OPEN"
+        : "CLOSED"
+      : formData.get("registration_status") === "CLOSED"
+        ? "CLOSED"
+        : "OPEN",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -192,6 +208,7 @@ export async function updateEditionAction(
         : null,
       status: parsed.data.status,
       is_public_active: Boolean(parsed.data.is_public_active),
+      registration_status: parsed.data.registration_status ?? "OPEN",
     })
     .eq("id", editionId);
 

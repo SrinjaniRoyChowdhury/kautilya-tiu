@@ -39,6 +39,7 @@ import type {
   CmsCollaborator,
   StaffAccount,
   AdminUser,
+  HelpDeskQuery,
 } from "@/types";
 
 const fallbackSettings: SiteSettings = {
@@ -98,7 +99,7 @@ export async function getPublicEditions(): Promise<Edition[]> {
     const { data } = await supabase
       .from("mun_editions")
       .select(
-        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active",
+        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
       )
       .in("status", ["PUBLISHED", "ARCHIVED"])
       .is("deleted_at", null)
@@ -115,7 +116,7 @@ export async function getActiveEdition(): Promise<Edition | null> {
     const { data } = await supabase
       .from("mun_editions")
       .select(
-        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active",
+        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
       )
       .eq("is_public_active", true)
       .eq("status", "PUBLISHED")
@@ -134,7 +135,7 @@ export async function getEditionBySlug(slug: string): Promise<Edition | null> {
   const { data } = await supabase
     .from("mun_editions")
     .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active",
+      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
     )
     .eq("slug", slug)
     .in("status", ["PUBLISHED", "ARCHIVED"])
@@ -148,7 +149,7 @@ export async function getEditionById(id: string): Promise<Edition | null> {
   const { data } = await supabase
     .from("mun_editions")
     .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active",
+      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
     )
     .eq("id", id)
     .maybeSingle();
@@ -226,7 +227,7 @@ export async function getAnnouncements(editionId?: string | null): Promise<Annou
   const supabase = await createClient();
   let query = supabase
     .from("announcements")
-    .select("id, edition_id, title, body_html, published_at")
+    .select("id, edition_id, title, body_html, link_url, published_at")
     .eq("published", true)
     .order("display_order", { ascending: true });
   if (editionId) query = query.or(`edition_id.eq.${editionId},edition_id.is.null`);
@@ -321,7 +322,7 @@ export async function getAllEditionsAdmin(): Promise<Edition[]> {
   const { data } = await supabase
     .from("mun_editions")
     .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active",
+      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
     )
     .is("deleted_at", null)
     .order("year", { ascending: false });
@@ -914,7 +915,7 @@ export async function getAnnouncementsAdmin(): Promise<Announcement[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("announcements")
-    .select("id, edition_id, title, body_html, published, published_at, display_order")
+    .select("id, edition_id, title, body_html, link_url, published, published_at, display_order")
     .order("display_order", { ascending: true });
   return (data as Announcement[]) ?? [];
 }
@@ -1396,4 +1397,45 @@ export async function getEditionExpenses(editionId: string): Promise<EditionExpe
 export async function getEditionExpenseTotal(editionId: string): Promise<number> {
   const rows = await getEditionExpenses(editionId);
   return rows.reduce((sum, row) => sum + (row.amount_minor ?? 0), 0);
+}
+
+export async function getHelpDeskQueries(opts?: {
+  type?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Promise<HelpDeskQuery[]> {
+  noStore();
+  const supabase = await createClient();
+  let query = supabase
+    .from("help_desk_queries")
+    .select("id, name, email, phone, type, subject, description, status, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .limit(opts?.limit ?? 500);
+
+  if (opts?.type) {
+    query = query.eq("type", opts.type);
+  }
+  if (opts?.from) {
+    query = query.gte("created_at", opts.from);
+  }
+  if (opts?.to) {
+    query = query.lte("created_at", opts.to);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("Failed to load help desk queries:", error.message);
+    return [];
+  }
+  return (data as HelpDeskQuery[] | null) ?? [];
+}
+
+export async function updateHelpDeskQueryStatus(
+  id: string,
+  status: "PENDING" | "RESOLVED" | "ARCHIVED",
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("help_desk_queries").update({ status }).eq("id", id);
+  return !error;
 }

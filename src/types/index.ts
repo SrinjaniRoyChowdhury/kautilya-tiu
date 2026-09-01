@@ -40,6 +40,7 @@ export type Edition = {
   registration_close_at: string | null;
   status: EditionStatus;
   is_public_active: boolean;
+  registration_status?: "OPEN" | "CLOSED";
 };
 
 export type EbMember = {
@@ -254,6 +255,7 @@ export type Announcement = {
   edition_id: string | null;
   title: string;
   body_html: string;
+  link_url?: string | null;
   published?: boolean;
   published_at: string | null;
   display_order?: number;
@@ -508,4 +510,27 @@ export type FoodStat = {
   event_day: number;
   meal_name: string;
   collected: number;
+};
+
+export const HELP_DESK_TYPES = [
+  "Delegate Queries",
+  "Partnership",
+  "Press and Faculty",
+] as const;
+
+export type HelpDeskQueryType = (typeof HELP_DESK_TYPES)[number];
+
+export type HelpDeskQueryStatus = "PENDING" | "RESOLVED" | "ARCHIVED";
+
+export type HelpDeskQuery = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  type: HelpDeskQueryType;
+  subject: string;
+  description: string;
+  status: HelpDeskQueryStatus;
+  created_at: string;
+  updated_at: string;
 };

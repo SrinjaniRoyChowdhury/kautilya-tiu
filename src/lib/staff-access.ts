@@ -18,6 +18,7 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/expenses", label: "Expenses" },
   { href: "/admin/accounts", label: "Accounts" },
   { href: "/admin/attendance", label: "Venue" },
+  { href: "/admin/help-desk", label: "Help Desk" },
   { href: "/admin/cms", label: "Content" },
   { href: "/admin/team", label: "Team" },
   { href: "/admin/reports", label: "Reports" },
