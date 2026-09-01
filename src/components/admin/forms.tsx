@@ -189,6 +189,17 @@ export function EditionForm({ edition }: { edition?: Edition }) {
     ? updateEditionAction.bind(null, edition.id)
     : createEditionAction;
   const [state, formAction, pending] = useActionState(action, {} as FormState);
+  const [regOpen, setRegOpen] = useState(
+    edition ? edition.registration_status !== "CLOSED" : true,
+  );
+  const [lastEditionRegStatus, setLastEditionRegStatus] = useState(
+    edition?.registration_status,
+  );
+
+  if (edition && edition.registration_status !== lastEditionRegStatus) {
+    setLastEditionRegStatus(edition.registration_status);
+    setRegOpen(edition.registration_status !== "CLOSED");
+  }
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
@@ -226,22 +237,45 @@ export function EditionForm({ edition }: { edition?: Edition }) {
           defaultValue={toLocalInput(edition?.registration_close_at)}
         />
       </Field>
-      <Field label="Status" htmlFor="status">
+      <Field label="Edition lifecycle" htmlFor="status">
         <Select id="status" name="status" defaultValue={edition?.status ?? "DRAFT"}>
-          <option value="DRAFT">Draft</option>
-          <option value="PUBLISHED">Published</option>
+          <option value="DRAFT">Draft (Staff only)</option>
+          <option value="PUBLISHED">Published (Visible to public)</option>
           <option value="ARCHIVED">Archived</option>
         </Select>
       </Field>
-      <label className="flex items-center gap-2 self-end text-sm">
-        <input
-          type="checkbox"
-          name="is_public_active"
-          defaultChecked={edition?.is_public_active}
-          className="h-4 w-4"
-        />
-        Public active edition (registration CTA points here)
-      </label>
+      <div className="sm:col-span-2 space-y-3 rounded-sm border border-gold-700/20 bg-parchment-100/60 p-4">
+        <input type="hidden" name="registration_open_present" value="1" />
+        <label className="flex items-start gap-2.5 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="registration_open"
+            checked={regOpen}
+            onChange={(e) => setRegOpen(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Registrations Open</span>
+            <span className="block text-xs font-normal text-ink-muted">
+              Controls registration access for all committees in this edition. When unchecked (Closed), registration is closed for all committees under this edition.
+            </span>
+          </div>
+        </label>
+        <label className="flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            name="is_public_active"
+            defaultChecked={edition?.is_public_active}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Public active edition (registration CTA points here)</span>
+            <span className="block text-xs text-ink-muted">
+              Designates this edition as the active conference featured on the public homepage, navbar, and registration desk. Only one edition can be active.
+            </span>
+          </div>
+        </label>
+      </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : edition ? "Save edition" : "Create edition"}
@@ -276,6 +310,15 @@ export function CommitteeForm({
   const [state, formAction, pending] = useActionState(action, {} as CommitteeFormState);
   const draft = state.values;
   const formKey = state.formKey ?? "initial";
+  const [regOpen, setRegOpen] = useState(
+    draft?.status ? draft.status === "OPEN" : committee ? committee.status === "OPEN" : true,
+  );
+  const [lastCommitteeStatus, setLastCommitteeStatus] = useState(committee?.status);
+
+  if (committee && committee.status !== lastCommitteeStatus) {
+    setLastCommitteeStatus(committee.status);
+    setRegOpen(committee.status === "OPEN");
+  }
   const feeByKind = Object.fromEntries(
     fees.filter((row) => row.kind).map((row) => [row.kind, row]),
   ) as Record<string, CommitteePhaseFee>;
@@ -357,18 +400,38 @@ export function CommitteeForm({
           />
         </Field>
       </div>
-      <Field label="Status" htmlFor="status">
+      <Field label="Committee visibility" htmlFor="status" hint="Hidden committees are not visible to the public.">
         <Select
           id="status"
           name="status"
           defaultValue={draft?.status ?? committee?.status ?? "OPEN"}
           disabled={readOnly}
         >
-          <option value="OPEN">Open</option>
-          <option value="CLOSED">Closed</option>
-          <option value="HIDDEN">Hidden</option>
+          <option value="OPEN">Visible (Open for registration if checkbox is checked)</option>
+          <option value="CLOSED">Visible (Closed for registration)</option>
+          <option value="HIDDEN">Hidden (Not visible publicly)</option>
         </Select>
       </Field>
+      <div className="sm:col-span-2 rounded-sm border border-gold-700/20 bg-parchment-100/60 p-4">
+        <input type="hidden" name="registration_open_present" value="1" />
+        <label className="flex items-start gap-2.5 text-sm font-medium">
+          <input
+            id="registration_open"
+            type="checkbox"
+            name="registration_open"
+            checked={regOpen}
+            onChange={(e) => setRegOpen(e.target.checked)}
+            disabled={readOnly}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Registrations Open</span>
+            <span className="block text-xs font-normal text-ink-muted">
+              When checked, delegates can register for this committee. When unchecked, users can still view committee details, but the registration button displays &ldquo;Registration not live&rdquo;.
+            </span>
+          </div>
+        </label>
+      </div>
       <fieldset className="sm:col-span-2 grid gap-2">
         <legend className="text-sm font-medium">Delegation type</legend>
         <p className="text-xs text-ink-muted">

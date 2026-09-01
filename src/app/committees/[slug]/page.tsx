@@ -8,7 +8,7 @@ import { BackLink } from "@/components/ui/back-link";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { seatsRemaining } from "@/lib/format";
 import { getActiveEdition, getCommitteeBySlug } from "@/lib/data";
-import { seatsHeld } from "@/lib/registration";
+import { isCommitteeRegistrationLive, seatsHeld } from "@/lib/registration";
 import { toPlainText } from "@/lib/sanitize";
 type Props = { params: Promise<{ slug: string }> };
 
@@ -90,13 +90,27 @@ export default async function CommitteeDetailPage({ params }: Props) {
           <p className="text-sm text-ink-muted">
             {remaining} of {committee.capacity} delegations remaining
           </p>
-          <p className="text-sm text-ink-muted">Status: {committee.status}</p>
-          <Link
-            href={`/dashboard/register?committee=${committee.slug}`}
-            className="inline-flex h-11 items-center justify-center rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50"
-          >
-            Register
-          </Link>
+          <p className="text-sm text-ink-muted">
+            Status: {isCommitteeRegistrationLive(edition, committee) ? committee.status : "Registration closed"}
+          </p>
+          {isCommitteeRegistrationLive(edition, committee) ? (
+            <Link
+              href={`/dashboard/register?committee=${committee.slug}`}
+              className="inline-flex h-11 items-center justify-center rounded-sm bg-gold-700 px-4 text-sm font-medium text-parchment-50 transition hover:bg-gold-800"
+            >
+              Register
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="inline-flex h-11 w-full cursor-not-allowed items-center justify-center rounded-sm border border-gold-700/25 bg-parchment-200/60 px-4 text-sm font-medium text-ink-muted select-none"
+              title="Registration is not live for this committee"
+            >
+              Registration not live
+            </button>
+          )}
         </Card>
       </div>
     </Container>

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getFieldDefinitions } from "@/lib/data";
+import { getEditionById, getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
-import { buildRegistrationSchema } from "@/lib/registration";
+import { buildRegistrationSchema, isRegistrationOpen } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
 export type RegistrationState = {
@@ -140,18 +140,33 @@ async function runSave(
     return { error: "Missing registration. Reload the page." };
   }
 
+  const edition = await getEditionById(editionId);
+  if (!edition || isRegistrationOpen(edition) !== "open") {
+    return { error: "Registration is currently closed for this edition." };
+  }
+
   const fields = await getFieldDefinitions(editionId);
   const raw = parseFormPayload(formData, fields);
 
   if (intent === "submit") {
+    const readRulebook = formData.get("read_rulebook") === "on";
+    const readGuidelines = formData.get("read_guidelines") === "on";
     const supabaseGate = await createClient();
     const { data: row } = await supabaseGate
       .from("registrations")
       .select("accepted_rules_at")
       .eq("id", registrationId)
       .maybeSingle();
-    if (!(row as { accepted_rules_at?: string | null } | null)?.accepted_rules_at) {
-      return { error: "Read and accept the rulebook and guidelines before submitting." };
+
+    const alreadyAccepted = Boolean((row as { accepted_rules_at?: string | null } | null)?.accepted_rules_at);
+    if (!alreadyAccepted && (!readRulebook || !readGuidelines)) {
+      return { error: "Confirm that you have read both the rulebook and guidelines before submitting." };
+    }
+    if (!alreadyAccepted) {
+      await supabaseGate
+        .from("registrations")
+        .update({ accepted_rules_at: new Date().toISOString() })
+        .eq("id", registrationId);
     }
     const schema = buildRegistrationSchema(fields);
     const parsed = schema.safeParse(raw);
