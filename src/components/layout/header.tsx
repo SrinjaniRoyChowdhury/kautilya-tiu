@@ -52,7 +52,8 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b border-gold-700/20 bg-parchment-50/90 font-heading backdrop-blur-md transition-opacity duration-700 ease-out",
+        "sticky top-0 z-40 border-b border-gold-700/20 font-heading transition-opacity duration-700 ease-out",
+        onAdmin ? "bg-parchment-50" : "bg-parchment-50/90 backdrop-blur-md",
         hideForIntro && "pointer-events-none opacity-0",
       )}
     >

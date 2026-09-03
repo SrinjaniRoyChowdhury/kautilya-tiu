@@ -15,12 +15,12 @@ export function AdminListShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-gold-700/20 bg-parchment-50/95 px-4 py-3 sm:px-6">
+    <div className="flex h-full min-h-0 flex-col bg-[#faf6ee]">
+      <div className="shrink-0 border-b border-gold-700/20 bg-parchment-50 px-4 py-3 sm:px-6">
         <div className="mb-2">{header}</div>
         <div className="space-y-2">{toolbar}</div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-4 py-3 sm:px-6">{children}</div>
+      <div className="min-h-0 flex-1 overflow-auto bg-[#faf6ee] px-4 py-3 sm:px-6">{children}</div>
       {footer ? (
         <div className="shrink-0 border-t border-gold-700/20 bg-parchment-50 px-4 py-2 sm:px-6">
           {footer}
