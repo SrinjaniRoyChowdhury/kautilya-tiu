@@ -154,6 +154,17 @@ body > header {
   z-index: 40;
 }
 
+/* Admin solid light background override — removes blurred golden background */
+.admin-surface {
+  background-color: #faf6ee;
+  background-image: none !important;
+}
+
+.admin-surface .frame-gold {
+  background-color: #fffdf7;
+  backdrop-filter: none;
+}
+
 @keyframes announcement-speaker-blink {
   0%,
   100% {
@@ -168,6 +179,22 @@ body > header {
 
 .announcement-speaker {
   animation: announcement-speaker-blink 1.15s ease-in-out infinite;
+}
+
+@keyframes marquee-rtl {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 28s linear infinite;
+  will-change: transform;
 }
 
 body > main {
