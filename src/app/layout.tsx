@@ -35,8 +35,8 @@ export const metadata: Metadata = {
   description:
     "Registration, credentials, and conference operations for Kautilya — Kautilya MUN Nitisabha's Model United Nations conference.",
   icons: {
-    icon: "/KautilyaLogo.png",
-    apple: "/KautilyaLogo.png",
+    icon: "/Kautilya3dLogo.png",
+    apple: "/Kautilya3dLogo.png",
   },
 };
 

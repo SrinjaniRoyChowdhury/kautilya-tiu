@@ -6,7 +6,7 @@ export function BrandLogo({
   className,
   priority = false,
   sizes = "48px",
-  src = "/KautilyaLogo.png",
+  src = "/Kautilya3dLogo.png",
   alt = APP_NAME,
 }: {
   className?: string;
