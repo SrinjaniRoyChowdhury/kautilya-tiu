@@ -31,9 +31,9 @@ export function Hero({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-10">
           <BrandLogo
-            src="/nitisabhaLogo.png"
-            className="h-28 w-28 shrink-0 sm:h-40 sm:w-40"
-            sizes="(max-width: 640px) 112px, 160px"
+            src="/Nitisabha3dLogo-v2.png"
+            className="h-44 w-44 shrink-0 sm:h-64 sm:w-64 md:h-72 md:w-72 lg:h-80 lg:w-80 xl:h-96 xl:w-96"
+            sizes="(max-width: 640px) 176px, (max-width: 768px) 256px, (max-width: 1024px) 320px, 384px"
             priority
           />
           <div>
