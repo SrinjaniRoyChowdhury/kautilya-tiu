@@ -181,6 +181,22 @@ body > header {
   animation: announcement-speaker-blink 1.15s ease-in-out infinite;
 }
 
+@keyframes marquee-rtl {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 28s linear infinite;
+  will-change: transform;
+}
+
 body > main {
   z-index: 2;
 }
