@@ -226,10 +226,12 @@ export async function deleteSignedUpUserAction(
   }
 
   const now = new Date().toISOString();
+  const freedEmail = `deleted_${userId}_${existing.email}`;
 
   const { error: userErr } = await admin
     .from("users")
     .update({
+      email: freedEmail,
       status: "SUSPENDED",
       deleted_at: now,
     })
@@ -245,9 +247,20 @@ export async function deleteSignedUpUserAction(
     .eq("user_id", userId);
 
   try {
-    await admin.auth.admin.deleteUser(userId);
+    const { error: delErr } = await admin.auth.admin.deleteUser(userId);
+    if (delErr) {
+      await admin.auth.admin.updateUserById(userId, {
+        email: `deleted_${userId}@deleted.local`,
+        email_confirm: false,
+      });
+    }
   } catch {
-    // Continue even if auth delete fails
+    try {
+      await admin.auth.admin.updateUserById(userId, {
+        email: `deleted_${userId}@deleted.local`,
+        email_confirm: false,
+      });
+    } catch {}
   }
 
   const supabase = await createClient();

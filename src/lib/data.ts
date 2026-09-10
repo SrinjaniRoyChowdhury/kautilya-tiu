@@ -93,19 +93,42 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 }
 
-const EDITION_SELECT =
-  "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status, hide_executive_board, hide_team";
+const EDITION_SELECT_BASE =
+  "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status";
+
+const EDITION_SELECT = `${EDITION_SELECT_BASE}, hide_executive_board, hide_team`;
+
+function hydrateEdition(row: unknown): Edition | null {
+  if (!row || typeof row !== "object") return null;
+  const e = row as Record<string, unknown>;
+  return {
+    ...(row as Edition),
+    hide_executive_board: Boolean(e.hide_executive_board),
+    hide_team: Boolean(e.hide_team),
+  };
+}
 
 export async function getPublicEditions(): Promise<Edition[]> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const { data: initialData, error } = await supabase
       .from("mun_editions")
       .select(EDITION_SELECT)
       .in("status", ["PUBLISHED", "ARCHIVED"])
       .is("deleted_at", null)
       .order("year", { ascending: false });
-    return (data as Edition[]) ?? [];
+
+    let data = initialData;
+    if (error) {
+      const fallback = await supabase
+        .from("mun_editions")
+        .select(EDITION_SELECT_BASE)
+        .in("status", ["PUBLISHED", "ARCHIVED"])
+        .is("deleted_at", null)
+        .order("year", { ascending: false });
+      data = fallback.data;
+    }
+    return (data ?? []).map((row) => hydrateEdition(row)!).filter(Boolean);
   } catch {
     return [];
   }
@@ -114,14 +137,27 @@ export async function getPublicEditions(): Promise<Edition[]> {
 export async function getActiveEdition(): Promise<Edition | null> {
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const { data: initialData, error } = await supabase
       .from("mun_editions")
       .select(EDITION_SELECT)
       .eq("is_public_active", true)
       .eq("status", "PUBLISHED")
       .is("deleted_at", null)
       .maybeSingle();
-    if (data) return data as Edition;
+
+    let data = initialData;
+    if (error) {
+      const fallback = await supabase
+        .from("mun_editions")
+        .select(EDITION_SELECT_BASE)
+        .eq("is_public_active", true)
+        .eq("status", "PUBLISHED")
+        .is("deleted_at", null)
+        .maybeSingle();
+      data = fallback.data;
+    }
+
+    if (data) return hydrateEdition(data);
     const editions = await getPublicEditions();
     return editions.find((e) => e.status === "PUBLISHED") ?? null;
   } catch {
@@ -130,25 +166,55 @@ export async function getActiveEdition(): Promise<Edition | null> {
 }
 
 export async function getEditionBySlug(slug: string): Promise<Edition | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("mun_editions")
-    .select(EDITION_SELECT)
-    .eq("slug", slug)
-    .in("status", ["PUBLISHED", "ARCHIVED"])
-    .is("deleted_at", null)
-    .maybeSingle();
-  return (data as Edition | null) ?? null;
+  try {
+    const supabase = await createClient();
+    const { data: initialData, error } = await supabase
+      .from("mun_editions")
+      .select(EDITION_SELECT)
+      .eq("slug", slug)
+      .in("status", ["PUBLISHED", "ARCHIVED"])
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    let data = initialData;
+    if (error) {
+      const fallback = await supabase
+        .from("mun_editions")
+        .select(EDITION_SELECT_BASE)
+        .eq("slug", slug)
+        .in("status", ["PUBLISHED", "ARCHIVED"])
+        .is("deleted_at", null)
+        .maybeSingle();
+      data = fallback.data;
+    }
+    return data ? hydrateEdition(data) : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getEditionById(id: string): Promise<Edition | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("mun_editions")
-    .select(EDITION_SELECT)
-    .eq("id", id)
-    .maybeSingle();
-  return (data as Edition | null) ?? null;
+  try {
+    const supabase = await createClient();
+    const { data: initialData, error } = await supabase
+      .from("mun_editions")
+      .select(EDITION_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+
+    let data = initialData;
+    if (error) {
+      const fallback = await supabase
+        .from("mun_editions")
+        .select(EDITION_SELECT_BASE)
+        .eq("id", id)
+        .maybeSingle();
+      data = fallback.data;
+    }
+    return data ? hydrateEdition(data) : null;
+  } catch {
+    return null;
+  }
 }
 
 const COMMITTEE_SELECT =
@@ -313,13 +379,27 @@ export async function getCommitteeDelegates(committeeId: string): Promise<Commit
 }
 
 export async function getAllEditionsAdmin(): Promise<Edition[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("mun_editions")
-    .select(EDITION_SELECT)
-    .is("deleted_at", null)
-    .order("year", { ascending: false });
-  return (data as Edition[]) ?? [];
+  try {
+    const supabase = await createClient();
+    const { data: initialData, error } = await supabase
+      .from("mun_editions")
+      .select(EDITION_SELECT)
+      .is("deleted_at", null)
+      .order("year", { ascending: false });
+
+    let data = initialData;
+    if (error) {
+      const fallback = await supabase
+        .from("mun_editions")
+        .select(EDITION_SELECT_BASE)
+        .is("deleted_at", null)
+        .order("year", { ascending: false });
+      data = fallback.data;
+    }
+    return (data ?? []).map((row) => hydrateEdition(row)!).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export async function getManagedStaffAccounts(): Promise<StaffAccount[]> {
