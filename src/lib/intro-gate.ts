@@ -23,10 +23,6 @@ export function isHomeIntroDone() {
   return completed;
 }
 
-function navigationEntry(): PerformanceNavigationTiming | undefined {
-  if (typeof performance === "undefined") return undefined;
-  return performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-}
 
 function documentLoadPath(): string {
   if (typeof window === "undefined") return "/";
