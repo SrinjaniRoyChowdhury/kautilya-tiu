@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAppOrigin } from "@/lib/origin";
 import { getEditionById, getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
@@ -285,7 +286,7 @@ export async function resendVerificationAction(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: "Sign in to continue." };
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = await getAppOrigin();
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: user.email,

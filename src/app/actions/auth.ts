@@ -13,6 +13,7 @@ import {
 import { hasScanAccess, getRoleNames, isContentEditorOnly, isDelegateAffairsOnly, isOperatorOnly, isProtectedAdminEmail, isViewerOnly } from "@/lib/auth";
 import { tenDigitPhoneSchema } from "@/lib/phone";
 import { confirmPasswordSchema } from "@/lib/password";
+import { getAppOrigin } from "@/lib/origin";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -64,7 +65,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   if (!parsed.success) return firstIssue(parsed.error);
 
   const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = await getAppOrigin();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
@@ -174,7 +175,7 @@ export async function forgotPasswordAction(
   }
 
   const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = await getAppOrigin();
   await supabase.auth.resetPasswordForEmail(parsed.data, {
     redirectTo: `${origin}/auth/confirm?next=/dashboard/profile`,
   });
