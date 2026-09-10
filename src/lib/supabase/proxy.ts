@@ -3,6 +3,28 @@ import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
+  if (host.includes("0.0.0.0")) {
+    const localhostUrl = request.nextUrl.clone();
+    localhostUrl.host = host.replace("0.0.0.0", "localhost");
+    return NextResponse.redirect(localhostUrl);
+  }
+
+  const path = request.nextUrl.pathname;
+  if (path !== "/auth/confirm") {
+    const hasCode = request.nextUrl.searchParams.has("code");
+    const hasToken =
+      request.nextUrl.searchParams.has("token_hash") &&
+      request.nextUrl.searchParams.has("type");
+    if (hasCode || hasToken) {
+      const confirmUrl = request.nextUrl.clone();
+      confirmUrl.pathname = "/auth/confirm";
+      if (!confirmUrl.searchParams.has("next")) {
+        confirmUrl.searchParams.set("next", "/dashboard");
+      }
+      return NextResponse.redirect(confirmUrl);
+    }
+  }
+
   const local = host.startsWith("localhost") || host.startsWith("127.0.0.1");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   if (
@@ -43,7 +65,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
   const csvExport = /^\/admin\/reports\/[^/]+$/.test(path);
   const gated =
     path.startsWith("/dashboard") ||

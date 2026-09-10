@@ -38,9 +38,13 @@ export default async function AdminAuditPage({
       to: to ? (istDayEndIso(to) ?? undefined) : undefined,
     }),
   ]);
-  const visible = rows.filter((row) =>
-    matchesQuery(q, row.action, row.entity, row.actor_name, row.actor_email, row.entity_id),
-  );
+  const visible = rows.filter((row) => {
+    const reason =
+      row.new_value && typeof row.new_value === "object"
+        ? (row.new_value as { reason?: string }).reason
+        : undefined;
+    return matchesQuery(q, row.action, row.entity, row.actor_name, row.actor_email, row.entity_id, reason);
+  });
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, action, from, to };
   const participantIds = paged.items
@@ -90,12 +94,26 @@ export default async function AdminAuditPage({
               (row.entity_id && participantPayments.has(row.entity_id)
                 ? `/admin/payments/${participantPayments.get(row.entity_id)}`
                 : null);
+            const newVal =
+              row.new_value && typeof row.new_value === "object"
+                ? (row.new_value as { reason?: string; authorized_by?: string })
+                : null;
             return (
               <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
                 <td className="whitespace-nowrap px-2 py-1.5 text-xs text-ink-muted">
                   {formatDateTime12h(row.created_at)}
                 </td>
-                <td className="px-2 py-1.5 font-mono text-xs text-gold-700">{row.action}</td>
+                <td className="px-2 py-1.5 font-mono text-xs text-gold-700">
+                  {row.action}
+                  {newVal?.reason ? (
+                    <div className="mt-1 font-sans text-xs text-red-800 bg-red-50/90 px-1.5 py-0.5 rounded border border-red-200 max-w-sm">
+                      <span className="font-semibold">Reason:</span> {newVal.reason}
+                      {newVal.authorized_by ? (
+                        <span className="block text-[11px] text-ink-muted">Auth: {newVal.authorized_by}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-2 py-1.5 text-ink-muted">
                   {row.actor_name ?? "System"}
                   {row.actor_email ? (

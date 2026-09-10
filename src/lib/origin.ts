@@ -9,25 +9,41 @@ import { headers } from "next/headers";
  */
 export async function getAppOrigin(): Promise<string> {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+  if (
+    envUrl &&
+    !envUrl.includes("localhost") &&
+    !envUrl.includes("127.0.0.1") &&
+    !envUrl.includes("0.0.0.0")
+  ) {
     return envUrl.replace(/\/+$/, "");
   }
 
   try {
     const headerList = await headers();
-    const host = headerList.get("x-forwarded-host") || headerList.get("host");
-    const proto =
-      headerList.get("x-forwarded-proto") ||
-      (host && !host.includes("localhost") && !host.includes("127.0.0.1")
-        ? "https"
-        : "http");
-
+    let host = headerList.get("x-forwarded-host") || headerList.get("host");
     if (host) {
+      if (host.includes("0.0.0.0")) {
+        host = host.replace("0.0.0.0", "localhost");
+      }
+      const proto =
+        headerList.get("x-forwarded-proto") ||
+        (host && !host.includes("localhost") && !host.includes("127.0.0.1")
+          ? "https"
+          : "http");
+
       return `${proto}://${host}`;
     }
   } catch {
     // headers() may throw if called outside a request context
   }
 
-  return envUrl?.replace(/\/+$/, "") || "http://localhost:3000";
+  if (envUrl) {
+    let clean = envUrl.replace(/\/+$/, "");
+    if (clean.includes("0.0.0.0")) {
+      clean = clean.replace("0.0.0.0", "localhost");
+    }
+    return clean;
+  }
+
+  return "http://localhost:3000";
 }

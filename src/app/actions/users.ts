@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
+import { hasPermission, isProtectedAdminAccount, verifyAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { optionalPasswordSchema } from "@/lib/password";
 import { tenDigitPhoneSchema } from "@/lib/phone";
@@ -133,13 +133,51 @@ export async function updateSignedUpUserAction(
   return { success: parsed.data.password ? "Credentials saved. Share the new password out of band." : "Credentials saved." };
 }
 
+async function isUserPaid(userId: string, admin = createAdminClient()): Promise<boolean> {
+  const { data: userRegs } = await admin
+    .from("registrations")
+    .select("id, status, confirmed_free")
+    .eq("user_id", userId)
+    .is("deleted_at", null);
+
+  const regs = userRegs ?? [];
+  if (regs.length === 0) return false;
+
+  const regIds = regs.map((r) => r.id);
+  const { data: links } = await admin
+    .from("payment_participants")
+    .select("registration_id, payments (status)")
+    .in("registration_id", regIds);
+
+  type Link = {
+    registration_id: string | null;
+    payments: { status: string } | { status: string }[] | null;
+  };
+  const paidRegIds = new Set<string>();
+  for (const link of (links as Link[] | null) ?? []) {
+    if (!link.registration_id) continue;
+    const pay = link.payments;
+    const statuses = pay ? (Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status]) : [];
+    if (statuses.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW")) {
+      paidRegIds.add(link.registration_id);
+    }
+  }
+
+  return regs.some(
+    (reg) =>
+      (reg.status === "CONFIRMED" && !reg.confirmed_free) ||
+      reg.status === "PAYMENT_VERIFIED" ||
+      reg.confirmed_free ||
+      paidRegIds.has(reg.id),
+  );
+}
+
 export async function deleteSignedUpUserAction(
   userId: string,
   _prev: UserAdminState,
-  _formData?: FormData,
+  formData?: FormData,
 ): Promise<UserAdminState> {
   void _prev;
-  void _formData;
   if (!isUuid(userId)) return { error: "Missing user." };
 
   const allowed = (await hasPermission("registration.edit")) || (await hasPermission("users.manage"));
@@ -161,6 +199,30 @@ export async function deleteSignedUpUserAction(
   const { data: roles } = await admin.from("user_roles").select("id").eq("user_id", userId).limit(1);
   if (roles?.length) {
     return { error: "Staff accounts should be deleted under Admin → Accounts." };
+  }
+
+  const paid = await isUserPaid(userId, admin);
+  let authorizedByEmail: string | null = null;
+  let deletionReason: string | null = null;
+
+  if (paid) {
+    const adminUsername = String(formData?.get("admin_username") ?? "").trim();
+    const adminPassword = String(formData?.get("admin_password") ?? "");
+    const reason = String(formData?.get("reason") ?? "").trim();
+
+    if (!adminUsername || !adminPassword) {
+      return { error: "Admin username and password are required to delete a user with paid registrations." };
+    }
+    if (!reason || reason.length < 3) {
+      return { error: "A valid reason (at least 3 characters) is required to delete a user with paid registrations." };
+    }
+
+    const authRes = await verifyAdminCredentials(adminUsername, adminPassword);
+    if (!authRes.success) {
+      return { error: authRes.error };
+    }
+    authorizedByEmail = authRes.user.email ?? adminUsername;
+    deletionReason = reason;
   }
 
   const now = new Date().toISOString();
@@ -190,14 +252,23 @@ export async function deleteSignedUpUserAction(
 
   const supabase = await createClient();
   await supabase.rpc("write_audit", {
-    p_action: "user.delete",
+    p_action: paid ? "user.delete_paid" : "user.delete",
     p_entity: "users",
     p_entity_id: userId,
-    p_old: { email: existing.email, full_name: existing.full_name },
-    p_new: { status: "SUSPENDED", deleted_at: now },
+    p_old: { email: existing.email, full_name: existing.full_name, paid },
+    p_new: {
+      status: "SUSPENDED",
+      deleted_at: now,
+      ...(deletionReason ? { reason: deletionReason } : {}),
+      ...(authorizedByEmail ? { authorized_by: authorizedByEmail } : {}),
+    },
   });
 
   revalidateUsers(userId);
-  return { success: "User deleted successfully." };
+  return {
+    success: paid
+      ? "Paid user deleted successfully. Reason recorded in audit log."
+      : "User deleted successfully.",
+  };
 }
 

@@ -56,15 +56,19 @@ export default async function CommitteeDetailPage({ params }: Props) {
           {committee.eb_json?.length ? (
             <section className="mt-10">
               <h2 className="font-serif text-2xl font-semibold text-gold-700">Executive board</h2>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                {committee.eb_json.map((member, index) => (
-                  <ExecutiveBoardCard
-                    key={`${member.name}-${index}`}
-                    member={member}
-                    committeeShortName={committee.short_name}
-                  />
-                ))}
-              </div>
+              {edition?.hide_executive_board ? (
+                <p className="mt-3 text-sm text-ink-muted italic">Executive Board not yet disclosed</p>
+              ) : (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {committee.eb_json.map((member, index) => (
+                    <ExecutiveBoardCard
+                      key={`${member.name}-${index}`}
+                      member={member}
+                      committeeShortName={committee.short_name}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           ) : null}
           {committee.portfolio_config?.length ? (

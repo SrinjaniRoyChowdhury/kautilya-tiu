@@ -10,12 +10,20 @@ import {
   clientKeyFromHeaders,
   rateLimit,
 } from "@/lib/rate-limit";
-import { hasScanAccess, getRoleNames, isContentEditorOnly, isDelegateAffairsOnly, isOperatorOnly, isProtectedAdminEmail, isViewerOnly } from "@/lib/auth";
+import {
+  hasScanAccess,
+  getRoleNames,
+  isContentEditorOnly,
+  isDelegateAffairsOnly,
+  isOperatorOnly,
+  isProtectedAdminEmail,
+  isViewerOnly,
+  resolveLoginEmail,
+} from "@/lib/auth";
 import { tenDigitPhoneSchema } from "@/lib/phone";
 import { confirmPasswordSchema } from "@/lib/password";
 import { getAppOrigin } from "@/lib/origin";
 import { safeInternalPath } from "@/lib/safe-path";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const signupSchema = z
@@ -74,7 +82,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
       },
-      emailRedirectTo: `${origin}/auth/confirm?next=/email-confirmed`,
+      emailRedirectTo: `${origin}/auth/confirm?next=/dashboard`,
     },
   });
 
@@ -91,18 +99,6 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   };
 }
 
-async function resolveLoginEmail(identifier: string): Promise<string | null> {
-  const value = identifier.trim().toLowerCase();
-  if (!value) return null;
-  if (value.includes("@")) return value;
-  try {
-    const admin = createAdminClient();
-    const { data } = await admin.from("users").select("email").eq("username", value).maybeSingle();
-    return (data as { email: string } | null)?.email ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export async function loginAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const parsed = loginSchema.safeParse({

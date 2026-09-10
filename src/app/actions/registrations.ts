@@ -290,7 +290,7 @@ export async function resendVerificationAction(
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: user.email,
-    options: { emailRedirectTo: `${origin}/auth/confirm?next=/email-confirmed` },
+    options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` },
   });
   if (error) return { error: error.message };
   return { success: "Verification email sent. Locally it appears in Inbucket on port 54324." };

@@ -1,3 +1,4 @@
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, UserRoleRow } from "@/types";
@@ -135,4 +136,65 @@ export {
   isOperatorOnly,
   isViewerOnly,
 } from "@/lib/roles";
+
+export async function resolveLoginEmail(identifier: string): Promise<string | null> {
+  const value = identifier.trim().toLowerCase();
+  if (!value) return null;
+  if (value.includes("@")) return value;
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin.from("users").select("email").eq("username", value).maybeSingle();
+    return (data as { email: string } | null)?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyAdminCredentials(
+  identifier: string,
+  password: string,
+): Promise<{ success: true; user: { id: string; email?: string } } | { success: false; error: string }> {
+  const email = await resolveLoginEmail(identifier);
+  if (!email || !password?.trim()) {
+    return { success: false, error: "Enter valid admin username/email and password." };
+  }
+
+  const url = process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) {
+    return { success: false, error: "Authentication service unavailable." };
+  }
+
+  const authClient = createSupabaseClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await authClient.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error || !data.user) {
+    return { success: false, error: "Invalid admin username or password." };
+  }
+
+  const adminDb = createAdminClient();
+  const { data: roles } = await adminDb
+    .from("user_roles")
+    .select("roles(name)")
+    .eq("user_id", data.user.id);
+
+  const roleRows = (roles ?? []) as UserRoleRow[];
+  const roleNames = roleRows.flatMap((row) => {
+    const r = row.roles;
+    if (!r) return [];
+    return Array.isArray(r) ? r.map((item) => item.name) : [r.name];
+  });
+
+  if (!roleNames.length) {
+    return { success: false, error: "The provided account is not an authorized staff/admin account." };
+  }
+
+  return { success: true, user: { id: data.user.id, email: data.user.email } };
+}
 

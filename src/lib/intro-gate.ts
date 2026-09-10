@@ -5,7 +5,9 @@ let completed = true;
 const listeners = new Set<() => void>();
 
 if (typeof window !== "undefined" && sessionStorage.getItem(DOCUMENT_PATH_KEY) === null) {
-  sessionStorage.setItem(DOCUMENT_PATH_KEY, window.location.pathname);
+  try {
+    sessionStorage.setItem(DOCUMENT_PATH_KEY, window.location.pathname);
+  } catch {}
 }
 
 function emit() {
@@ -23,10 +25,24 @@ export function isHomeIntroDone() {
   return completed;
 }
 
-
 function documentLoadPath(): string {
   if (typeof window === "undefined") return "/";
-  return sessionStorage.getItem(DOCUMENT_PATH_KEY) ?? window.location.pathname;
+  try {
+    return sessionStorage.getItem(DOCUMENT_PATH_KEY) ?? window.location.pathname;
+  } catch {
+    return window.location.pathname;
+  }
+}
+
+export function hasSeenHomeIntro(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    if (localStorage.getItem(INTRO_SEEN_KEY) === "1") return true;
+    if (sessionStorage.getItem(INTRO_SEEN_KEY) === "1") return true;
+  } catch {
+    return true;
+  }
+  return false;
 }
 
 /** True only when the tab first opened on `/` AND the user has never seen the intro before. */
@@ -34,8 +50,8 @@ export function shouldPlayHomeIntro(): boolean {
   if (typeof window === "undefined") return false;
   if (window.location.pathname !== "/") return false;
 
-  // Never replay if already seen — even on hard refresh
-  if (localStorage.getItem(INTRO_SEEN_KEY) === "1") return false;
+  // Never replay if already seen — across visits, refreshes, or navigation
+  if (hasSeenHomeIntro()) return false;
 
   // Only play when the very first document load was "/"
   if (documentLoadPath() !== "/") return false;
@@ -45,7 +61,10 @@ export function shouldPlayHomeIntro(): boolean {
 
 export function beginHomeIntro() {
   if (typeof window !== "undefined") {
-    localStorage.setItem(INTRO_SEEN_KEY, "1");
+    try {
+      localStorage.setItem(INTRO_SEEN_KEY, "1");
+      sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+    } catch {}
   }
   if (!completed) return;
   completed = false;
@@ -54,7 +73,10 @@ export function beginHomeIntro() {
 
 export function markHomeIntroDone() {
   if (typeof window !== "undefined") {
-    localStorage.setItem(INTRO_SEEN_KEY, "1");
+    try {
+      localStorage.setItem(INTRO_SEEN_KEY, "1");
+      sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+    } catch {}
   }
   if (completed) return;
   completed = true;

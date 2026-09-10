@@ -34,12 +34,14 @@ export function ExecutiveBoardPageView({
         />
       </div>
 
-      {committeesWithEb.length === 0 ? (
+      {edition?.hide_executive_board || committeesWithEb.length === 0 ? (
         <MotionReveal delay={0.08}>
           <Card className="max-w-2xl">
-            <p className="font-serif text-2xl text-gold-700">EB not yet disclosed</p>
+            <p className="font-serif text-2xl text-gold-700 dark:text-gold-400">
+              Executive Board not yet disclosed
+            </p>
             <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-              Committee executive boards will be announced here before the conference. Check back soon or
+              Executive Board members and committee chairs will be announced here before the conference. Check back soon or
               browse individual committee pages for updates.
             </p>
           </Card>

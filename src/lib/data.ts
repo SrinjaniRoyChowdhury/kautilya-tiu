@@ -93,14 +93,15 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   }
 }
 
+const EDITION_SELECT =
+  "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status, hide_executive_board, hide_team";
+
 export async function getPublicEditions(): Promise<Edition[]> {
   try {
     const supabase = await createClient();
     const { data } = await supabase
       .from("mun_editions")
-      .select(
-        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
-      )
+      .select(EDITION_SELECT)
       .in("status", ["PUBLISHED", "ARCHIVED"])
       .is("deleted_at", null)
       .order("year", { ascending: false });
@@ -115,9 +116,7 @@ export async function getActiveEdition(): Promise<Edition | null> {
     const supabase = await createClient();
     const { data } = await supabase
       .from("mun_editions")
-      .select(
-        "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
-      )
+      .select(EDITION_SELECT)
       .eq("is_public_active", true)
       .eq("status", "PUBLISHED")
       .is("deleted_at", null)
@@ -134,9 +133,7 @@ export async function getEditionBySlug(slug: string): Promise<Edition | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("mun_editions")
-    .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
-    )
+    .select(EDITION_SELECT)
     .eq("slug", slug)
     .in("status", ["PUBLISHED", "ARCHIVED"])
     .is("deleted_at", null)
@@ -148,9 +145,7 @@ export async function getEditionById(id: string): Promise<Edition | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("mun_editions")
-    .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
-    )
+    .select(EDITION_SELECT)
     .eq("id", id)
     .maybeSingle();
   return (data as Edition | null) ?? null;
@@ -321,9 +316,7 @@ export async function getAllEditionsAdmin(): Promise<Edition[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("mun_editions")
-    .select(
-      "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status",
-    )
+    .select(EDITION_SELECT)
     .is("deleted_at", null)
     .order("year", { ascending: false });
   return (data as Edition[]) ?? [];
@@ -1154,7 +1147,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
     supabase.from("user_roles").select("user_id"),
     supabase
       .from("registrations")
-      .select("id, user_id, status, submitted_at, committees:committee_id (short_name)")
+      .select("id, user_id, status, confirmed_free, submitted_at, committees:committee_id (short_name)")
       .is("deleted_at", null)
       .neq("status", "CANCELLED"),
   ]);
@@ -1167,9 +1160,33 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
     id: string;
     user_id: string;
     status: AdminUser["registration_status"];
+    confirmed_free: boolean;
     submitted_at: string | null;
     committees: { short_name: string } | { short_name: string }[] | null;
   };
+  const regRows = (registrations as RegRow[] | null) ?? [];
+  const regIds = regRows.map((r) => r.id);
+  const paidRegIds = new Set<string>();
+
+  if (regIds.length) {
+    const { data: links } = await supabase
+      .from("payment_participants")
+      .select("registration_id, payments (status)")
+      .in("registration_id", regIds);
+    type Link = {
+      registration_id: string | null;
+      payments: { status: string } | { status: string }[] | null;
+    };
+    for (const link of (links as Link[] | null) ?? []) {
+      if (!link.registration_id) continue;
+      const pay = link.payments;
+      const statuses = pay ? (Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status]) : [];
+      if (statuses.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW")) {
+        paidRegIds.add(link.registration_id);
+      }
+    }
+  }
+
   const registrationByUser = new Map<
     string,
     {
@@ -1179,7 +1196,16 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
       submitted: number;
     }
   >();
-  for (const row of (registrations as RegRow[] | null) ?? []) {
+  const paidByUser = new Set<string>();
+
+  for (const row of regRows) {
+    const isPaid =
+      (row.status === "CONFIRMED" && !row.confirmed_free) ||
+      row.status === "PAYMENT_VERIFIED" ||
+      paidRegIds.has(row.id);
+    if (isPaid) {
+      paidByUser.add(row.user_id);
+    }
     const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
     const submitted = row.submitted_at ? Date.parse(row.submitted_at) : 0;
     const current = registrationByUser.get(row.user_id);
@@ -1218,6 +1244,7 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
         registration_id: registration?.registration_id ?? null,
         registration_status: registration?.status ?? null,
         committee_short_name: registration?.committee_short_name ?? null,
+        is_paid: paidByUser.has(row.id),
       };
     });
 }
