@@ -354,3 +354,10 @@ html {
     @apply font-sans;
   }
 }
+
+/* Hide the sticky nav when the gallery lightbox is open */
+html.gallery-lightbox-open header {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}

@@ -25,6 +25,8 @@ const editionSchema = z.object({
   status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]),
   is_public_active: z.coerce.boolean().optional(),
   registration_status: z.enum(["OPEN", "CLOSED"]).optional(),
+  hide_executive_board: z.coerce.boolean().optional(),
+  hide_team: z.coerce.boolean().optional(),
 });
 
 async function requireEditionManager() {
@@ -111,6 +113,8 @@ export async function createEditionAction(
       : formData.get("registration_status") === "CLOSED"
         ? "CLOSED"
         : "OPEN",
+    hide_executive_board: formData.get("hide_executive_board") === "on",
+    hide_team: formData.get("hide_team") === "on",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -135,6 +139,8 @@ export async function createEditionAction(
       status: parsed.data.status,
       is_public_active: isPublicActive,
       registration_status: parsed.data.registration_status ?? "OPEN",
+      hide_executive_board: Boolean(parsed.data.hide_executive_board),
+      hide_team: Boolean(parsed.data.hide_team),
       created_by: gate.user.id,
     })
     .select("id")
@@ -186,6 +192,8 @@ export async function updateEditionAction(
       : formData.get("registration_status") === "CLOSED"
         ? "CLOSED"
         : "OPEN",
+    hide_executive_board: formData.get("hide_executive_board") === "on",
+    hide_team: formData.get("hide_team") === "on",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -209,6 +217,8 @@ export async function updateEditionAction(
       status: parsed.data.status,
       is_public_active: Boolean(parsed.data.is_public_active),
       registration_status: parsed.data.registration_status ?? "OPEN",
+      hide_executive_board: Boolean(parsed.data.hide_executive_board),
+      hide_team: Boolean(parsed.data.hide_team),
     })
     .eq("id", editionId);
 
@@ -222,10 +232,27 @@ export async function updateEditionAction(
     p_new: { name: parsed.data.name, status: parsed.data.status },
   });
 
+  if (parsed.data.registration_status === "CLOSED") {
+    await gate.supabase
+      .from("committees")
+      .update({ status: "CLOSED" })
+      .eq("edition_id", editionId)
+      .neq("status", "HIDDEN");
+  } else if (parsed.data.registration_status === "OPEN") {
+    await gate.supabase
+      .from("committees")
+      .update({ status: "OPEN" })
+      .eq("edition_id", editionId)
+      .neq("status", "HIDDEN");
+  }
+
   revalidatePath("/");
   revalidatePath("/admin/editions");
   revalidatePath(`/admin/editions/${editionId}`);
   revalidatePath("/editions");
+  revalidatePath("/committees");
+  revalidatePath("/admin/committees");
+  revalidatePath("/executive-board");
   return { success: "Edition saved." };
 }
 

@@ -33,21 +33,23 @@ function documentLoadPath(): string {
   return sessionStorage.getItem(DOCUMENT_PATH_KEY) ?? window.location.pathname;
 }
 
-/** True only when the tab first opened on `/`, or the user refreshed while on `/`. */
+/** True only when the tab first opened on `/` AND the user has never seen the intro before. */
 export function shouldPlayHomeIntro(): boolean {
   if (typeof window === "undefined") return false;
   if (window.location.pathname !== "/") return false;
 
-  const nav = navigationEntry();
-  if (nav?.type === "reload") return true;
+  // Never replay if already seen — even on hard refresh
+  if (localStorage.getItem(INTRO_SEEN_KEY) === "1") return false;
 
+  // Only play when the very first document load was "/"
   if (documentLoadPath() !== "/") return false;
-  return sessionStorage.getItem(INTRO_SEEN_KEY) !== "1";
+
+  return true;
 }
 
 export function beginHomeIntro() {
   if (typeof window !== "undefined") {
-    sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+    localStorage.setItem(INTRO_SEEN_KEY, "1");
   }
   if (!completed) return;
   completed = false;
@@ -56,7 +58,7 @@ export function beginHomeIntro() {
 
 export function markHomeIntroDone() {
   if (typeof window !== "undefined") {
-    sessionStorage.setItem(INTRO_SEEN_KEY, "1");
+    localStorage.setItem(INTRO_SEEN_KEY, "1");
   }
   if (completed) return;
   completed = true;

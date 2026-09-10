@@ -73,7 +73,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
         full_name: parsed.data.full_name,
         phone: parsed.data.phone,
       },
-      emailRedirectTo: `${origin}/auth/confirm`,
+      emailRedirectTo: `${origin}/auth/confirm?next=/email-confirmed`,
     },
   });
 
