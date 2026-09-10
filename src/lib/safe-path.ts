@@ -8,10 +8,13 @@ export function safeInternalPath(raw: unknown, fallback = "/dashboard"): string 
 }
 
 export function safeRedirectUrl(origin: string, next: unknown, fallback = "/dashboard"): URL {
+  const cleanOrigin = origin.includes("0.0.0.0")
+    ? origin.replace("0.0.0.0", "localhost")
+    : origin;
   const path = safeInternalPath(next, fallback);
-  const dest = new URL(path, origin);
-  const base = new URL(origin);
-  if (dest.origin !== base.origin) return new URL(fallback, origin);
+  const dest = new URL(path, cleanOrigin);
+  const base = new URL(cleanOrigin);
+  if (dest.origin !== base.origin) return new URL(fallback, cleanOrigin);
   return dest;
 }
 

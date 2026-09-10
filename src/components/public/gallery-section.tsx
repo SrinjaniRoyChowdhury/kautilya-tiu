@@ -116,11 +116,9 @@ export function GallerySection() {
           logoHeight={224}
           gap={24}
           ariaLabel="Gallery carousel"
-          renderItem={(item, key) => (
-            <li key={key} className="flex-none overflow-visible">
-              {"node" in item ? (item as { node: React.ReactNode }).node : null}
-            </li>
-          )}
+          renderItem={(item) =>
+            "node" in item ? (item as { node: React.ReactNode }).node : null
+          }
         />
       </div>
 

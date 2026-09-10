@@ -275,6 +275,34 @@ export function EditionForm({ edition }: { edition?: Edition }) {
             </span>
           </div>
         </label>
+        <label className="flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            name="hide_executive_board"
+            defaultChecked={edition?.hide_executive_board}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Hide Executive Board</span>
+            <span className="block text-xs text-ink-muted">
+              When checked, visitors see &ldquo;Executive Board not yet disclosed&rdquo; on the public Executive Board page and committee EB sections. The Executive Board remains editable from the admin side.
+            </span>
+          </div>
+        </label>
+        <label className="flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            name="hide_team"
+            defaultChecked={edition?.hide_team}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Hide Team</span>
+            <span className="block text-xs text-ink-muted">
+              When checked, visitors see &ldquo;Team not yet disclosed&rdquo; on the public Team page. Team members remain editable from the admin side.
+            </span>
+          </div>
+        </label>
       </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
@@ -310,6 +338,9 @@ export function CommitteeForm({
   const [state, formAction, pending] = useActionState(action, {} as CommitteeFormState);
   const draft = state.values;
   const formKey = state.formKey ?? "initial";
+  const [commStatus, setCommStatus] = useState<string>(
+    draft?.status ?? committee?.status ?? "OPEN",
+  );
   const [regOpen, setRegOpen] = useState(
     draft?.status ? draft.status === "OPEN" : committee ? committee.status === "OPEN" : true,
   );
@@ -317,8 +348,24 @@ export function CommitteeForm({
 
   if (committee && committee.status !== lastCommitteeStatus) {
     setLastCommitteeStatus(committee.status);
+    setCommStatus(committee.status);
     setRegOpen(committee.status === "OPEN");
   }
+
+  const handleStatusChange = (val: string) => {
+    setCommStatus(val);
+    if (val === "OPEN") setRegOpen(true);
+    if (val === "CLOSED") setRegOpen(false);
+  };
+
+  const handleRegOpenChange = (open: boolean) => {
+    setRegOpen(open);
+    if (open && commStatus === "CLOSED") {
+      setCommStatus("OPEN");
+    } else if (!open && commStatus === "OPEN") {
+      setCommStatus("CLOSED");
+    }
+  };
   const feeByKind = Object.fromEntries(
     fees.filter((row) => row.kind).map((row) => [row.kind, row]),
   ) as Record<string, CommitteePhaseFee>;
@@ -404,7 +451,8 @@ export function CommitteeForm({
         <Select
           id="status"
           name="status"
-          defaultValue={draft?.status ?? committee?.status ?? "OPEN"}
+          value={commStatus}
+          onChange={(e) => handleStatusChange(e.target.value)}
           disabled={readOnly}
         >
           <option value="OPEN">Visible (Open for registration if checkbox is checked)</option>
@@ -420,7 +468,7 @@ export function CommitteeForm({
             type="checkbox"
             name="registration_open"
             checked={regOpen}
-            onChange={(e) => setRegOpen(e.target.checked)}
+            onChange={(e) => handleRegOpenChange(e.target.checked)}
             disabled={readOnly}
             className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
           />

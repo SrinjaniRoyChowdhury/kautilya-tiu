@@ -27,4 +27,14 @@ describe("safeRedirectUrl", () => {
     const dest = safeRedirectUrl("http://localhost:3000", "/admin");
     expect(dest.toString()).toBe("http://localhost:3000/admin");
   });
+
+  it("normalizes 0.0.0.0 origin to localhost", () => {
+    const dest = safeRedirectUrl("http://0.0.0.0:3000", "/dashboard");
+    expect(dest.toString()).toBe("http://localhost:3000/dashboard");
+  });
+
+  it("defaults to /dashboard when next is missing or invalid", () => {
+    const dest = safeRedirectUrl("http://localhost:3000", null);
+    expect(dest.toString()).toBe("http://localhost:3000/dashboard");
+  });
 });

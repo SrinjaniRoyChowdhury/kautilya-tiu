@@ -11,39 +11,38 @@ import {
 
 const FADE_MS = 1100;
 
-let cachedPlayDecision: boolean | null = null;
+let hasStartedPlayback = false;
 
 function readPlayDecision() {
-  if (cachedPlayDecision === null) {
-    cachedPlayDecision = shouldPlayHomeIntro();
-  }
-  return cachedPlayDecision;
-}
-
-function subscribeNoop() {
-  return () => {};
+  if (hasStartedPlayback) return false;
+  return shouldPlayHomeIntro();
 }
 
 export function HomeIntro() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fadingRef = useRef(false);
-  const play = useSyncExternalStore(subscribeNoop, readPlayDecision, () => false);
+  const play = useSyncExternalStore(subscribeHomeIntro, readPlayDecision, () => false);
   const [dismissed, setDismissed] = useState(false);
   const [fading, setFading] = useState(false);
   const shouldPlay = play && !dismissed;
 
   useEffect(() => {
-    if (play) beginHomeIntro();
-    else releaseHomeIntroHold();
+    if (play) {
+      hasStartedPlayback = true;
+      beginHomeIntro();
+    } else {
+      releaseHomeIntroHold();
+    }
   }, [play]);
 
   function startFade() {
     if (fadingRef.current) return;
     fadingRef.current = true;
+    hasStartedPlayback = true;
     setFading(true);
+    markHomeIntroDone();
     window.setTimeout(() => {
       setDismissed(true);
-      markHomeIntroDone();
     }, FADE_MS);
   }
 
