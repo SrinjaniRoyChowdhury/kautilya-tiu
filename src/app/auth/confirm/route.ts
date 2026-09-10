@@ -5,9 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
+  const cleanOrigin = origin.includes("0.0.0.0")
+    ? origin.replace("0.0.0.0", "localhost")
+    : origin;
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const dest = safeRedirectUrl(origin, searchParams.get("next"), "/email-confirmed");
+  const dest = safeRedirectUrl(cleanOrigin, searchParams.get("next"), "/dashboard");
 
   if (token_hash && type) {
     const supabase = await createClient();
@@ -26,5 +29,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=invalid_token`);
+  return NextResponse.redirect(`${cleanOrigin}/login?error=invalid_token`);
 }

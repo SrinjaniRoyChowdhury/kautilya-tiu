@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
+import { hasPermission, isProtectedAdminAccount, verifyAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { passwordSchema } from "@/lib/password";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -87,10 +87,9 @@ export async function setParticipantPasswordAction(
 export async function deleteParticipantAction(
   registrationId: string,
   _prev: ParticipantAdminState,
-  _formData: FormData,
+  formData?: FormData,
 ): Promise<ParticipantAdminState> {
   void _prev;
-  void _formData;
   if (!isUuid(registrationId)) return { error: "Missing participant." };
   const allowed = await hasPermission("registration.edit");
   if (!allowed) return { error: "You need registration.edit to delete a delegate." };
@@ -101,7 +100,29 @@ export async function deleteParticipantAction(
   if (await isProtectedAdminAccount(registration.user_id)) {
     return { error: "The admin account cannot be deleted. An admin can change its password instead." };
   }
-  if (paid) return { error: "This delegate has a payment in review or verified, so they cannot be deleted." };
+
+  let authorizedByEmail: string | null = null;
+  let deletionReason: string | null = null;
+
+  if (paid) {
+    const adminUsername = String(formData?.get("admin_username") ?? "").trim();
+    const adminPassword = String(formData?.get("admin_password") ?? "");
+    const reason = String(formData?.get("reason") ?? "").trim();
+
+    if (!adminUsername || !adminPassword) {
+      return { error: "Admin username and password are required to delete a paid participant." };
+    }
+    if (!reason || reason.length < 3) {
+      return { error: "A valid reason (at least 3 characters) is required to delete a paid participant." };
+    }
+
+    const authRes = await verifyAdminCredentials(adminUsername, adminPassword);
+    if (!authRes.success) {
+      return { error: authRes.error };
+    }
+    authorizedByEmail = authRes.user.email ?? adminUsername;
+    deletionReason = reason;
+  }
 
   const { error } = await admin
     .from("registrations")
@@ -111,16 +132,29 @@ export async function deleteParticipantAction(
 
   const supabase = await createClient();
   await supabase.rpc("write_audit", {
-    p_action: "registration.delete",
+    p_action: paid ? "registration.delete_paid" : "registration.delete",
     p_entity: "registrations",
     p_entity_id: registrationId,
-    p_old: { status: registration.status, user_id: registration.user_id },
-    p_new: { status: "CANCELLED" },
+    p_old: {
+      status: registration.status,
+      user_id: registration.user_id,
+      paid,
+      confirmed_free: registration.confirmed_free,
+    },
+    p_new: {
+      status: "CANCELLED",
+      ...(deletionReason ? { reason: deletionReason } : {}),
+      ...(authorizedByEmail ? { authorized_by: authorizedByEmail } : {}),
+    },
   });
   revalidatePath("/admin/participants");
   revalidatePath("/admin/credentials");
   revalidatePath("/admin");
-  return { success: "Participant removed. They had not paid yet." };
+  return {
+    success: paid
+      ? "Paid participant removed. Reason recorded in audit log."
+      : "Participant removed. They had not paid yet.",
+  };
 }
 
 export async function confirmParticipantFreeAction(

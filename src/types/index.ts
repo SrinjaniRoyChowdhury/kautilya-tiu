@@ -211,6 +211,7 @@ export type AdminUser = {
   registration_id?: string | null;
   registration_status?: RegistrationStatus | null;
   committee_short_name?: string | null;
+  is_paid?: boolean;
 };
 
 export type AdminParticipant = {

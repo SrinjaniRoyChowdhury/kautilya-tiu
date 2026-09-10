@@ -92,7 +92,7 @@ export default async function AdminUsersPage({
                     Open
                   </Link>
                   {canEdit && (
-                    <DeleteUserButton userId={row.id} userName={row.full_name} />
+                    <DeleteUserButton userId={row.id} userName={row.full_name} isPaid={row.is_paid} />
                   )}
                 </div>
               </td>

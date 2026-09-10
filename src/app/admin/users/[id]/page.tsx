@@ -59,7 +59,13 @@ export default async function AdminUserPage({
           {canEdit && (
             <div className="pt-4 border-t border-gold-700/10">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-2">Danger Zone</p>
-              <DeleteUserButton userId={user.id} userName={user.full_name} variant="secondary" redirectAfterDelete />
+              <DeleteUserButton
+                userId={user.id}
+                userName={user.full_name}
+                isPaid={user.is_paid}
+                variant="secondary"
+                redirectAfterDelete
+              />
             </div>
           )}
         </Card>

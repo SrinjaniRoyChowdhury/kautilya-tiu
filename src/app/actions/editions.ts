@@ -251,8 +251,12 @@ export async function updateEditionAction(
   revalidatePath(`/admin/editions/${editionId}`);
   revalidatePath("/editions");
   revalidatePath("/committees");
+  revalidatePath("/committees", "layout");
   revalidatePath("/admin/committees");
+  revalidatePath("/admin/committees", "layout");
   revalidatePath("/executive-board");
+  revalidatePath("/team");
+  revalidatePath("/dashboard/register");
   return { success: "Edition saved." };
 }
 
