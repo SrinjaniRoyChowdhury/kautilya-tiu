@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { UserCredentialsForm } from "@/components/admin/user-forms";
+import { DeleteUserButton, UserCredentialsForm } from "@/components/admin/user-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminUser } from "@/lib/data";
@@ -27,7 +27,7 @@ export default async function AdminUserPage({
 
   const user = await getAdminUser(id);
   if (!user) notFound();
-  const canEdit = await hasPermission("registration.edit");
+  const canEdit = (await hasPermission("registration.edit")) || (await hasPermission("users.manage"));
 
   return (
     <Container className="py-12">
@@ -52,10 +52,16 @@ export default async function AdminUserPage({
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <p className="mb-2 font-serif text-2xl text-gold-700">Account</p>
-          <p className="text-sm text-ink-muted">
+          <p className="text-sm text-ink-muted mb-4">
             {user.email_verified_at ? "Email verified" : "Email not verified"}
             {user.registration_status ? ` · registration ${user.registration_status.toLowerCase()}` : " · no registration yet"}
           </p>
+          {canEdit && (
+            <div className="pt-4 border-t border-gold-700/10">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-2">Danger Zone</p>
+              <DeleteUserButton userId={user.id} userName={user.full_name} variant="secondary" redirectAfterDelete />
+            </div>
+          )}
         </Card>
         {canEdit ? (
           <Card>
@@ -72,3 +78,4 @@ export default async function AdminUserPage({
     </Container>
   );
 }
+
