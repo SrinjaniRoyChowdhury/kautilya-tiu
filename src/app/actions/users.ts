@@ -132,3 +132,72 @@ export async function updateSignedUpUserAction(
   revalidateUsers(userId);
   return { success: parsed.data.password ? "Credentials saved. Share the new password out of band." : "Credentials saved." };
 }
+
+export async function deleteSignedUpUserAction(
+  userId: string,
+  _prev: UserAdminState,
+  _formData?: FormData,
+): Promise<UserAdminState> {
+  void _prev;
+  void _formData;
+  if (!isUuid(userId)) return { error: "Missing user." };
+
+  const allowed = (await hasPermission("registration.edit")) || (await hasPermission("users.manage"));
+  if (!allowed) return { error: "You need permission to delete a user." };
+
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("users")
+    .select("id, email, full_name")
+    .eq("id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!existing) return { error: "User not found." };
+
+  if (await isProtectedAdminAccount(userId, existing.email)) {
+    return { error: "The admin account cannot be deleted." };
+  }
+
+  const { data: roles } = await admin.from("user_roles").select("id").eq("user_id", userId).limit(1);
+  if (roles?.length) {
+    return { error: "Staff accounts should be deleted under Admin → Accounts." };
+  }
+
+  const now = new Date().toISOString();
+
+  const { error: userErr } = await admin
+    .from("users")
+    .update({
+      status: "SUSPENDED",
+      deleted_at: now,
+    })
+    .eq("id", userId);
+  if (userErr) return { error: userErr.message };
+
+  await admin
+    .from("registrations")
+    .update({
+      status: "CANCELLED",
+      deleted_at: now,
+    })
+    .eq("user_id", userId);
+
+  try {
+    await admin.auth.admin.deleteUser(userId);
+  } catch {
+    // Continue even if auth delete fails
+  }
+
+  const supabase = await createClient();
+  await supabase.rpc("write_audit", {
+    p_action: "user.delete",
+    p_entity: "users",
+    p_entity_id: userId,
+    p_old: { email: existing.email, full_name: existing.full_name },
+    p_new: { status: "SUSPENDED", deleted_at: now },
+  });
+
+  revalidateUsers(userId);
+  return { success: "User deleted successfully." };
+}
+
