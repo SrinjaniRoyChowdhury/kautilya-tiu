@@ -27,7 +27,7 @@ export function HomeSections({
           <MotionStagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {committees.map((committee) => (
               <MotionStaggerItem key={committee.id} as="div">
-                <CommitteeCard committee={committee} href={`/committees/${committee.slug}`} />
+                <CommitteeCard committee={committee} href={`/committees/${committee.slug}`} flip />
               </MotionStaggerItem>
             ))}
           </MotionStagger>

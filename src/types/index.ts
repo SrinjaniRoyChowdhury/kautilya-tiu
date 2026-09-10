@@ -41,6 +41,8 @@ export type Edition = {
   status: EditionStatus;
   is_public_active: boolean;
   registration_status?: "OPEN" | "CLOSED";
+  hide_executive_board?: boolean;
+  hide_team?: boolean;
 };
 
 export type EbMember = {

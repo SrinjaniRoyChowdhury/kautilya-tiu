@@ -4,7 +4,7 @@ import Link from "next/link";import { usePathname } from "next/navigation";
 import { FaInstagram } from "react-icons/fa";
 import { HiOutlineMail, HiOutlinePhone, HiOutlineLocationMarker } from "react-icons/hi";
 import { BrandLogo } from "@/components/brand/logo";
-import { HELP_DESK_PHONE, instagramHandle, telHref } from "@/lib/contact";
+import { HELP_DESK_PHONE, instagramHandle, mapsOpenUrl, telHref, VENUE } from "@/lib/contact";
 import type { SiteSettings } from "@/types";
 
 export function Footer({ settings }: { settings: SiteSettings }) {
@@ -71,7 +71,14 @@ export function Footer({ settings }: { settings: SiteSettings }) {
           {settings.contact_address ? (
             <p className="mt-2 flex items-start gap-2">
               <HiOutlineLocationMarker className="mt-0.5 text-gold-400" aria-hidden />
-              {settings.contact_address}
+              <a
+                href={mapsOpenUrl(VENUE.query)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gold-400"
+              >
+                {settings.contact_address}
+              </a>
             </p>
           ) : null}
           {settings.instagram_url ? (
