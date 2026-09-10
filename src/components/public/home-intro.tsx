@@ -92,7 +92,7 @@ export function HomeIntro() {
       <video
         ref={videoRef}
         className="h-full w-full object-cover"
-        src="/intro.mp4"
+        src="/kautilyaIntroAnimation.mp4"
         autoPlay
         muted
         playsInline

@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { HiOutlinePhotograph, HiOutlineX, HiOutlineChevronLeft, HiOutlineChevronRight } from "react-icons/hi";
 import { Container } from "@/components/ui/card";
 import { MotionReveal } from "@/components/motion/reveal";
 import { HARDCODED_GALLERY_IMAGES, type HardcodedGalleryImage } from "@/lib/gallery-data";
+import LogoLoop, { type LogoItem } from "@/components/LogoLoop";
 
 export function GallerySection() {
   const [activeImage, setActiveImage] = useState<HardcodedGalleryImage | null>(null);
+
+  // Hide the sticky navbar while the lightbox is open
+  useEffect(() => {
+    const html = document.documentElement;
+    if (activeImage) {
+      html.classList.add("gallery-lightbox-open");
+    } else {
+      html.classList.remove("gallery-lightbox-open");
+    }
+    return () => html.classList.remove("gallery-lightbox-open");
+  }, [activeImage]);
 
   const handlePrev = () => {
     if (!activeImage) return;
@@ -24,25 +36,61 @@ export function GallerySection() {
     setActiveImage(HARDCODED_GALLERY_IMAGES[nextIndex]);
   };
 
+  // Build LogoLoop items — each image wrapped as a `node` so onClick is preserved
+  const galleryLogoItems: LogoItem[] = HARDCODED_GALLERY_IMAGES.map((image) => ({
+    node: (
+      <div
+        onClick={() => setActiveImage(image)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setActiveImage(image);
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Enlarge photo: ${image.title}`}
+        className="group relative h-56 w-80 shrink-0 cursor-pointer overflow-hidden rounded-md border border-gold-700/35 bg-parchment-50 shadow-md transition-all duration-300 ease-out hover:z-30 hover:scale-105 hover:border-gold-400 hover:shadow-[0_20px_45px_rgba(140,104,40,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-700 sm:h-64 sm:w-96"
+      >
+        <Image
+          src={image.src}
+          alt={image.alt}
+          width={800}
+          height={533}
+          unoptimized
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+        />
+
+        {/* Bottom gradient overlay with title and tag */}
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/30 to-transparent opacity-75 transition-opacity duration-300 group-hover:opacity-95" />
+
+        <div className="absolute inset-x-0 bottom-0 p-4 transition-transform duration-300 ease-out">
+          {image.tag ? (
+            <span className="inline-block rounded bg-gold-700/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-parchment-50 backdrop-blur-xs">
+              {image.tag}
+            </span>
+          ) : null}
+          <p className="mt-1 font-serif text-base font-semibold text-parchment-50 drop-shadow-sm sm:text-lg">
+            {image.title}
+          </p>
+          {image.caption ? (
+            <p className="mt-1 line-clamp-2 text-xs text-parchment-200/90 transition-opacity duration-300">
+              {image.caption}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Corner badge counter */}
+        <div className="absolute top-2.5 right-2.5 rounded-full border border-gold-400/40 bg-ink/75 px-2 py-0.5 text-[10px] font-mono font-medium text-gold-400 backdrop-blur-xs">
+          {String(image.id).padStart(2, "0")} / 10
+        </div>
+      </div>
+    ),
+    ariaLabel: image.title,
+  }));
+
   return (
     <section id="gallery" className="relative py-12 sm:py-16">
-      <style>{`
-        @keyframes niti-gallery-rtl {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          100% {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-        .niti-gallery-track {
-          display: flex !important;
-          width: max-content !important;
-          animation: niti-gallery-rtl 25s linear infinite !important;
-          will-change: transform;
-        }
-      `}</style>
-
       <Container>
         <MotionReveal className="mx-auto max-w-3xl text-center" delay={0.05}>
           <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-[0.28em] text-gold-700">
@@ -55,70 +103,31 @@ export function GallerySection() {
         </MotionReveal>
       </Container>
 
-      {/* Marquee Carousel moving right to left */}
-      <div className="relative mt-10 w-full overflow-hidden py-12">
-        {/* Soft edge gradient fades */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-16 bg-gradient-to-r from-parchment-50 via-parchment-50/80 to-transparent sm:w-28" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-16 bg-gradient-to-l from-parchment-50 via-parchment-50/80 to-transparent sm:w-28" />
-
-        {/* Scrolling track: duplicated 2x for seamless continuous loop */}
-        <div className="niti-gallery-track flex gap-6 px-4">
-          {[...HARDCODED_GALLERY_IMAGES, ...HARDCODED_GALLERY_IMAGES].map((image, index) => (
-            <div
-              key={`${image.id}-${index}`}
-              onClick={() => setActiveImage(image)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setActiveImage(image);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label={`Enlarge photo: ${image.title}`}
-              className="group relative h-56 w-80 shrink-0 cursor-pointer overflow-hidden rounded-md border border-gold-700/35 bg-parchment-50 shadow-md transition-all duration-300 ease-out hover:z-30 hover:scale-120 hover:border-gold-400 hover:shadow-[0_20px_45px_rgba(140,104,40,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-700 sm:h-64 sm:w-96"
-            >
-              <Image
-                src={image.src}
-                alt={image.alt}
-                width={800}
-                height={533}
-                unoptimized
-                className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-              />
-
-              {/* Bottom gradient overlay with title and tag */}
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/30 to-transparent opacity-75 transition-opacity duration-300 group-hover:opacity-95" />
-
-              <div className="absolute inset-x-0 bottom-0 p-4 transition-transform duration-300 ease-out">
-                {image.tag ? (
-                  <span className="inline-block rounded bg-gold-700/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-parchment-50 backdrop-blur-xs">
-                    {image.tag}
-                  </span>
-                ) : null}
-                <p className="mt-1 font-serif text-base font-semibold text-parchment-50 drop-shadow-sm sm:text-lg">
-                  {image.title}
-                </p>
-                {image.caption ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-parchment-200/90 transition-opacity duration-300">
-                    {image.caption}
-                  </p>
-                ) : null}
-              </div>
-
-              {/* Corner badge counter */}
-              <div className="absolute top-2.5 right-2.5 rounded-full border border-gold-400/40 bg-ink/75 px-2 py-0.5 text-[10px] font-mono font-medium text-gold-400 backdrop-blur-xs">
-                {String(image.id).padStart(2, "0")} / 10
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* LogoLoop-powered marquee carousel */}
+      <div className="mt-10 w-full py-12">
+        <LogoLoop
+          logos={galleryLogoItems}
+          speed={100}
+          direction="left"
+          hoverSpeed={0}
+          scaleOnHover
+          fadeOut
+          fadeOutColor="#f5efe0"
+          logoHeight={224}
+          gap={24}
+          ariaLabel="Gallery carousel"
+          renderItem={(item, key) => (
+            <li key={key} className="flex-none overflow-visible">
+              {"node" in item ? (item as { node: React.ReactNode }).node : null}
+            </li>
+          )}
+        />
       </div>
 
       {/* Interactive Lightbox Modal on Image Click */}
       {activeImage ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-ink/80 p-4 backdrop-blur-sm"
           onClick={() => setActiveImage(null)}
           role="dialog"
           aria-modal="true"
