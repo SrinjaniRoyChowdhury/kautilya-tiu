@@ -10,7 +10,7 @@ export default function SignupPage() {
       <PageHeader
         eyebrow="Delegates"
         title="Create account"
-        description="Verify your email before submitting a registration or payment. Local verification emails land in Inbucket on port 54324."
+        description="Verify your email before submitting a registration or payment."
       />
       <Card className="max-w-md">
         <SignupForm />
