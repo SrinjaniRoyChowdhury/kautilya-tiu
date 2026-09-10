@@ -7,6 +7,7 @@ import {
   markHomeIntroDone,
   releaseHomeIntroHold,
   shouldPlayHomeIntro,
+  subscribeHomeIntro,
 } from "@/lib/intro-gate";
 
 const FADE_MS = 1100;
