@@ -12,10 +12,13 @@ import {
 
 const INTRO_SRC = "/intro.mp4";
 const FADE_MS = 1100;
+
 /** Survives React Strict Mode remounts within the same page session. */
 let introSessionStarted = false;
+let introSessionFinished = false;
 
 function readShouldOffer() {
+  if (introSessionFinished) return false;
   return shouldPlayHomeIntro() || introSessionStarted;
 }
 
@@ -28,16 +31,20 @@ export function HomeIntro() {
   const [dismissed, setDismissed] = useState(false);
   const [fading, setFading] = useState(false);
 
-  // Activate during render so the overlay appears on the same paint as the play decision.
+  // Adjust state during render when the external store says we should play.
   if (offer && !active && !dismissed) {
-    introSessionStarted = true;
     setActive(true);
   }
 
   const shouldPlay = active && !dismissed;
 
   useEffect(() => {
+    if (introSessionFinished) {
+      releaseHomeIntroHold();
+      return;
+    }
     if (shouldPlay) {
+      introSessionStarted = true;
       beginHomeIntro();
       return;
     }
@@ -49,6 +56,7 @@ export function HomeIntro() {
   function startFade() {
     if (fadingRef.current) return;
     fadingRef.current = true;
+    introSessionFinished = true;
     setFading(true);
     markHomeIntroDone();
     window.setTimeout(() => {
