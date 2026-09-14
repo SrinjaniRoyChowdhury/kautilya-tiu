@@ -1,9 +1,11 @@
+import { cache } from "react";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, UserRoleRow } from "@/types";
 
-export async function getSessionUser() {
+/** One Auth round-trip per request (layout + admin + page all share this). */
+export const getSessionUser = cache(async () => {
   try {
     const supabase = await createClient();
     const {
@@ -13,29 +15,25 @@ export async function getSessionUser() {
   } catch {
     return null;
   }
-}
+});
 
-export async function getProfile(): Promise<Profile | null> {
+export const getProfile = cache(async (): Promise<Profile | null> => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return null;
+    const supabase = await createClient();
     const { data } = await supabase.from("users").select("*").eq("id", user.id).maybeSingle();
     return (data as Profile | null) ?? null;
   } catch {
     return null;
   }
-}
+});
 
-export async function getRoleNames(): Promise<string[]> {
+export const getRoleNames = cache(async (): Promise<string[]> => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return [];
+    const supabase = await createClient();
     const { data } = await supabase
       .from("user_roles")
       .select("id, user_id, edition_id, roles(name)")
@@ -49,30 +47,29 @@ export async function getRoleNames(): Promise<string[]> {
   } catch {
     return [];
   }
-}
+});
 
-export async function isStaffUser(): Promise<boolean> {
+export const isStaffUser = cache(async (): Promise<boolean> => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return false;
+    // Roles already loaded for the shell — avoid a second is_staff RPC on every admin hop.
+    const roles = await getRoleNames();
+    if (roles.length > 0) return true;
+    const supabase = await createClient();
     const { data, error } = await supabase.rpc("is_staff");
     if (error) return false;
     return Boolean(data);
   } catch {
     return false;
   }
-}
+});
 
-export async function hasPermission(code: string, editionId?: string | null): Promise<boolean> {
+export const hasPermission = cache(async (code: string, editionId?: string | null): Promise<boolean> => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return false;
+    const supabase = await createClient();
     const { data, error } = await supabase.rpc("has_permission", {
       p_code: code,
       p_edition_id: editionId ?? null,
@@ -82,22 +79,32 @@ export async function hasPermission(code: string, editionId?: string | null): Pr
   } catch {
     return false;
   }
-}
+});
 
-export async function hasScanAccess(): Promise<boolean> {
+export const hasScanAccess = cache(async (): Promise<boolean> => {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSessionUser();
     if (!user) return false;
+    const roles = await getRoleNames();
+    if (
+      roles.some(
+        (role) =>
+          role === "SUPER_ADMIN" ||
+          role === "ADMIN" ||
+          role === "ATTENDANCE_OPERATOR" ||
+          role === "FOOD_OPERATOR",
+      )
+    ) {
+      return true;
+    }
+    const supabase = await createClient();
     const { data, error } = await supabase.rpc("has_scan_access");
     if (error) return false;
     return Boolean(data);
   } catch {
     return false;
   }
-}
+});
 
 export const PROTECTED_ADMIN_EMAILS = [
   "admin@kautilya.local",
@@ -197,4 +204,3 @@ export async function verifyAdminCredentials(
 
   return { success: true, user: { id: data.user.id, email: data.user.email } };
 }
-

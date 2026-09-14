@@ -25,7 +25,11 @@ export default async function AdminParticipantsPage({
   searchParams: Promise<{ q?: string; edition?: string; page?: string }>;
 }) {
   const { q = "", edition: editionId, page: pageRaw } = await searchParams;
-  const allowed = await hasPermission("registration.view");
+  const [allowed, editions, rows] = await Promise.all([
+    hasPermission("registration.view"),
+    getAllEditionsAdmin(),
+    getAdminParticipants(editionId || null),
+  ]);
   if (!allowed) {
     return (
       <Container className="py-12">
@@ -37,11 +41,6 @@ export default async function AdminParticipantsPage({
       </Container>
     );
   }
-
-  const [editions, rows] = await Promise.all([
-    getAllEditionsAdmin(),
-    getAdminParticipants(editionId || null),
-  ]);
   const visible = rows.filter((row) =>
     matchesQuery(
       q,

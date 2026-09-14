@@ -10,14 +10,16 @@ import { canDownloadCommitteeAllocations } from "@/lib/reports";
 export const metadata: Metadata = { title: "Committees" };
 
 export default async function AdminCommitteesPage() {
-  const editions = await getAllEditionsAdmin();
+  const [editions, canCreate, canDownload, roles] = await Promise.all([
+    getAllEditionsAdmin(),
+    hasPermission("committee.manage"),
+    canDownloadCommitteeAllocations(),
+    getRoleNames(),
+  ]);
   const committees = (
     await Promise.all(editions.map((edition) => getCommitteesForEdition(edition.id)))
   ).flat();
   const editionName = Object.fromEntries(editions.map((e) => [e.id, e.name]));
-  const canCreate = await hasPermission("committee.manage");
-  const canDownload = await canDownloadCommitteeAllocations();
-  const roles = await getRoleNames();
   const readOnly = isReadOnlyStaff(roles);
   const contentOnly = isContentEditorOnly(roles);
 

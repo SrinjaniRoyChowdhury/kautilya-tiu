@@ -16,7 +16,12 @@ export default async function AdminCredentialsPage({
   searchParams: Promise<{ edition?: string; q?: string; page?: string }>;
 }) {
   const { edition: editionId, q = "", page: pageRaw } = await searchParams;
-  const allowed = await hasPermission("registration.view");
+  const [allowed, editions, allRows, canRegenerate] = await Promise.all([
+    hasPermission("registration.view"),
+    getAllEditionsAdmin(),
+    getConfirmedCredentials(editionId || null),
+    hasPermission("qr.regenerate"),
+  ]);
   if (!allowed) {
     return (
       <Container className="py-12">
@@ -28,12 +33,6 @@ export default async function AdminCredentialsPage({
       </Container>
     );
   }
-
-  const [editions, allRows, canRegenerate] = await Promise.all([
-    getAllEditionsAdmin(),
-    getConfirmedCredentials(editionId || null),
-    hasPermission("qr.regenerate"),
-  ]);
   const rows = allRows.filter((row) =>
     matchesQuery(
       q,

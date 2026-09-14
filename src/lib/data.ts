@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import { RETIRED_REGISTRATION_FIELD_KEYS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
@@ -80,7 +81,7 @@ function normalizeContactDeskLimit(value: unknown): number {
   return Math.min(24, Math.max(0, Math.trunc(n)));
 }
 
-export async function getSiteSettings(): Promise<SiteSettings> {
+export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
   try {
     const supabase = await createClient();
     const { data } = await supabase.from("site_settings").select("*").eq("id", true).maybeSingle();
@@ -94,7 +95,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   } catch {
     return fallbackSettings;
   }
-}
+});
 
 const EDITION_SELECT_BASE =
   "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status";
@@ -138,7 +139,7 @@ export async function getPublicEditions(): Promise<Edition[]> {
   }
 }
 
-export async function getActiveEdition(): Promise<Edition | null> {
+export const getActiveEdition = cache(async (): Promise<Edition | null> => {
   try {
     const supabase = await createClient();
     const { data: initialData, error } = await supabase
@@ -167,7 +168,7 @@ export async function getActiveEdition(): Promise<Edition | null> {
   } catch {
     return null;
   }
-}
+});
 
 export async function getEditionBySlug(slug: string): Promise<Edition | null> {
   try {
