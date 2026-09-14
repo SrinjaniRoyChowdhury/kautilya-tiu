@@ -1,6 +1,7 @@
 -- Help Desk Queries submitted via the contacts page.
+-- Idempotent: production may already have this table from an earlier manual apply.
 
-create table public.help_desk_queries (
+create table if not exists public.help_desk_queries (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email extensions.citext not null,
@@ -19,23 +20,25 @@ create table public.help_desk_queries (
   )
 );
 
+drop trigger if exists help_desk_queries_set_updated_at on public.help_desk_queries;
 create trigger help_desk_queries_set_updated_at
   before update on public.help_desk_queries
   for each row execute function public.set_updated_at();
 
-create index help_desk_queries_created_at_idx on public.help_desk_queries (created_at desc);
-create index help_desk_queries_type_idx on public.help_desk_queries (type);
+create index if not exists help_desk_queries_created_at_idx on public.help_desk_queries (created_at desc);
+create index if not exists help_desk_queries_type_idx on public.help_desk_queries (type);
 
 alter table public.help_desk_queries enable row level security;
 
--- Public can submit queries
+drop policy if exists help_desk_queries_insert on public.help_desk_queries;
 create policy help_desk_queries_insert on public.help_desk_queries
   for insert with check (true);
 
--- Staff can view and update queries
+drop policy if exists help_desk_queries_select on public.help_desk_queries;
 create policy help_desk_queries_select on public.help_desk_queries
   for select using (public.is_staff());
 
+drop policy if exists help_desk_queries_update on public.help_desk_queries;
 create policy help_desk_queries_update on public.help_desk_queries
   for update using (public.is_staff())
   with check (public.is_staff());

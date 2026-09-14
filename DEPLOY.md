@@ -66,7 +66,12 @@ Local seed accounts (`admin@kautilya.local`) are **local only** — do not rely 
 1. Create a project at https://supabase.com  
 2. **Settings → API**: copy Project URL, `anon` key, `service_role` key  
 3. **Settings → Database**: copy connection string  
-   - For **migrations**, prefer the **direct** connection on port **5432** (session). Port **6543** (transaction pooler) often fails DDL.  
+   - **GitHub Actions (`PRODUCTION_DATABASE_URL`):** use **Session pooler** on port **5432**  
+     (`…@aws-0-<region>.pooler.supabase.com:5432/postgres`, user often `postgres.<project-ref>`).  
+     Direct `db.<ref>.supabase.co:5432` is IPv6-only and GitHub runners often get `ECONNREFUSED`.  
+   - **Laptop `npm run db:push:prod`:** Session pooler **or** direct `:5432` both work if your network has IPv6.  
+   - Avoid **Transaction** pooler port **6543** for migrations (DDL often fails).  
+   - If **Network Restrictions** are enabled, allow CI or turn them off — Actions IPs are not fixed.  
    - Store as `DATABASE_URL` in local `.env.production` and as GitHub secret `PRODUCTION_DATABASE_URL`  
 4. Apply schema (pick one):  
    - **Preferred:** push/merge to `main` → workflow `.github/workflows/migrate.yml`  
@@ -78,6 +83,23 @@ Local seed accounts (`admin@kautilya.local`) are **local only** — do not rely 
    - Redirect URLs: `https://technokautilya.in/**`  
 7. **Authentication → Providers**: Email enabled  
 8. Storage buckets (`payment-proofs`, `cms-media`, `conference-docs`) are created by migrations — confirm they exist  
+
+### If migrate fails with “already exists”
+
+Objects were applied outside migration history (SQL editor / partial push), but `supabase_migrations` does not list that version.
+
+**Preferred:** merge an idempotent fix for that migration (e.g. `create table if not exists`) and re-run **migrate**.
+
+**Or** mark the version applied without re-running SQL, then push the rest:
+
+```bash
+# Session pooler URI from GitHub secret / .env.production
+npx supabase migration repair 20260901193000 --status applied --db-url "$PRODUCTION_DATABASE_URL" --yes
+npx supabase db push --db-url "$PRODUCTION_DATABASE_URL" --yes --include-all
+npx supabase migration list --db-url "$PRODUCTION_DATABASE_URL"
+```
+
+Do **not** drop live tables to “fix” this. Only repair / make idempotent what is already on production.
 
 ---
 
@@ -171,7 +193,7 @@ Wait for DNS propagation, then open `https://technokautilya.in`.
 
 | Secret | Used when |
 |--------|-----------|
-| `PRODUCTION_DATABASE_URL` | push to `main` / manual migrate dispatch |
+| `PRODUCTION_DATABASE_URL` | push to `main` / manual migrate dispatch — **Session pooler `:5432`** (not direct `db.*` host; see §1) |
 | `DATABASE_URL` | optional fallback for the same production URL |
 
 Optional: Environment **production** with required reviewers so a human must approve schema changes to live Supabase.
