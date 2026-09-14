@@ -7,6 +7,7 @@ import { toPlainText } from "@/lib/sanitize";
 import { deskFromRoleNames, kindFromRoleNames } from "@/lib/username";
 import type {
   AdminParticipant,
+  AdminParticipantDetail,
   Announcement,
   AuditLog,
   Collective,
@@ -243,7 +244,7 @@ function hydrateCommittee(committee: Committee): Committee {
   return {
     ...committee,
     portfolio_config,
-    capacity: portfolio_config.length || committee.capacity,
+    capacity: Number(committee.capacity) || 0,
     prize_money_json: normalizePrizeMoney(committee.prize_money_json),
     show_prize_money: Boolean(committee.show_prize_money),
   };
@@ -1270,9 +1271,230 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
 
 export async function getAdminParticipant(
   registrationId: string,
-): Promise<AdminParticipant | null> {
-  const rows = await getAdminParticipants();
-  return rows.find((row) => row.id === registrationId) ?? null;
+): Promise<AdminParticipantDetail | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("registrations")
+    .select(
+      `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
+       partner_registration_id, pair_id, is_pair_lead, confirmed_free, committee_id,
+       expected_fee_minor, allocated_slr, allocated_portfolio, submitted_at, confirmed_at,
+       accepted_rules_at,
+       users:user_id (full_name, email, phone),
+       committees:committee_id (short_name, name),
+       collectives:collective_id (name),
+       institutions:institution_id (name),
+       mun_editions:edition_id (name),
+       qr_tokens (display_code, status, issued_at)`,
+    )
+    .eq("id", registrationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!data) return null;
+
+  type Row = {
+    id: string;
+    edition_id: string;
+    user_id: string;
+    status: AdminParticipant["status"];
+    food_preference: AdminParticipant["food_preference"];
+    delegation_type: AdminParticipant["delegation_type"];
+    partner_email: string | null;
+    partner_registration_id: string | null;
+    pair_id: string | null;
+    is_pair_lead: boolean | null;
+    allocated_slr: number | null;
+    allocated_portfolio: string | null;
+    confirmed_free: boolean;
+    committee_id: string | null;
+    expected_fee_minor: number | null;
+    submitted_at: string | null;
+    confirmed_at: string | null;
+    accepted_rules_at: string | null;
+    users: { full_name: string; email: string; phone: string | null } | { full_name: string; email: string; phone: string | null }[] | null;
+    committees: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
+    collectives: { name: string } | { name: string }[] | null;
+    institutions: { name: string } | { name: string }[] | null;
+    mun_editions: { name: string } | { name: string }[] | null;
+    qr_tokens:
+      | { display_code: string; status: string; issued_at: string }[]
+      | { display_code: string; status: string; issued_at: string }
+      | null;
+  };
+  const row = data as Row;
+  const user = Array.isArray(row.users) ? row.users[0] : row.users;
+  const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+  const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
+  const institution = Array.isArray(row.institutions) ? row.institutions[0] : row.institutions;
+  const edition = Array.isArray(row.mun_editions) ? row.mun_editions[0] : row.mun_editions;
+  const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
+  const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
+
+  const [{ data: payLinks }, preferences, fieldDefs, fieldValues] = await Promise.all([
+    supabase
+      .from("payment_participants")
+      .select("payments (status)")
+      .eq("registration_id", registrationId),
+    getRegistrationPreferences(registrationId),
+    getFieldDefinitions(row.edition_id),
+    getRegistrationValues(registrationId),
+  ]);
+
+  type PayLink = { payments: { status: string } | { status: string }[] | null };
+  const payStatuses = ((payLinks as PayLink[] | null) ?? []).flatMap((link) => {
+    const pay = link.payments;
+    if (!pay) return [];
+    return Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status];
+  });
+  const paid =
+    (row.status === "CONFIRMED" && !row.confirmed_free) ||
+    row.status === "PAYMENT_VERIFIED" ||
+    payStatuses.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW");
+
+  const valueByDef = new Map(fieldValues.map((item) => [item.field_definition_id, item]));
+  const fields = fieldDefs.map((field) => {
+    const value = valueByDef.get(field.id);
+    let display = "—";
+    if (field.field_type === "boolean") {
+      display =
+        value?.value_json === true || value?.value_text === "true"
+          ? "Yes"
+          : value?.value_json === false || value?.value_text === "false"
+            ? "No"
+            : "—";
+    } else if (field.field_type === "multiselect") {
+      const items = Array.isArray(value?.value_json) ? value.value_json : [];
+      display = items.length ? items.map(String).join(", ") : "—";
+    } else if (value?.value_text?.trim()) {
+      display = value.value_text.trim();
+    }
+    return { label: field.label, section: field.section, value: display };
+  });
+
+  let partner: AdminParticipantDetail["partner"] = null;
+  let partnerName = row.partner_email;
+  const partnerId =
+    row.partner_registration_id ||
+    (row.pair_id
+      ? (
+          await supabase
+            .from("registrations")
+            .select("id")
+            .eq("pair_id", row.pair_id)
+            .neq("id", registrationId)
+            .is("deleted_at", null)
+            .neq("status", "CANCELLED")
+            .maybeSingle()
+        ).data?.id
+      : null);
+
+  if (partnerId) {
+    const { data: partnerRow } = await supabase
+      .from("registrations")
+      .select(
+        `id, status, food_preference, allocated_slr, allocated_portfolio, confirmed_free, is_pair_lead,
+         users:user_id (full_name, email, phone),
+         collectives:collective_id (name),
+         institutions:institution_id (name),
+         qr_tokens (display_code, status)`,
+      )
+      .eq("id", partnerId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (partnerRow) {
+      type PartnerRow = {
+        id: string;
+        status: AdminParticipant["status"];
+        food_preference: AdminParticipant["food_preference"];
+        allocated_slr: number | null;
+        allocated_portfolio: string | null;
+        confirmed_free: boolean;
+        is_pair_lead: boolean | null;
+        users: { full_name: string; email: string; phone: string | null } | { full_name: string; email: string; phone: string | null }[] | null;
+        collectives: { name: string } | { name: string }[] | null;
+        institutions: { name: string } | { name: string }[] | null;
+        qr_tokens: { display_code: string; status: string }[] | { display_code: string; status: string } | null;
+      };
+      const p = partnerRow as PartnerRow;
+      const pUser = Array.isArray(p.users) ? p.users[0] : p.users;
+      const pCollective = Array.isArray(p.collectives) ? p.collectives[0] : p.collectives;
+      const pInstitution = Array.isArray(p.institutions) ? p.institutions[0] : p.institutions;
+      const pTokens = Array.isArray(p.qr_tokens) ? p.qr_tokens : p.qr_tokens ? [p.qr_tokens] : [];
+      const pActive = pTokens.find((item) => item.status === "ACTIVE") ?? null;
+      const { data: pLinks } = await supabase
+        .from("payment_participants")
+        .select("payments (status)")
+        .eq("registration_id", p.id);
+      const pPay = ((pLinks as PayLink[] | null) ?? []).flatMap((link) => {
+        const pay = link.payments;
+        if (!pay) return [];
+        return Array.isArray(pay) ? pay.map((item) => item.status) : [pay.status];
+      });
+      const pPaid =
+        (p.status === "CONFIRMED" && !p.confirmed_free) ||
+        p.status === "PAYMENT_VERIFIED" ||
+        pPay.some((status) => status === "VERIFIED" || status === "UNDER_REVIEW");
+      partnerName = pUser?.full_name ?? row.partner_email;
+      partner = {
+        id: p.id,
+        full_name: pUser?.full_name ?? "Co-delegate",
+        email: pUser?.email ?? "",
+        phone: pUser?.phone ?? null,
+        status: p.status,
+        food_preference: p.food_preference,
+        collective_name: pCollective?.name ?? null,
+        institution_name: pInstitution?.name ?? null,
+        allocated_portfolio: p.allocated_portfolio,
+        allocated_slr: p.allocated_slr,
+        display_code: pActive?.display_code ?? null,
+        is_pair_lead: p.is_pair_lead,
+        paid: pPaid,
+        confirmed_free: p.confirmed_free,
+      };
+    }
+  } else if (row.partner_email) {
+    const { data: named } = await supabase
+      .from("users")
+      .select("full_name")
+      .eq("email", row.partner_email)
+      .maybeSingle();
+    partnerName = (named as { full_name: string } | null)?.full_name ?? row.partner_email;
+  }
+
+  return {
+    id: row.id,
+    edition_id: row.edition_id,
+    user_id: row.user_id,
+    full_name: user?.full_name ?? "Delegate",
+    email: user?.email ?? "",
+    phone: user?.phone ?? null,
+    status: row.status,
+    committee_short_name: committee?.short_name ?? null,
+    committee_name: committee?.name ?? null,
+    food_preference: row.food_preference,
+    paid,
+    confirmed_free: row.confirmed_free,
+    collective_name: collective?.name ?? null,
+    institution_name: institution?.name ?? null,
+    delegation_type: row.delegation_type ?? "SINGLE",
+    partner_email: row.partner_email,
+    partner_registration_id: row.partner_registration_id,
+    pair_id: row.pair_id,
+    is_pair_lead: row.is_pair_lead,
+    partner_name: partnerName,
+    allocated_slr: row.allocated_slr,
+    allocated_portfolio: row.allocated_portfolio,
+    display_code: active?.display_code ?? null,
+    committee_id: row.committee_id,
+    expected_fee_minor: row.expected_fee_minor,
+    submitted_at: row.submitted_at,
+    confirmed_at: row.confirmed_at,
+    accepted_rules_at: row.accepted_rules_at,
+    edition_name: edition?.name ?? null,
+    preferences,
+    fields,
+    partner,
+  };
 }
 
 export async function getAdminUsers(): Promise<AdminUser[]> {

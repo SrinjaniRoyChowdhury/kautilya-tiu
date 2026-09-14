@@ -101,7 +101,6 @@ export function RegistrationForm({
   preferredCommitteeId,
   paymentLocked = false,
   publishedDocs,
-  portfolioMatrixUrl,
 }: {
   editionId: string;
   registration: Registration;
@@ -114,7 +113,6 @@ export function RegistrationForm({
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
   publishedDocs?: { rulebook?: string | null; guidelines?: string | null };
-  portfolioMatrixUrl?: string | null;
 }) {
   const visibleFields = useMemo(() => visibleRegistrationFields(fields), [fields]);
   const pairLocked = registration.is_pair_lead === false;
@@ -307,30 +305,17 @@ export function RegistrationForm({
 
       <fieldset disabled={!committeeEditable || busy || pairLocked} className="grid gap-4">
         <legend className="sr-only">Country / portfolio</legend>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-serif text-2xl text-gold-700">Country / portfolio</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              For each preference, choose 1 or 2 portfolios. The two fields cannot be the same.
-            </p>
-          </div>
-          {portfolioMatrixUrl ? (
-            <a
-              href={portfolioMatrixUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm border border-gold-700/50 bg-parchment-50 px-4 text-sm font-medium text-gold-700 hover:bg-parchment-200"
-            >
-              Portfolio Matrix
-            </a>
-          ) : null}
+        <div>
+          <p className="font-serif text-2xl text-gold-700">Country / portfolio</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            For each preference, type 1 or 2 country/portfolio names. The two fields cannot be the same.
+          </p>
         </div>
         {selectedPrefs.length === 0 ? (
           <p className="text-sm text-ink-muted">Select committees above to add portfolio preferences.</p>
         ) : (
           selectedPrefs.map((pref, index) => {
             const committee = committees.find((item) => item.id === pref.committee_id);
-            const options = (committee?.portfolio_config ?? []).map((row) => row.name).filter(Boolean);
             const p1Error = form.formState.errors.preferences?.[index]?.portfolio_1?.message as
               | string
               | undefined;
@@ -353,14 +338,13 @@ export function RegistrationForm({
                     error={p1Error}
                     hint="Required"
                   >
-                    <PortfolioInput
+                    <Input
                       id={`pref-${index}-p1`}
-                      options={options}
-                      exclude={String(pref.portfolio_2 ?? "")}
                       value={String(pref.portfolio_1 ?? "")}
-                      onChange={(next) => {
+                      placeholder="e.g. France"
+                      onChange={(event) => {
                         const nextPrefs = [...selectedPrefs];
-                        nextPrefs[index] = { ...nextPrefs[index], portfolio_1: next };
+                        nextPrefs[index] = { ...nextPrefs[index], portfolio_1: event.target.value };
                         form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
                       }}
                     />
@@ -371,14 +355,13 @@ export function RegistrationForm({
                     error={p2Error}
                     hint="Optional"
                   >
-                    <PortfolioInput
+                    <Input
                       id={`pref-${index}-p2`}
-                      options={options}
-                      exclude={String(pref.portfolio_1 ?? "")}
                       value={String(pref.portfolio_2 ?? "")}
-                      onChange={(next) => {
+                      placeholder="Optional second choice"
+                      onChange={(event) => {
                         const nextPrefs = [...selectedPrefs];
-                        nextPrefs[index] = { ...nextPrefs[index], portfolio_2: next };
+                        nextPrefs[index] = { ...nextPrefs[index], portfolio_2: event.target.value };
                         form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
                       }}
                     />
@@ -581,42 +564,6 @@ export function RegistrationForm({
         </p>
       )}
     </form>
-  );
-}
-
-function PortfolioInput({
-  id,
-  options,
-  value,
-  onChange,
-  exclude,
-}: {
-  id: string;
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-  exclude?: string;
-}) {
-  const blocked = exclude?.trim().toLowerCase() ?? "";
-  if (options.length) {
-    return (
-      <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
-        <option value="">Select</option>
-        {options.map((option) => (
-          <option key={option} value={option} disabled={Boolean(blocked) && option.trim().toLowerCase() === blocked}>
-            {option}
-          </option>
-        ))}
-      </Select>
-    );
-  }
-  return (
-    <Input
-      id={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder="Country / portfolio"
-    />
   );
 }
 

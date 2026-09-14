@@ -250,6 +250,44 @@ export type AdminParticipant = {
   preferences?: RegistrationPreference[];
 };
 
+export type AdminParticipantField = {
+  label: string;
+  section: FieldSection;
+  value: string;
+};
+
+export type AdminParticipantPartner = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  status: RegistrationStatus;
+  food_preference: FoodPreference | null;
+  collective_name: string | null;
+  institution_name: string | null;
+  allocated_portfolio: string | null;
+  allocated_slr: number | null;
+  display_code: string | null;
+  is_pair_lead: boolean | null;
+  paid: boolean;
+  confirmed_free: boolean;
+};
+
+export type AdminParticipantDetail = AdminParticipant & {
+  phone: string | null;
+  submitted_at: string | null;
+  confirmed_at: string | null;
+  accepted_rules_at: string | null;
+  is_pair_lead: boolean | null;
+  pair_id: string | null;
+  partner_registration_id: string | null;
+  partner_name: string | null;
+  committee_name: string | null;
+  edition_name: string | null;
+  fields: AdminParticipantField[];
+  partner: AdminParticipantPartner | null;
+};
+
 export type FoodCollectionRow = {
   id: string;
   meal_schedule_id: string;

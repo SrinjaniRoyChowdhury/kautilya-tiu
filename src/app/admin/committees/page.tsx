@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PortfolioMatrixUrlForm } from "@/components/admin/portfolio-matrix-url-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, getRoleNames } from "@/lib/auth";
 import { isContentEditorOnly, isReadOnlyStaff } from "@/lib/staff-access";
@@ -12,10 +11,6 @@ export const metadata: Metadata = { title: "Committees" };
 
 export default async function AdminCommitteesPage() {
   const editions = await getAllEditionsAdmin();
-  const currentEdition =
-    editions.find((edition) => edition.is_public_active) ??
-    editions.find((edition) => edition.status === "PUBLISHED") ??
-    null;
   const committees = (
     await Promise.all(editions.map((edition) => getCommitteesForEdition(edition.id)))
   ).flat();
@@ -29,26 +24,6 @@ export default async function AdminCommitteesPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Committees" />
-      {canCreate ? (
-        <Card className="mb-6">
-          <p className="mb-4 font-serif text-2xl text-gold-700">Portfolio Matrix</p>
-          <p className="mb-4 text-sm text-ink-muted">
-            Google Sheet link for the current public edition. Shown as a button on the delegate
-            registration form.
-          </p>
-          {currentEdition ? (
-            <PortfolioMatrixUrlForm
-              editionId={currentEdition.id}
-              editionName={currentEdition.name}
-              currentUrl={currentEdition.portfolio_matrix_url}
-            />
-          ) : (
-            <p className="text-sm text-ink-muted">
-              No public-active edition. Set one under Editions first.
-            </p>
-          )}
-        </Card>
-      ) : null}
       <div className="mb-6 flex flex-wrap gap-3">
         {canCreate ? (
           <Link
@@ -79,9 +54,8 @@ export default async function AdminCommitteesPage() {
                 {contentOnly ? null : (
                   <>
                     {" "}
-                    · {formatInrFromMinor(committee.fee_minor)} ·{" "}
-                    {committee.confirmed_count}/{committee.portfolio_config.length || committee.capacity}{" "}
-                    delegations · {committee.status}
+                    · {formatInrFromMinor(committee.fee_minor)} · {committee.confirmed_count}/
+                    {committee.capacity} delegations · {committee.status}
                   </>
                 )}
               </p>

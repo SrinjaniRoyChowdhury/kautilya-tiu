@@ -2,7 +2,6 @@ import { hasPermission } from "@/lib/auth";
 import { csvResponse } from "@/lib/csv";
 import { getAdminPayments, getAttendanceRoll, getMealSchedules } from "@/lib/data";
 import { participantEmail } from "@/lib/payments";
-import { normalizePortfolios } from "@/lib/sheet";
 import { createClient } from "@/lib/supabase/server";
 
 export const REPORT_KINDS = ["participants", "payments", "attendance", "food"] as const;
@@ -202,32 +201,34 @@ export async function committeeAllocationRows(committeeId: string) {
   const supabase = await createClient();
   const { data: committee } = await supabase
     .from("committees")
-    .select("id, short_name, name, edition_id, portfolio_config")
+    .select("id, short_name, name, edition_id")
     .eq("id", committeeId)
     .maybeSingle();
   if (!committee) return null;
   const { data } = await supabase
     .from("registrations")
-    .select("allocated_slr, allocated_portfolio, users:user_id (full_name, email)")
+    .select("allocated_slr, allocated_portfolio, status, users:user_id (full_name, email)")
     .eq("committee_id", committeeId)
     .is("deleted_at", null)
-    .neq("status", "CANCELLED");
+    .neq("status", "CANCELLED")
+    .not("allocated_portfolio", "is", null)
+    .order("allocated_portfolio", { ascending: true });
   type Row = {
     allocated_slr: number | null;
     allocated_portfolio: string | null;
+    status: string;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
   };
-  const bySlr = new Map<number, { name: string; email: string }>();
-  for (const row of (data as Row[] | null) ?? []) {
-    if (!row.allocated_slr) continue;
+  const headers = ["Portfolio", "SLR No.", "Delegate name", "Delegate email", "Status"];
+  const rows = ((data as Row[] | null) ?? []).map((row) => {
     const user = Array.isArray(row.users) ? row.users[0] : row.users;
-    bySlr.set(row.allocated_slr, { name: user?.full_name ?? "", email: user?.email ?? "" });
-  }
-  const portfolios = normalizePortfolios(committee.portfolio_config);
-  const headers = ["SLR No.", "Portfolio", "Delegate name", "Delegate email"];
-  const rows = portfolios.map((item) => {
-    const assigned = bySlr.get(item.slr);
-    return [item.slr, item.name, assigned?.name ?? "", assigned?.email ?? ""];
+    return [
+      row.allocated_portfolio ?? "",
+      row.allocated_slr ?? "",
+      user?.full_name ?? "",
+      user?.email ?? "",
+      row.status,
+    ];
   });
   return {
     editionId: committee.edition_id as string,

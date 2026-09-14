@@ -146,7 +146,6 @@ async function RegistrationBody({
         preferredCommitteeId={preferred?.id}
         paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
         publishedDocs={publishedDocs}
-        portfolioMatrixUrl={edition.portfolio_matrix_url}
       />
     </Card>
   );

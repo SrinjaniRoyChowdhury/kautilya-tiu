@@ -209,7 +209,7 @@ const ALLOCATE_MESSAGES: Record<string, string> = {
   COMMITTEE_NOT_FOUND: "That committee is not available.",
   COMMITTEE_CLOSED: "That committee is closed.",
   COMMITTEE_FULL: "That committee has no remaining delegations.",
-  PORTFOLIO_REQUIRED: "Select a portfolio.",
+  PORTFOLIO_REQUIRED: "Enter a portfolio.",
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
 };
 
@@ -226,7 +226,7 @@ export async function allocateRegistrationAction(
   const committeeId = String(formData.get("committee_id") ?? "").trim();
   const portfolio = String(formData.get("portfolio") ?? "").trim();
   if (!isUuid(committeeId)) return { error: "Select a committee." };
-  if (!portfolio) return { error: "Select a portfolio." };
+  if (!portfolio) return { error: "Enter a portfolio." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("allocate_registration", {

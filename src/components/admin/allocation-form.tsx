@@ -1,19 +1,21 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useState } from "react";
 import { allocateRegistrationAction, type ParticipantAdminState } from "@/app/actions/participants";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import { Field, Select } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { formatInrFromMinor } from "@/lib/format";
 import type { AdminParticipant, Committee } from "@/types";
 
 export function AllocateRegistrationForm({
   participant,
   committees,
+  compact = false,
 }: {
   participant: AdminParticipant;
   committees: Committee[];
+  compact?: boolean;
 }) {
   const action = allocateRegistrationAction.bind(null, participant.id);
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
@@ -28,19 +30,6 @@ export function AllocateRegistrationForm({
   const suggested = [pref?.portfolio_1, pref?.portfolio_2].filter(
     (name): name is string => Boolean(name && name.trim()),
   );
-  const matrix = (committee?.portfolio_config ?? []).map((row) => row.name).filter(Boolean);
-  const options = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const name of [...suggested, ...matrix]) {
-      const key = name.trim().toLowerCase();
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      out.push(name);
-    }
-    return out;
-  }, [suggested, matrix]);
-
   const defaultPortfolio = participant.allocated_portfolio || suggested[0] || "";
   const fee =
     committee &&
@@ -69,8 +58,8 @@ export function AllocateRegistrationForm({
   }
 
   return (
-    <form action={formAction} className="grid gap-4">
-      {prefs.length ? (
+    <form action={formAction} className={compact ? "grid gap-2.5" : "grid gap-4"}>
+      {!compact && prefs.length ? (
         <div className="rounded-sm border border-gold-700/20 bg-parchment-100/60 p-3 text-sm">
           <p className="font-medium text-gold-800">Delegate preferences</p>
           <ol className="mt-2 grid gap-2">
@@ -88,10 +77,11 @@ export function AllocateRegistrationForm({
             ))}
           </ol>
         </div>
-      ) : (
+      ) : null}
+      {!compact && !prefs.length ? (
         <p className="text-sm text-ink-muted">No committee preferences were saved on this form.</p>
-      )}
-      <Field label="Allot committee" htmlFor="committee_id">
+      ) : null}
+      <Field label="Committee" htmlFor="committee_id">
         <Select
           id="committee_id"
           name="committee_id"
@@ -109,33 +99,35 @@ export function AllocateRegistrationForm({
           ))}
         </Select>
       </Field>
-      <Field label="Allot portfolio" htmlFor="portfolio" hint="Suggested from their preferences first, then the matrix.">
-        {options.length ? (
-          <Select id="portfolio" name="portfolio" defaultValue={defaultPortfolio} key={`${committeeId}-${defaultPortfolio}`}>
-            <option value="">Select</option>
-            {options.map((name) => (
-              <option key={name} value={name}>
-                {suggested.some((item) => item.toLowerCase() === name.toLowerCase()) ? `${name} (preferred)` : name}
-              </option>
-            ))}
-          </Select>
-        ) : (
-          <input
-            id="portfolio"
-            name="portfolio"
-            defaultValue={defaultPortfolio}
-            className="w-full rounded-sm border border-gold-700/25 bg-parchment-50 px-3 py-2.5 text-sm"
-            required
-          />
-        )}
+      <Field
+        label="Portfolio"
+        htmlFor="portfolio"
+        hint={
+          compact
+            ? suggested.length
+              ? `Hint: ${suggested.join(" / ")}`
+              : undefined
+            : suggested.length
+              ? `Type the country/portfolio. Pref hint: ${suggested.join(" / ")}`
+              : "Type the country/portfolio name manually."
+        }
+      >
+        <Input
+          id="portfolio"
+          name="portfolio"
+          required
+          defaultValue={defaultPortfolio}
+          key={`${committeeId}-${defaultPortfolio}`}
+          placeholder="e.g. France"
+        />
       </Field>
       {fee ? (
-        <p className="text-sm text-ink-muted">
-          Fee for this allotment: {fee}
-          {participant.delegation_type === "DOUBLE" ? " (double delegation)" : ""}
+        <p className="text-xs text-ink-muted">
+          Fee: {fee}
+          {participant.delegation_type === "DOUBLE" ? " (double)" : ""}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending || !committeeId}>
+      <Button type="submit" disabled={pending || !committeeId} size={compact ? "sm" : undefined}>
         {pending ? "Allocating…" : participant.committee_id ? "Update allocation" : "Allocate & unlock payment"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />

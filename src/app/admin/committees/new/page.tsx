@@ -20,7 +20,7 @@ export default async function NewCommitteePage() {
       <PageHeader
         eyebrow="Admin"
         title="New committee"
-        description="Save the committee first, then upload the portfolio matrix on the next screen."
+        description="Set capacity here. Portfolios are typed manually when allotting each participant."
       />
       <Card>
         {editions.length ? (
