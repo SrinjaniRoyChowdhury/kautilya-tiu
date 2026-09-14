@@ -71,22 +71,6 @@ export default async function CommitteeDetailPage({ params }: Props) {
               )}
             </section>
           ) : null}
-          {committee.portfolio_config?.length ? (
-            <section className="mt-8">
-              <h2 className="font-serif text-2xl text-gold-700">Portfolios</h2>
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {committee.portfolio_config.map((item) => (
-                  <li
-                    key={`${item.slr ?? item.name}-${item.name}`}
-                    className="rounded-sm border border-gold-700/25 px-2 py-1 text-sm"
-                  >
-                    {item.slr ? `${item.slr}. ` : ""}
-                    {item.name}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
         </article>
         <Card className="h-fit space-y-3">
           <CommitteeFeeBlock committee={committee} size="lg" />

@@ -2,16 +2,16 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AdminPathGuard } from "@/components/admin/admin-path-guard";
-import { getRoleNames, hasScanAccess, isStaffUser } from "@/lib/auth";
+import { getRoleNames, hasScanAccess } from "@/lib/auth";
 import { isOperatorOnly } from "@/lib/roles";
 import { staffHomePath, staffNavItems } from "@/lib/staff-access";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const staff = await isStaffUser();
-  if (!staff) redirect("/dashboard");
-  const roles = await getRoleNames();
+  // getRoleNames / hasScanAccess share the cached getSessionUser from root layout.
+  const [roles, canScan] = await Promise.all([getRoleNames(), hasScanAccess()]);
+  if (!roles.length) redirect("/dashboard");
   if (isOperatorOnly(roles)) redirect("/scan");
-  const canScan = await hasScanAccess();
+
   return (
     <div className="admin-surface relative z-10 flex h-[calc(100dvh-var(--site-header-height))] flex-col overflow-hidden bg-[#faf6ee] md:flex-row">
       <AdminPathGuard roles={roles} home={staffHomePath(roles)} />

@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Admin" };
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
+  SUBMITTED: "Awaiting allocation",
   PAYMENT_PENDING: "Awaiting pay",
   PAYMENT_VERIFIED: "Pay verified",
   PAYMENT_REJECTED: "Pay rejected",

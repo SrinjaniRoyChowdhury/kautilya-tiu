@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Users" };
 
 const STATUS_COPY: Record<string, string> = {
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
+  SUBMITTED: "Awaiting allocation",
   PAYMENT_PENDING: "Awaiting pay",
   PAYMENT_VERIFIED: "Pay verified",
   PAYMENT_REJECTED: "Pay rejected",
@@ -26,7 +26,11 @@ export default async function AdminUsersPage({
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const { q = "", page: pageRaw } = await searchParams;
-  const allowed = await hasPermission("registration.view");
+  const [allowed, canEditUsers, canEditRegs] = await Promise.all([
+    hasPermission("registration.view"),
+    hasPermission("users.manage"),
+    hasPermission("registration.edit"),
+  ]);
   if (!allowed) {
     return (
       <Container className="py-12">
@@ -39,7 +43,7 @@ export default async function AdminUsersPage({
     );
   }
 
-  const canEdit = (await hasPermission("registration.edit")) || (await hasPermission("users.manage"));
+  const canEdit = canEditUsers || canEditRegs;
 
   const rows = await getAdminUsers();
   const visible = rows.filter((row) =>

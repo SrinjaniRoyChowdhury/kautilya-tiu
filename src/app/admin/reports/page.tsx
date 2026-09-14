@@ -107,14 +107,14 @@ export default async function AdminReportsPage({
         <div className="mt-10">
           <h2 className="font-serif text-2xl text-gold-700">Committee Excel</h2>
           <p className="mt-2 text-sm text-ink-muted">
-            Each file has SLR number, portfolio, and the allocated delegate name.
+            Each file lists allotted delegates with the portfolio typed at allocation.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {committees.map((committee) => (
               <Card key={committee.id}>
                 <p className="font-serif text-2xl text-gold-700">{committee.short_name}</p>
                 <p className="mt-1 text-sm text-ink-muted">{committee.name}</p>
-                <p className="mt-2 text-sm text-ink-muted">{committee.portfolio_config.length} delegations</p>
+                <p className="mt-2 text-sm text-ink-muted">Capacity {committee.capacity}</p>
                 <a
                   href={`/admin/reports/committee/${committee.id}`}
                   className="mt-4 inline-block text-sm text-gold-700 hover:underline"

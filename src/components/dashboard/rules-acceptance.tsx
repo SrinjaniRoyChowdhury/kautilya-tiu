@@ -6,19 +6,19 @@ import { acceptConferenceRulesAction, type DocsState } from "@/app/actions/docs"
 import { ConferenceDocCards } from "@/components/public/doc-cards";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import type { DocKind } from "@/lib/docs";
+import { bothDocsPublished, type DocLinks } from "@/lib/docs";
 
 export function RulesAcceptance({
   registrationId,
-  published,
+  links,
 }: {
   registrationId: string;
-  published: Record<DocKind, boolean>;
+  links: DocLinks;
 }) {
   const [state, action, pending] = useActionState(acceptConferenceRulesAction, {} as DocsState);
   const [readRulebook, setReadRulebook] = useState(false);
   const [readGuidelines, setReadGuidelines] = useState(false);
-  const ready = published.rulebook && published.guidelines;
+  const ready = bothDocsPublished(links);
   const bothChecked = readRulebook && readGuidelines;
 
   return (
@@ -31,13 +31,13 @@ export function RulesAcceptance({
         first, the same way you would accept terms and conditions. Registration stays closed until
         you confirm both.
       </p>
-      <ConferenceDocCards published={published} />
+      <ConferenceDocCards links={links} />
       <form action={action} className="grid gap-4 border-t border-gold-700/15 pt-6">
         <input type="hidden" name="registration_id" value={registrationId} />
         {!ready ? (
           <p className="text-sm text-ink-muted">
-            Both PDFs must be published before you can continue. You can still tick the boxes once they
-            are live.
+            Both links must be published before you can continue. You can still tick the boxes once
+            they are live.
           </p>
         ) : null}
         <label className="flex cursor-pointer items-start gap-3 text-sm">

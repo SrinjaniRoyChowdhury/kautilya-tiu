@@ -15,7 +15,7 @@ import {
 } from "@/lib/data";
 import { formatInrFromMinor } from "@/lib/format";
 import { PAYMENT_STATUS_COPY } from "@/lib/payments";
-import { isRegistrationOpen } from "@/lib/registration";
+import { isPayableRegistration, isRegistrationOpen } from "@/lib/registration";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -82,9 +82,10 @@ export default async function DashboardPage() {
           <p className="mt-2 font-serif text-2xl">
             {covering
               ? PAYMENT_STATUS_COPY[covering.status].label
-              : registration?.status === "PAYMENT_PENDING" ||
-                  registration?.status === "PAYMENT_REJECTED"
+              : isPayableRegistration(registration?.status)
                 ? "Ready to pay"
+                : registration?.status === "SUBMITTED"
+                  ? "Locked"
                 : registration?.status === "CONFIRMED"
                   ? "Verified"
                   : "Not started"}
@@ -92,7 +93,9 @@ export default async function DashboardPage() {
           <p className="mt-2 text-sm text-ink-muted">
             {covering
               ? PAYMENT_STATUS_COPY[covering.status].detail
-              : "Manual UPI screenshot and group payment. The expected fee is snapshotted when you submit registration."}
+              : registration?.status === "SUBMITTED"
+                ? "Payment stays locked until your committee and portfolio are allocated. The fee is set then."
+              : "Manual UPI screenshot and group payment. The expected fee is set when a committee is allocated."}
           </p>
           {covering?.expected_amount_minor != null ? (
             <p className="mt-2 text-sm">

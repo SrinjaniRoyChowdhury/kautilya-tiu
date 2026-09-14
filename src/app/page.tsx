@@ -29,6 +29,8 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* Preload while RSC streams so playback can start as soon as the overlay mounts. */}
+      <link rel="preload" href="/intro.mp4" as="video" type="video/mp4" />
       <HomeIntro />
       <Hero
         societyName={settings.society_name}

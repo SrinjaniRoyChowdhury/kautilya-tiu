@@ -22,6 +22,7 @@ export function AdminNav({ items, canScan }: { items: AdminNavItem[]; canScan: b
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               className={cn(
                 "shrink-0 rounded-sm px-3 py-2 text-sm",
                 current

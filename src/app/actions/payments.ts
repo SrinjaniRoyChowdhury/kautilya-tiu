@@ -32,9 +32,11 @@ const RPC_MESSAGES: Record<string, string> = {
   PAYMENT_ALREADY_VERIFIED: "That participant is already confirmed.",
   PAYMENT_LOCKED: "This payment can no longer be edited.",
   REGISTRATION_INCOMPLETE:
-    "Submit your own registration before paying for yourself, or uncheck “Pay for myself” and select registered delegates instead.",
+    "Submit your own registration and wait for committee allocation before paying for yourself, or uncheck “Pay for myself” and select allocated delegates instead.",
+  ALLOCATION_PENDING:
+    "Payment opens after the secretariat allocates a committee and portfolio. The fee is unknown until then.",
   NOT_REGISTERED:
-    "That person has not submitted a registration, so the fee is unknown and they cannot be added.",
+    "That person has not been allocated a committee yet, so the fee is unknown and they cannot be added.",
   NO_PARTICIPANTS: "Add at least one participant.",
   PROOF_REQUIRED: "Upload a payment screenshot.",
   AMOUNT_REQUIRED: "Enter the amount you transferred.",
@@ -257,7 +259,7 @@ export async function updatePaymentInstructionsAction(
     p_new: payload,
   });
   revalidatePaymentSurfaces(editionId);
-  return { success: "Payment instructions saved." };
+  return { success: "Payment information saved." };
 }
 
 function revalidatePaymentSurfaces(editionId: string) {
@@ -282,71 +284,19 @@ async function storePaymentQrImage(
     if (!sniffImageMime(buffer)) return { qrKey, error: "Use JPEG, PNG, or WebP for the payment QR." };
     const compressed = await compressProofImage(buffer);
     if ("error" in compressed) return { qrKey, error: compressed.error };
-    const key = `payment-qr/${editionId}.${compressed.extension}`;
+    const stamp = Date.now().toString(36);
+    const key = `payment-qr/${editionId}-${stamp}.${compressed.extension}`;
     const admin = createAdminClient();
     const upload = await admin.storage.from("cms-media").upload(key, compressed.buffer, {
       contentType: compressed.mime,
       upsert: true,
     });
     if (upload.error) return { qrKey, error: "Could not store the payment QR." };
+    if (currentKey && currentKey !== key && isStorageObjectKey(currentKey)) {
+      await admin.storage.from("cms-media").remove([currentKey]);
+    }
     qrKey = key;
   }
   if (qrKey && !isStorageObjectKey(qrKey)) qrKey = null;
   return { qrKey };
-}
-
-export async function updatePaymentQrAction(
-  editionId: string,
-  _prev: PaymentState,
-  formData: FormData,
-): Promise<PaymentState> {
-  if (!isUuid(editionId)) return { error: "Missing edition." };
-  const supabase = await createClient();
-  const { data: allowed } = await supabase.rpc("has_permission", {
-    p_code: "edition.manage",
-    p_edition_id: editionId,
-  });
-  if (!allowed) return { error: "Only an admin can change the receiving QR." };
-
-  const { data: current } = await supabase
-    .from("payment_instructions")
-    .select("upi_id, upi_qr_image_key, bank_name, account_name, account_number, ifsc, notes")
-    .eq("edition_id", editionId)
-    .maybeSingle();
-  const row = current as {
-    upi_id: string | null;
-    upi_qr_image_key: string | null;
-    bank_name: string | null;
-    account_name: string | null;
-    account_number: string | null;
-    ifsc: string | null;
-    notes: string | null;
-  } | null;
-
-  const stored = await storePaymentQrImage(editionId, formData, row?.upi_qr_image_key ?? null);
-  if (stored.error) return { error: stored.error };
-
-  const payload = {
-    edition_id: editionId,
-    upi_id: row?.upi_id ?? null,
-    bank_name: row?.bank_name ?? null,
-    account_name: row?.account_name ?? null,
-    account_number: row?.account_number ?? null,
-    ifsc: row?.ifsc ?? null,
-    notes: row?.notes ?? null,
-    upi_qr_image_key: stored.qrKey,
-  };
-  const { error } = await supabase.from("payment_instructions").upsert(payload, {
-    onConflict: "edition_id",
-  });
-  if (error) return { error: error.message };
-  await supabase.rpc("write_audit", {
-    p_action: "payment_qr.update",
-    p_entity: "payment_instructions",
-    p_entity_id: editionId,
-    p_old: { upi_qr_image_key: row?.upi_qr_image_key ?? null },
-    p_new: { upi_qr_image_key: stored.qrKey },
-  });
-  revalidatePaymentSurfaces(editionId);
-  return { success: stored.qrKey ? "Receiving QR saved. Delegates will see it on payment details." : "Receiving QR removed." };
 }

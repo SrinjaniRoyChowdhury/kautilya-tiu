@@ -11,4 +11,16 @@ export function isDocKind(value: string): value is DocKind {
   return value === "rulebook" || value === "guidelines";
 }
 
-export const MAX_DOC_BYTES = 12 * 1024 * 1024;
+export type DocLinks = Record<DocKind, string | null>;
+
+export function emptyDocLinks(): DocLinks {
+  return { rulebook: null, guidelines: null };
+}
+
+export function isDocPublished(url: string | null | undefined): boolean {
+  return Boolean(url && url.trim());
+}
+
+export function bothDocsPublished(links: DocLinks): boolean {
+  return DOC_KINDS.every((kind) => isDocPublished(links[kind]));
+}

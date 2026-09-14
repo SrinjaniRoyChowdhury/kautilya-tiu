@@ -40,18 +40,23 @@ describe("intro-gate", () => {
   });
 
   it("identifies when intro has been marked seen in localStorage", () => {
-    mockStorage.setItem("kautilya:intro-seen", "1");
+    mockStorage.setItem("kautilya:intro-seen:v4", "1");
     expect(hasSeenHomeIntro()).toBe(true);
     expect(shouldPlayHomeIntro()).toBe(false);
   });
 
-  it("marks intro seen on beginHomeIntro", () => {
+  it("marks intro seen on markHomeIntroDone only", () => {
     beginHomeIntro();
+    expect(hasSeenHomeIntro()).toBe(false);
+    expect(isHomeIntroDone()).toBe(false);
+    markHomeIntroDone();
     expect(hasSeenHomeIntro()).toBe(true);
-    expect(mockStorage.getItem("kautilya:intro-seen")).toBe("1");
+    expect(isHomeIntroDone()).toBe(true);
+    expect(mockStorage.getItem("kautilya:intro-seen:v4")).toBe("1");
   });
 
   it("marks intro done on markHomeIntroDone", () => {
+    beginHomeIntro();
     markHomeIntroDone();
     expect(isHomeIntroDone()).toBe(true);
     expect(hasSeenHomeIntro()).toBe(true);

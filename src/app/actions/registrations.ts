@@ -6,7 +6,7 @@ import { getAppOrigin } from "@/lib/origin";
 import { getEditionById, getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
-import { buildRegistrationSchema, isRegistrationOpen } from "@/lib/registration";
+import { buildRegistrationSchema, isRegistrationOpen, parsePreferencesFromForm, preferencesPayload, visibleRegistrationFields } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
 export type RegistrationState = {
@@ -28,6 +28,12 @@ const RPC_MESSAGES: Record<string, string> = {
   COMMITTEE_CLOSED: "That committee is closed.",
   COMMITTEE_FULL: "That committee has no delegations remaining. Choose another committee.",
   COMMITTEE_REQUIRED: "Select a committee.",
+  PREFERENCES_REQUIRED: "Select 2 or 3 committees in order of preference, with at least one portfolio each.",
+  PREFERENCE_DUPLICATE: "Each committee can only be selected once.",
+  PORTFOLIO_REQUIRED: "Select at least one portfolio for every preferred committee.",
+  PORTFOLIO_DUPLICATE: "Do not enter the same portfolio twice for one committee.",
+  ALLOCATION_PENDING: "Payment opens after the secretariat allocates your committee and portfolio.",
+  ALLOCATION_REQUIRED: "Allocate a committee and portfolio first.",
   FOOD_REQUIRED: "Select a food preference.",
   PARTNER_REQUIRED: "Enter the signed-up email of your double-delegation partner.",
   PARTNER_SELF: "The partner email cannot be your own.",
@@ -113,11 +119,11 @@ function valuesPayload(
 
 function parseFormPayload(formData: FormData, fields: RegistrationFieldDefinition[]) {
   const raw: Record<string, unknown> = {
-    committee_id: String(formData.get("committee_id") ?? ""),
     food_preference: String(formData.get("food_preference") ?? ""),
     collective_id: String(formData.get("collective_id") ?? ""),
     delegation_type: String(formData.get("delegation_type") ?? "SINGLE"),
     partner_email: String(formData.get("partner_email") ?? ""),
+    preferences: parsePreferencesFromForm(formData),
   };
   for (const field of fields) {
     if (field.field_type === "multiselect") {
@@ -146,7 +152,7 @@ async function runSave(
     return { error: "Registration is currently closed for this edition." };
   }
 
-  const fields = await getFieldDefinitions(editionId);
+  const fields = visibleRegistrationFields(await getFieldDefinitions(editionId));
   const raw = parseFormPayload(formData, fields);
 
   if (intent === "submit") {
@@ -155,7 +161,7 @@ async function runSave(
     const supabaseGate = await createClient();
     const { data: row } = await supabaseGate
       .from("registrations")
-      .select("accepted_rules_at")
+      .select("accepted_rules_at, is_pair_lead")
       .eq("id", registrationId)
       .maybeSingle();
 
@@ -169,7 +175,8 @@ async function runSave(
         .update({ accepted_rules_at: new Date().toISOString() })
         .eq("id", registrationId);
     }
-    const schema = buildRegistrationSchema(fields);
+    const isPairLead = (row as { is_pair_lead?: boolean } | null)?.is_pair_lead !== false;
+    const schema = buildRegistrationSchema(fields, { requirePreferences: isPairLead });
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
@@ -183,27 +190,27 @@ async function runSave(
       };
     }
   } else {
-    const committee = String(raw.committee_id ?? "");
-    if (committee && !isUuid(committee)) {
-      return { error: "Select a valid committee", fieldErrors: { committee_id: "Select a committee" } };
+    const prefs = parsePreferencesFromForm(formData);
+    if (prefs.some((pref) => pref.committee_id && !isUuid(pref.committee_id))) {
+      return { error: "Select valid committees", fieldErrors: { preferences: "Select committees" } };
     }
   }
 
   const food = (raw.food_preference as string) || null;
   const foodPref =
     food === "VEG" || food === "NON_VEG" ? (food as FoodPreference) : null;
-  const committeeId = String(raw.committee_id ?? "") || null;
   const payload = valuesPayload(fields, raw);
+  const prefs = preferencesPayload(parsePreferencesFromForm(formData));
 
   const supabase = await createClient();
   const rpc = intent === "submit" ? "submit_registration" : "save_registration_draft";
   const { error } = await supabase.rpc(rpc, {
     p_registration_id: registrationId,
-    p_committee_id: committeeId,
     p_food_preference: foodPref,
     p_values: payload,
     p_delegation_type: String(raw.delegation_type ?? "SINGLE") === "DOUBLE" ? "DOUBLE" : "SINGLE",
     p_partner_email: String(raw.partner_email ?? "").trim() || null,
+    p_preferences: prefs,
   });
 
   if (error) return { error: rpcMessage(error) };
@@ -222,7 +229,7 @@ async function runSave(
   return {
     success:
       intent === "submit"
-        ? "Registration submitted. Pay from your dashboard."
+        ? "Registration submitted. The secretariat will allocate your committee and portfolio, then payment will open."
         : "Draft saved.",
   };
 }

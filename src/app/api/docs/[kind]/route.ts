@@ -19,9 +19,15 @@ export async function GET(
   const admin = createAdminClient();
   const { data: doc } = await admin
     .from("conference_documents")
-    .select("storage_key, file_name")
+    .select("storage_key, file_name, external_url")
     .eq("kind", kind)
     .maybeSingle();
+
+  const external = typeof doc?.external_url === "string" ? doc.external_url.trim() : "";
+  if (external) {
+    return NextResponse.redirect(external, 302);
+  }
+
   if (!doc?.storage_key || !isStorageObjectKey(doc.storage_key)) {
     return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
   }

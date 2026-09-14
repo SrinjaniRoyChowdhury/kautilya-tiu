@@ -25,6 +25,7 @@ import { confirmPasswordSchema } from "@/lib/password";
 import { getAppOrigin } from "@/lib/origin";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const signupSchema = z
   .object({
@@ -72,10 +73,67 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   });
   if (!parsed.success) return firstIssue(parsed.error);
 
+  const emailLower = parsed.data.email.toLowerCase().trim();
+  const admin = createAdminClient();
+
+  // 1. Check if an active user already exists with this email
+  const { data: existingUser } = await admin
+    .from("users")
+    .select("id, email, deleted_at, status")
+    .eq("email", emailLower)
+    .maybeSingle();
+
+  if (existingUser && !existingUser.deleted_at) {
+    return {
+      error: "That email is already registered. Sign in instead.",
+      fieldErrors: { email: "That email is already registered. Sign in instead." },
+    };
+  }
+
+  // 2. If a previously deleted user was holding this email, free it up so they can re-register cleanly
+  if (existingUser && existingUser.deleted_at) {
+    await admin
+      .from("users")
+      .update({ email: `deleted_${existingUser.id}_${Date.now()}` })
+      .eq("id", existingUser.id);
+  }
+
+  // 3. Also check if auth.users has an existing account for this email
+  try {
+    const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 100 });
+    const oldAuth = authList?.users?.find(
+      (u) => u.email?.toLowerCase().trim() === emailLower,
+    );
+    if (oldAuth) {
+      // Check if this auth user is tied to an active public.user
+      const { data: activeUser } = await admin
+        .from("users")
+        .select("id")
+        .eq("id", oldAuth.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (activeUser) {
+        return {
+          error: "That email is already registered. Sign in instead.",
+          fieldErrors: { email: "That email is already registered. Sign in instead." },
+        };
+      }
+
+      // It was a deleted account holding the email in auth.users. Free it up!
+      await admin.auth.admin.updateUserById(oldAuth.id, {
+        email: `deleted_${oldAuth.id}_${Date.now()}@deleted.local`,
+        email_confirm: false,
+      });
+    }
+  } catch {
+    // Continue if auth check fails
+  }
+
   const supabase = await createClient();
   const origin = await getAppOrigin();
-  const { error } = await supabase.auth.signUp({
-    email: parsed.data.email,
+  const { data, error } = await supabase.auth.signUp({
+    email: emailLower,
     password: parsed.data.password,
     options: {
       data: {
@@ -88,9 +146,20 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
 
   if (error) {
     if (error.message.toLowerCase().includes("already")) {
-      return { error: "That email is already registered. Sign in instead." };
+      return {
+        error: "That email is already registered. Sign in instead.",
+        fieldErrors: { email: "That email is already registered. Sign in instead." },
+      };
     }
     return { error: "Could not create the account. Try again." };
+  }
+
+  // Supabase returns identities: [] when user enumeration protection is on and the email is already registered
+  if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return {
+      error: "That email is already registered. Sign in instead.",
+      fieldErrors: { email: "That email is already registered. Sign in instead." },
+    };
   }
 
   return {

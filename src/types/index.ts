@@ -43,6 +43,7 @@ export type Edition = {
   registration_status?: "OPEN" | "CLOSED";
   hide_executive_board?: boolean;
   hide_team?: boolean;
+  portfolio_matrix_url?: string | null;
 };
 
 export type EbMember = {
@@ -182,6 +183,17 @@ export type Registration = {
   partner_name?: string | null;
 };
 
+export type RegistrationPreference = {
+  id?: string;
+  registration_id?: string;
+  preference_order: number;
+  committee_id: string;
+  portfolio_1: string;
+  portfolio_2?: string | null;
+  committee_short_name?: string | null;
+  committee_name?: string | null;
+};
+
 export type Collective = {
   id: string;
   name: string;
@@ -193,8 +205,9 @@ export type Institution = Collective;
 
 export type ConferenceDocument = {
   kind: "rulebook" | "guidelines";
-  file_name: string;
-  storage_key: string;
+  file_name: string | null;
+  storage_key: string | null;
+  external_url?: string | null;
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;
@@ -232,6 +245,47 @@ export type AdminParticipant = {
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
   display_code?: string | null;
+  committee_id?: string | null;
+  expected_fee_minor?: number | null;
+  preferences?: RegistrationPreference[];
+};
+
+export type AdminParticipantField = {
+  label: string;
+  section: FieldSection;
+  value: string;
+};
+
+export type AdminParticipantPartner = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  status: RegistrationStatus;
+  food_preference: FoodPreference | null;
+  collective_name: string | null;
+  institution_name: string | null;
+  allocated_portfolio: string | null;
+  allocated_slr: number | null;
+  display_code: string | null;
+  is_pair_lead: boolean | null;
+  paid: boolean;
+  confirmed_free: boolean;
+};
+
+export type AdminParticipantDetail = AdminParticipant & {
+  phone: string | null;
+  submitted_at: string | null;
+  confirmed_at: string | null;
+  accepted_rules_at: string | null;
+  is_pair_lead: boolean | null;
+  pair_id: string | null;
+  partner_registration_id: string | null;
+  partner_name: string | null;
+  committee_name: string | null;
+  edition_name: string | null;
+  fields: AdminParticipantField[];
+  partner: AdminParticipantPartner | null;
 };
 
 export type FoodCollectionRow = {

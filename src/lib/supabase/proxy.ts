@@ -37,7 +37,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(httpsUrl, 308);
   }
 
-  let supabaseResponse = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({
+    request: {
+      headers: (() => {
+        const headers = new Headers(request.headers);
+        headers.set("x-pathname", path);
+        return headers;
+      })(),
+    },
+  });
   const url =
     process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -53,7 +61,11 @@ export async function updateSession(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        supabaseResponse = NextResponse.next({ request });
+        const headers = new Headers(request.headers);
+        headers.set("x-pathname", path);
+        supabaseResponse = NextResponse.next({
+          request: { headers },
+        });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options),
         );

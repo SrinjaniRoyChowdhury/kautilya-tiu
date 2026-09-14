@@ -17,15 +17,15 @@ export function ParticipantPasswordForm({ registrationId }: { registrationId: st
   const action = setParticipantPasswordAction.bind(null, registrationId);
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} className="grid gap-2.5">
       <Field
         label="New password"
         htmlFor="password"
-        hint="At least 8 characters, with upper, lower, and a number."
+        hint="Min 8 chars, upper, lower, number."
       >
         <PasswordInput id="password" name="password" required autoComplete="new-password" />
       </Field>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} size="sm">
         {pending ? "Saving…" : "Update password"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
@@ -38,47 +38,44 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   if (participant.paid || participant.confirmed_free) {
     return (
-      <form action={formAction} className="grid gap-4">
-        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-          <strong>Caution:</strong> This participant has a confirmed registration or recorded payment. Deleting them requires admin re-authentication and a mandatory reason for the audit trail.
+      <form action={formAction} className="grid gap-2.5">
+        <div className="rounded-sm border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+          Paid/confirmed delete needs admin re-auth and a reason for the audit trail.
         </div>
-        <Field label="Admin Username / Email" htmlFor="admin_username">
+        <Field label="Admin username / email" htmlFor="admin_username">
           <Input
             id="admin_username"
             name="admin_username"
             required
             autoComplete="username"
-            placeholder="e.g. admin or admin@kautilya.local"
+            placeholder="admin or admin@…"
           />
         </Field>
-        <Field label="Admin Password" htmlFor="admin_password">
+        <Field label="Admin password" htmlFor="admin_password">
           <PasswordInput id="admin_password" name="admin_password" required autoComplete="current-password" />
         </Field>
-        <Field
-          label="Reason for deletion"
-          htmlFor="reason"
-          hint="This reason will be visible permanently in the audit log."
-        >
-          <Input id="reason" name="reason" required placeholder="e.g. Duplicate registration / refunded" />
+        <Field label="Reason" htmlFor="reason" hint="Stored permanently in audit log.">
+          <Input id="reason" name="reason" required placeholder="e.g. Duplicate / refunded" />
         </Field>
         <Button
           type="submit"
           variant="secondary"
+          size="sm"
           disabled={pending}
           className="text-red-700 border-red-300 hover:bg-red-50"
         >
-          {pending ? "Deleting…" : "Authorize & delete paid participant"}
+          {pending ? "Deleting…" : "Authorize & delete"}
         </Button>
         <ActionFeedback error={state.error} success={state.success} />
       </form>
     );
   }
   return (
-    <form action={formAction} className="grid gap-3">
-      <p className="text-sm text-ink-muted">
-        Removes {participant.full_name} from this edition. Only allowed before payment.
+    <form action={formAction} className="grid gap-2">
+      <p className="text-xs text-ink-muted">
+        Removes {participant.full_name} from this edition. Only before payment.
       </p>
-      <Button type="submit" variant="secondary" disabled={pending}>
+      <Button type="submit" variant="secondary" size="sm" disabled={pending}>
         {pending ? "Deleting…" : "Delete unpaid participant"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
@@ -105,14 +102,20 @@ export function ConfirmFreeParticipantForm({ participant }: { participant: Admin
       <p className="text-sm text-ink-muted">They must submit a registration before confirmation.</p>
     );
   }
+  if (participant.status === "SUBMITTED" || !participant.committee_id) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Allocate a committee and portfolio first, then you can confirm without payment.
+      </p>
+    );
+  }
 
   return (
-    <form action={formAction} className="grid gap-3">
-      <p className="text-sm text-ink-muted">
-        Confirm without payment. They receive a credential and appear under Free Participants on the
-        admin overview. Revenue is unaffected.
+    <form action={formAction} className="grid gap-2">
+      <p className="text-xs text-ink-muted">
+        Confirm without payment. Credential issued; revenue unchanged.
       </p>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Confirming…" : "Confirm as free participant"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
