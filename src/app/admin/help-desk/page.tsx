@@ -16,7 +16,10 @@ export default async function AdminHelpDeskPage({
 }: {
   searchParams: Promise<{ q?: string; type?: string; from?: string; to?: string; page?: string }>;
 }) {
-  const staff = await isStaffUser();
+  const [staff, allQueries] = await Promise.all([
+    isStaffUser(),
+    getHelpDeskQueries({ limit: 1000 }),
+  ]);
   if (!staff) {
     return (
       <Container className="py-12">
@@ -31,9 +34,7 @@ export default async function AdminHelpDeskPage({
 
   const { q = "", type = "", from = "", to = "", page: pageRaw } = await searchParams;
 
-  // Load all queries so we can compute category counts and apply in-memory search/date filters
-  const allQueries = await getHelpDeskQueries({ limit: 1000 });
-
+  // Category counts + in-memory search/date filters
   const delegateCount = allQueries.filter((row) => row.type === "Delegate Queries").length;
   const partnershipCount = allQueries.filter((row) => row.type === "Partnership").length;
   const pressFacultyCount = allQueries.filter((row) => row.type === "Press and Faculty").length;

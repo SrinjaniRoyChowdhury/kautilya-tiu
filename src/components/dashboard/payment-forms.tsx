@@ -19,8 +19,9 @@ import {
   participantName,
   participantResolution,
   paymentEditable,
+  paymentQrSrc,
 } from "@/lib/payments";
-import { PaymentQrImage } from "@/components/pay/payment-qr-image";
+import { QrLightbox } from "@/components/dashboard/qr-lightbox";
 import type { PaymentInstructions, PaymentParticipant, PaymentWithParticipants } from "@/types";
 
 function TransferDateTimeField() {
@@ -101,16 +102,22 @@ export function PaymentInstructionsCard({
 }) {
   const upi = instructions?.upi_id;
   const copyValue = upi ?? instructions?.account_number ?? "";
-  const qrKey = instructions?.upi_qr_image_key;
+  const qrSrc = paymentQrSrc(editionId, instructions?.upi_qr_image_key);
   return (
     <div className="grid gap-3">
       <p className="text-xs uppercase tracking-widest text-gold-700">Pay this amount</p>
       <p className="font-serif text-4xl text-gold-700">{formatInrFromMinor(expectedMinor)}</p>
       <div className="rounded-sm border border-gold-700/20 bg-parchment-100/60 p-4">
         <p className="text-xs uppercase tracking-widest text-gold-700">Scan this QR to pay</p>
-        {qrKey ? (
+        {qrSrc ? (
           <div className="mt-3 flex justify-center sm:justify-start">
-            <PaymentQrImage editionId={editionId} imageKey={qrKey} alt="QR code for receiving payment" />
+            <QrLightbox
+              src={qrSrc}
+              alt="QR code for receiving payment"
+              dialogLabel="Payment QR"
+              hint="Tap the QR to enlarge for scanning"
+              thumbnailClassName="h-56 w-56 max-w-full rounded-sm border border-gold-700/25 bg-parchment-50 object-contain p-2"
+            />
           </div>
         ) : (
           <p className="mt-3 text-sm text-ink-muted">

@@ -483,7 +483,7 @@ export function CommitteeForm({
       <fieldset className="sm:col-span-2 grid gap-2">
         <legend className="text-sm font-medium">Delegation type</legend>
         <p className="text-xs text-ink-muted">
-          Double delegation uses one portfolio for two people. Fees for double del are set per phase
+          Double delegation uses one allotment for two people. Fees for double del are set per phase
           below.
         </p>
         <div className="inline-flex w-fit items-center gap-2 text-sm">
@@ -575,6 +575,21 @@ export function CommitteeForm({
           type="number"
           disabled={readOnly}
           defaultValue={draft?.display_order ?? committee?.display_order ?? 0}
+        />
+      </Field>
+      <Field
+        label="Capacity"
+        htmlFor="capacity"
+        hint="Maximum delegations. Portfolios are typed manually when allotting participants."
+      >
+        <Input
+          id="capacity"
+          name="capacity"
+          type="number"
+          min={1}
+          required
+          disabled={readOnly}
+          defaultValue={draft?.capacity ?? committee?.capacity ?? 40}
         />
       </Field>
       <CommitteeLogoField committee={committee} readOnly={readOnly} showRemove={!isCreate} />

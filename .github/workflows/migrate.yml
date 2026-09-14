@@ -1,0 +1,58 @@
+name: migrate
+
+# Apply supabase/migrations to production Supabase when main is updated.
+# staging is Vercel preview only — it shares no separate database and must not run this job.
+# Configure Vercel → Git → Deployment Checks (Production) to require: ci / check, migrate / apply.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Resolve production database URL
+        id: db
+        env:
+          PRODUCTION_DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          URL="${PRODUCTION_DATABASE_URL:-${DATABASE_URL:-}}"
+          if [ -z "$URL" ]; then
+            echo "::error::Missing PRODUCTION_DATABASE_URL (or DATABASE_URL) secret for production Supabase."
+            exit 1
+          fi
+          case "$URL" in
+            *:6543/*)
+              echo "::warning::DATABASE_URL uses port 6543 (pooler). Prefer session mode :5432 for migrations."
+              ;;
+          esac
+          echo "::add-mask::$URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ steps.db.outputs.url }}
+        run: |
+          set -euo pipefail
+          echo "Applying migrations to production Supabase…"
+          npx supabase db push --db-url "$DATABASE_URL" --yes --include-all
+
+      - name: Record applied versions
+        env:
+          DATABASE_URL: ${{ steps.db.outputs.url }}
+        run: npx supabase migration list --db-url "$DATABASE_URL"

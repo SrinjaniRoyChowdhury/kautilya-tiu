@@ -114,7 +114,11 @@ Quick production shape:
 - Mail: Brevo (Supabase SMTP for auth + `BREVO_API_KEY` for QR emails)  
 - CI gates PRs; Vercel ships `main` after merge  
 
-Create a project at [supabase.com](https://supabase.com) (Free plan). Copy `.env.production.example` → `.env.production` locally, fill hosted Supabase + Brevo values, paste the same vars into Vercel, run `npm run env:verify:prod`. Apply `supabase/migrations/` to hosted DB. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once from your machine.
+Create a project at [supabase.com](https://supabase.com) (Free plan). Copy `.env.production.example` → `.env.production` locally, fill hosted Supabase + Brevo values, paste the same vars into Vercel, run `npm run env:verify:prod`.
+
+**Schema:** pending files in `supabase/migrations/` are applied by GitHub Action **migrate** on push to `main` only (secret `PRODUCTION_DATABASE_URL` → hosted Supabase). You can also run `npm run db:push:prod` from your machine. `staging` is Vercel preview only and does not run DB migrations. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once from your machine.
+
+See [DEPLOY.md](./DEPLOY.md) for the release order (migrate gated before Vercel Production serves new code).
 
 ## Tests, health, backups
 

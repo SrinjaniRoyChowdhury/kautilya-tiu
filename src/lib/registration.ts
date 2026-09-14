@@ -1,7 +1,8 @@
 import { z, type ZodType } from "zod";
 import { hexId } from "@/lib/ids";
 import { isParticipantPhoneField, tenDigitPhoneSchema } from "@/lib/phone";
-import type { FieldSection, RegistrationFieldDefinition } from "@/types";
+import type { FieldSection, RegistrationFieldDefinition, RegistrationPreference } from "@/types";
+import { RETIRED_REGISTRATION_FIELD_KEYS } from "@/lib/constants";
 
 export const SECTION_LABELS: Record<FieldSection, string> = {
   PERSONAL: "Personal",
@@ -16,6 +17,18 @@ export const PRE_PAYMENT_STATUSES = [
   "PAYMENT_PENDING",
   "PAYMENT_REJECTED",
 ] as const;
+
+export const PRE_ALLOCATION_STATUSES = ["DRAFT", "SUBMITTED"] as const;
+
+export const PAYABLE_STATUSES = ["PAYMENT_PENDING", "PAYMENT_REJECTED"] as const;
+
+export function isPayableRegistration(status: string | null | undefined): boolean {
+  return (PAYABLE_STATUSES as readonly string[]).includes(status ?? "");
+}
+
+export function isPreAllocationStatus(status: string | null | undefined): boolean {
+  return (PRE_ALLOCATION_STATUSES as readonly string[]).includes(status ?? "");
+}
 
 export function needsConferenceRulesAcceptance(registration: {
   status: string;
@@ -122,23 +135,50 @@ function fieldSchema(def: RegistrationFieldDefinition): ZodType {
   }
 }
 
-export function buildRegistrationSchema(fields: RegistrationFieldDefinition[]) {
+export const preferenceItemSchema = z.object({
+  committee_id: hexId,
+  portfolio_1: z.string().trim().min(1, "Select at least one portfolio for this committee"),
+  portfolio_2: z.union([z.string(), z.literal("")]).optional(),
+});
+
+export type PreferenceFormItem = z.infer<typeof preferenceItemSchema>;
+
+export function visibleRegistrationFields(
+  fields: RegistrationFieldDefinition[],
+): RegistrationFieldDefinition[] {
+  const retired = new Set<string>(RETIRED_REGISTRATION_FIELD_KEYS);
+  return fields.filter((field) => !retired.has(field.field_key));
+}
+
+export function buildRegistrationSchema(
+  fields: RegistrationFieldDefinition[],
+  options: { requirePreferences?: boolean } = {},
+) {
+  const requirePreferences = options.requirePreferences !== false;
+  const visible = visibleRegistrationFields(fields);
   const shape: Record<string, ZodType> = {
-    committee_id: hexId,
     food_preference: z.enum(["VEG", "NON_VEG"], { error: "Select a food preference" }),
     collective_id: z.union([hexId, z.literal("")]).optional(),
     delegation_type: z.enum(["SINGLE", "DOUBLE"]).optional(),
     partner_email: z.union([z.literal(""), z.string().trim().email("Enter a valid partner email")]).optional(),
+    preferences: requirePreferences
+      ? z
+          .array(preferenceItemSchema)
+          .min(2, "Select at least 2 committees in order of preference")
+          .max(3, "Select at most 3 committees")
+      : z.array(preferenceItemSchema).max(3).optional(),
   };
-  for (const field of fields) {
+  for (const field of visible) {
     const def =
-      field.field_key === "institution" ? { ...field, required: false } : field;
+      field.field_key === "institution" || field.field_key === "mun_experience_details"
+        ? { ...field, required: false }
+        : field;
     shape[field.field_key] = fieldSchema(def);
   }
   return z.object(shape).superRefine((data, ctx) => {
     const collective = String(data.collective_id ?? "").trim();
     const institution = String(data.institution ?? "").trim();
-    const inst = fields.find((field) => field.field_key === "institution");
+    const inst = visible.find((field) => field.field_key === "institution");
     if (inst?.required && !collective && institution.length < 2) {
       ctx.addIssue({
         code: "custom",
@@ -146,7 +186,7 @@ export function buildRegistrationSchema(fields: RegistrationFieldDefinition[]) {
         message: "Enter your institution, or select a collective.",
       });
     }
-    if (String(data.delegation_type ?? "SINGLE") === "DOUBLE") {
+    if (String(data.delegation_type ?? "SINGLE") === "DOUBLE" && requirePreferences) {
       const email = String(data.partner_email ?? "").trim();
       if (!email) {
         ctx.addIssue({
@@ -156,18 +196,95 @@ export function buildRegistrationSchema(fields: RegistrationFieldDefinition[]) {
         });
       }
     }
+
+    const prefs = Array.isArray(data.preferences) ? data.preferences : [];
+    if (requirePreferences) {
+      const seen = new Set<string>();
+      prefs.forEach((pref, index) => {
+      const id = String(pref.committee_id ?? "");
+      if (seen.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["preferences", index, "committee_id"],
+          message: "Each committee can only be selected once.",
+        });
+      }
+      seen.add(id);
+      const p1 = String(pref.portfolio_1 ?? "").trim().toLowerCase();
+      const p2 = String(pref.portfolio_2 ?? "").trim().toLowerCase();
+      if (p2 && p1 && p1 === p2) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["preferences", index, "portfolio_2"],
+          message: "Use a different portfolio in the second field.",
+        });
+      }
+      });
+    }
+
+    const experience = String(data.mun_experience ?? "").trim();
+    const details = String(data.mun_experience_details ?? "").trim();
+    if (experience && experience !== "None" && details.length < 3) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["mun_experience_details"],
+        message: "Add details for your prior MUN experience.",
+      });
+    }
   });
 }
 
 export type RegistrationFormValues = {
-  committee_id: string;
   food_preference: "VEG" | "NON_VEG";
   collective_id?: string;
   delegation_type?: "SINGLE" | "DOUBLE";
   partner_email?: string;
+  preferences: PreferenceFormItem[];
   [key: string]: unknown;
 };
 
 export function seatsHeld(occupied: number | undefined, confirmed: number): number {
   return occupied ?? confirmed;
+}
+
+export function preferencesToFormItems(
+  rows: RegistrationPreference[],
+  preferredCommitteeId?: string,
+): PreferenceFormItem[] {
+  const ordered = [...rows].sort((a, b) => a.preference_order - b.preference_order);
+  if (ordered.length) {
+    return ordered.map((row) => ({
+      committee_id: row.committee_id,
+      portfolio_1: row.portfolio_1 ?? "",
+      portfolio_2: row.portfolio_2 ?? "",
+    }));
+  }
+  if (preferredCommitteeId) {
+    return [{ committee_id: preferredCommitteeId, portfolio_1: "", portfolio_2: "" }];
+  }
+  return [];
+}
+
+export function parsePreferencesFromForm(formData: FormData): PreferenceFormItem[] {
+  const count = Number(formData.get("preference_count") ?? 0);
+  const out: PreferenceFormItem[] = [];
+  const n = Number.isFinite(count) ? Math.min(Math.max(Math.trunc(count), 0), 3) : 0;
+  for (let i = 0; i < n; i += 1) {
+    out.push({
+      committee_id: String(formData.get(`preference_${i}_committee_id`) ?? ""),
+      portfolio_1: String(formData.get(`preference_${i}_portfolio_1`) ?? ""),
+      portfolio_2: String(formData.get(`preference_${i}_portfolio_2`) ?? ""),
+    });
+  }
+  return out;
+}
+
+export function preferencesPayload(prefs: PreferenceFormItem[]) {
+  return prefs
+    .filter((pref) => pref.committee_id)
+    .map((pref) => ({
+      committee_id: pref.committee_id,
+      portfolio_1: String(pref.portfolio_1 ?? "").trim(),
+      portfolio_2: String(pref.portfolio_2 ?? "").trim() || null,
+    }));
 }

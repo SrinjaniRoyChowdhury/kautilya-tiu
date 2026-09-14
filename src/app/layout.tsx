@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat, Poppins, Geist } from "next/font/google";
+import { headers } from "next/headers";
 import { AnnouncementRibbon } from "@/components/public/announcement-ribbon";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -11,7 +12,7 @@ import { getActiveEdition, getAnnouncements, getSiteSettings } from "@/lib/data"
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -41,15 +42,24 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [settings, user, profile, roles, canScan, edition] = await Promise.all([
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isStaffShell = pathname.startsWith("/admin") || pathname.startsWith("/scan");
+
+  const [settings, user, profile, roles, canScan] = await Promise.all([
     getSiteSettings(),
     getSessionUser(),
     getProfile(),
     getRoleNames(),
     hasScanAccess(),
-    getActiveEdition(),
   ]);
-  const announcements = edition ? await getAnnouncements(edition.id) : [];
+
+  // Public chrome only — admin/scan skip edition + announcements round-trips.
+  const announcements = isStaffShell
+    ? []
+    : await (async () => {
+        const edition = await getActiveEdition();
+        return edition ? getAnnouncements(edition.id) : [];
+      })();
 
   const scannerOnly = isOperatorOnly(roles);
 
@@ -66,9 +76,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           adminHref={staffHomePath(roles)}
           canScan={canScan}
         />
-        <AnnouncementRibbon announcements={announcements} />
+        {isStaffShell ? null : <AnnouncementRibbon announcements={announcements} />}
         <main className="flex-1">{children}</main>
-        {scannerOnly ? null : <Footer settings={settings} />}
+        {scannerOnly || isStaffShell ? null : <Footer settings={settings} />}
       </body>
     </html>
   );

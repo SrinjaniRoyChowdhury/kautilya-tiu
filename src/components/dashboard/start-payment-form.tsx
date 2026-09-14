@@ -30,8 +30,8 @@ export function StartPaymentForm({
           Pay for myself
           {!canIncludeSelf ? (
             <span className="block text-xs text-ink-muted">
-              Submit your registration first so your fee is known, or search for other registered
-              delegates below.
+              Submit your registration and wait for committee allocation so your fee is known, or
+              search for allocated delegates below.
             </span>
           ) : null}
         </span>

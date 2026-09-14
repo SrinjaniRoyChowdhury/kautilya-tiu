@@ -8,7 +8,6 @@ import { hasPermission, isStaffUser } from "@/lib/auth";
 import { hexId, isUuid } from "@/lib/ids";
 import { rupeesFromForm, PHASE_KINDS } from "@/lib/phases";
 import { toPlainText } from "@/lib/sanitize";
-import { parsePortfolioMatrix, parsePortfoliosText, type PortfolioRow } from "@/lib/sheet";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCommitteeCardBackgroundUpload, resolveSquareImageUpload, validateOptionalCommitteeCardBackgroundFile, validateOptionalSquareImageFile } from "@/lib/cms-media";
@@ -21,6 +20,7 @@ export type CommitteeFormValues = {
   short_name: string;
   status: string;
   display_order: number;
+  capacity: number;
   description: string;
   eb_json: string;
   allows_single_del: boolean;
@@ -37,8 +37,6 @@ export type FormState = {
   formKey?: string;
 };
 
-const MAX_PORTFOLIO_BYTES = 2 * 1024 * 1024;
-
 const committeeSchema = z.object({
   edition_id: hexId,
   name: z.string().trim().min(2).max(120),
@@ -50,8 +48,8 @@ const committeeSchema = z.object({
   allows_double_del: z.coerce.boolean().optional(),
   status: z.enum(["OPEN", "CLOSED", "HIDDEN"]),
   display_order: z.coerce.number().int().min(0).max(999),
+  capacity: z.coerce.number().int().min(1).max(5000),
   eb_json: z.string().optional().or(z.literal("")),
-  portfolio_config: z.string().optional().or(z.literal("")),
 });
 
 const COMMITTEE_FIELD_LABELS: Record<string, string> = {
@@ -62,6 +60,7 @@ const COMMITTEE_FIELD_LABELS: Record<string, string> = {
   rules_url: "Rules URL",
   status: "Status",
   display_order: "Display order",
+  capacity: "Capacity",
   eb_json: "Executive board",
 };
 
@@ -97,6 +96,7 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
       return s;
     })(),
     display_order: Number(formData.get("display_order") ?? 0),
+    capacity: Number(formData.get("capacity") ?? 40),
     description: String(formData.get("description") ?? ""),
     eb_json: String(formData.get("eb_json") ?? ""),
     allows_single_del: formData.get("allows_single_del") === "on",
@@ -148,17 +148,6 @@ function parseEb(raw: string | undefined) {
       if (!cleanName) return [];
       return [{ name: cleanName, title: toPlainText(title) || "Chair" }];
     });
-}
-
-async function portfoliosFromForm(formData: FormData): Promise<{ rows: PortfolioRow[]; error?: string }> {
-  const file = formData.get("portfolio_file");
-  if (file instanceof File && file.size > 0) {
-    if (file.size > MAX_PORTFOLIO_BYTES) return { rows: [], error: "Spreadsheet must be 2 MB or smaller." };
-    const rows = parsePortfolioMatrix(new Uint8Array(await file.arrayBuffer()));
-    if (!rows.length) return { rows: [], error: "No portfolios found. Use columns SLR No. and Portfolio." };
-    return { rows };
-  }
-  return { rows: parsePortfoliosText(String(formData.get("portfolio_config") ?? "")) };
 }
 
 async function resolveCommitteeLogo(
@@ -297,8 +286,8 @@ export async function createCommitteeAction(
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
+    capacity: formData.get("capacity") ?? 40,
     eb_json: String(formData.get("eb_json") ?? ""),
-    portfolio_config: String(formData.get("portfolio_config") ?? ""),
   });
   if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
 
@@ -318,9 +307,6 @@ export async function createCommitteeAction(
     if (isRegOpen && status === "CLOSED") status = "OPEN";
     if (!isRegOpen && status === "OPEN") status = "CLOSED";
   }
-
-  const portfolios = await portfoliosFromForm(formData);
-  if (portfolios.error) return failCommittee(formData, portfolios.error);
 
   const logoValidation = await validateOptionalCommitteeLogoFile(formData);
   if (logoValidation) return failCommittee(formData, logoValidation);
@@ -342,14 +328,14 @@ export async function createCommitteeAction(
       slug,
       description: parsed.data.description ? toPlainText(parsed.data.description) : null,
       rules_url: parsed.data.rules_url || null,
-      capacity: portfolios.rows.length,
+      capacity: parsed.data.capacity,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
       status,
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
-      portfolio_config: portfolios.rows,
+      portfolio_config: [],
       prize_money_json: prizeMoney.prizes,
       show_prize_money: showPrizeMoney,
     })
@@ -381,7 +367,7 @@ export async function createCommitteeAction(
     p_entity: "committees",
     p_entity_id: data.id,
     p_old: null,
-    p_new: { name: parsed.data.name, short_name: parsed.data.short_name, delegations: portfolios.rows.length },
+    p_new: { name: parsed.data.name, short_name: parsed.data.short_name, capacity: parsed.data.capacity },
   });
 
   revalidateCommittee(data.id);
@@ -405,6 +391,7 @@ export async function updateCommitteeAction(
     fee_rupees: formData.get("fee_rupees"),
     status: formData.get("status"),
     display_order: formData.get("display_order") ?? 0,
+    capacity: formData.get("capacity") ?? 40,
   });
   if (!parsed.success) return failCommittee(formData, formatCommitteeZodError(parsed.error));
 
@@ -461,6 +448,7 @@ export async function updateCommitteeAction(
       rules_url: parsed.data.rules_url || null,
       logo_url: logo.logoUrl,
       card_background_url: cardBackground.cardBackgroundUrl,
+      capacity: parsed.data.capacity,
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
@@ -484,7 +472,7 @@ export async function updateCommitteeAction(
   });
 
   revalidateCommittee(committeeId);
-  return { success: "Committee saved. Existing registrations keep their snapshotted fee." };
+  return { success: "Committee saved. Allocated registrations keep their snapshotted fee." };
 }
 
 const contentSchema = z.object({
@@ -638,106 +626,4 @@ export async function updateCommitteeEbAction(
   revalidatePath("/executive-board");
   revalidatePath("/admin/committees/eb");
   return { success: "Executive board saved." };
-}
-
-export async function uploadCommitteePortfoliosAction(
-  committeeId: string,
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const gate = await requireCommitteeManager();
-  if (!gate.allowed) return { error: "You do not have permission to manage committees." };
-  if (!isUuid(committeeId)) return { error: "Missing committee." };
-
-  const file = formData.get("portfolio_file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Upload an Excel or CSV file." };
-  if (file.size > MAX_PORTFOLIO_BYTES) return { error: "Spreadsheet must be 2 MB or smaller." };
-  const rows = parsePortfolioMatrix(new Uint8Array(await file.arrayBuffer()));
-  if (!rows.length) return { error: "No portfolios found. Use columns SLR No. and Portfolio." };
-
-  const { error } = await gate.supabase
-    .from("committees")
-    .update({ portfolio_config: rows, capacity: rows.length })
-    .eq("id", committeeId);
-  if (error) return { error: error.message };
-
-  await gate.supabase.rpc("write_audit", {
-    p_action: "committee.portfolios",
-    p_entity: "committees",
-    p_entity_id: committeeId,
-    p_old: null,
-    p_new: { delegations: rows.length },
-  });
-  revalidateCommittee(committeeId);
-  return { success: `${rows.length} delegations loaded from the spreadsheet.` };
-}
-
-export async function assignDelegationAction(
-  committeeId: string,
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const allowed = await hasPermission("committee.manage");
-  if (!allowed) return { error: "You do not have permission to allocate delegations." };
-  if (!isUuid(committeeId)) return { error: "Missing committee." };
-
-  const slr = Number(formData.get("slr"));
-  const portfolio = String(formData.get("portfolio") ?? "").trim();
-  const registrationId = String(formData.get("registration_id") ?? "").trim();
-  if (!Number.isInteger(slr) || slr < 1) return { error: "Missing SLR number." };
-  if (!portfolio) return { error: "Missing portfolio." };
-
-  const admin = createAdminClient();
-  const { data: committee } = await admin
-    .from("committees")
-    .select("id")
-    .eq("id", committeeId)
-    .maybeSingle();
-  if (!committee) return { error: "Committee not found." };
-
-  await admin
-    .from("registrations")
-    .update({ allocated_slr: null, allocated_portfolio: null })
-    .eq("committee_id", committeeId)
-    .eq("allocated_slr", slr);
-
-  if (!registrationId) {
-    revalidateCommittee(committeeId);
-    return { success: "Delegation cleared." };
-  }
-  if (!isUuid(registrationId)) return { error: "Choose a delegate." };
-
-  const { data: registration, error: foundError } = await admin
-    .from("registrations")
-    .select("id, committee_id, partner_registration_id")
-    .eq("id", registrationId)
-    .maybeSingle();
-  if (foundError || !registration || registration.committee_id !== committeeId) {
-    return { error: "That delegate is not in this committee." };
-  }
-
-  const { error } = await admin
-    .from("registrations")
-    .update({ allocated_slr: slr, allocated_portfolio: portfolio })
-    .eq("id", registrationId)
-    .eq("committee_id", committeeId);
-  if (error) return { error: error.message };
-  if (registration.partner_registration_id) {
-    const { error: partnerError } = await admin
-      .from("registrations")
-      .update({ allocated_slr: slr, allocated_portfolio: portfolio })
-      .eq("id", registration.partner_registration_id);
-    if (partnerError) return { error: partnerError.message };
-  }
-
-  const supabase = await createClient();
-  await supabase.rpc("write_audit", {
-    p_action: "committee.allocate",
-    p_entity: "registrations",
-    p_entity_id: registrationId,
-    p_old: null,
-    p_new: { committee_id: committeeId, allocated_slr: slr, allocated_portfolio: portfolio },
-  });
-  revalidateCommittee(committeeId);
-  return { success: "Delegation assigned. Existing QR codes are unchanged." };
 }

@@ -231,10 +231,7 @@ begin
     (v_edition_id, 'year_of_study', 'Year of study', 'select', true, '["1","2","3","4","5","Other"]'::jsonb, null, 2, 'PERSONAL'),
     (v_edition_id, 'emergency_contact', 'Emergency contact number', 'text', true, null, '{"regex":"^[0-9]{10}$"}'::jsonb, 3, 'PERSONAL'),
     (v_edition_id, 'mun_experience', 'Prior MUN experience', 'select', true, '["None","1–3 conferences","4–8 conferences","9+ conferences"]'::jsonb, null, 4, 'MUN_INFO'),
-    (v_edition_id, 'portfolio_pref_1', 'Country / portfolio preference 1', 'text', false, null, null, 5, 'MUN_INFO'),
-    (v_edition_id, 'portfolio_pref_2', 'Country / portfolio preference 2', 'text', false, null, null, 6, 'MUN_INFO'),
-    (v_edition_id, 'dietary_notes', 'Dietary notes (allergies, etc.)', 'text', false, null, '{"max":240}'::jsonb, 7, 'FOOD'),
-    (v_edition_id, 'accommodation', 'Need accommodation assistance?', 'boolean', false, null, null, 8, 'ADDITIONAL')
+    (v_edition_id, 'mun_experience_details', 'Prior MUN experience details', 'text', false, null, '{"max":2000}'::jsonb, 5, 'MUN_INFO')
   on conflict (edition_id, field_key) do nothing;
 
   insert into public.meal_types (edition_id, name, display_order) values

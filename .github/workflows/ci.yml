@@ -1,7 +1,8 @@
 name: ci
 
-# Staging gate: every PR and every push must pass before main can deploy.
-# There is no public staging site — CI is the safety net.
+# Lint/test/build for PRs and pushes.
+# Production schema is applied only on main by .github/workflows/migrate.yml.
+# staging = Vercel preview (no DB migrate). main = Vercel production + hosted Supabase.
 
 on:
   push:

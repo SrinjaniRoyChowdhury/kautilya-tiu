@@ -1,7 +1,35 @@
 # Production go-live guide — Niti Sabha / technokautilya.in
 #
-# Model: main is live. There is no public staging site.
-# GitHub Actions CI (lint/test/build) gates every PR; Vercel deploys production from main.
+# Model:
+#   main     → Vercel Production + hosted Supabase (real backend)
+#   staging  → Vercel Preview only (no separate database)
+# GitHub Actions: CI on PRs/pushes; migrate applies SQL only on main.
+# Require Vercel Production Deployment Checks: ci / check + migrate / apply.
+
+## Critical release rule (do not skip)
+
+**On `main`, migrations must land on hosted Supabase before (or gated ahead of) production app traffic.**
+
+1. Merge / push to `main`
+2. GitHub Action **migrate** applies pending files in `supabase/migrations/` to production Supabase
+3. Vercel Production deploys only after **migrate / apply** succeeds (Deployment Check)
+4. Never run `supabase/seed.sql` on hosted Supabase
+
+`staging` is a Vercel preview of the frontend against the same env you configure for previews. It does **not** get its own Supabase project and must **not** run production migrations.
+
+If you deploy app code to production without the new migrations, registration/payment RPCs will fail.
+
+### New migrations in this release (must reach production Supabase)
+
+| File | Purpose |
+|------|---------|
+| `20260914230000_registration_preferences_allocation.sql` | Prefer 2–3 committees, allocate-before-pay, portfolio matrix URL |
+| `20260915001500_fix_phase_activation.sql` | Fix phase switch unique-index error |
+| `20260915010000_preserve_submitted_with_fee.sql` | Keep existing SUBMITTED+fee delegates payable after cutover |
+| `20260915020000_conference_doc_links.sql` | Rulebook/guidelines stored as CMS links instead of PDF uploads |
+| `20260915030000_manual_portfolio_allotment.sql` | Free-text allotments only; stop using portfolio_config matrix |
+
+---
 
 ## Superadmin username / password (live)
 
@@ -33,13 +61,17 @@ Local seed accounts (`admin@kautilya.local`) are **local only** — do not rely 
 
 ---
 
-## 1. Hosted Supabase (Free)
+## 1. Hosted Supabase (production backend)
 
 1. Create a project at https://supabase.com  
 2. **Settings → API**: copy Project URL, `anon` key, `service_role` key  
-3. **Settings → Database**: copy connection string (use pooler URI if offered) → `DATABASE_URL`  
-4. Apply schema: SQL editor → run each file in `supabase/migrations/` in filename order  
-   - Or from a machine with CLI: `npx supabase db push --db-url "$DATABASE_URL"`  
+3. **Settings → Database**: copy connection string  
+   - For **migrations**, prefer the **direct** connection on port **5432** (session). Port **6543** (transaction pooler) often fails DDL.  
+   - Store as `DATABASE_URL` in local `.env.production` and as GitHub secret `PRODUCTION_DATABASE_URL`  
+4. Apply schema (pick one):  
+   - **Preferred:** push/merge to `main` → workflow `.github/workflows/migrate.yml`  
+   - **Manual from laptop:** `npm run db:push:prod`  
+   - **SQL editor:** run each file in `supabase/migrations/` in filename order  
 5. **Do not** run `supabase/seed.sql` in production (demo passwords)  
 6. **Authentication → URL configuration**  
    - Site URL: `https://technokautilya.in`  
@@ -81,7 +113,8 @@ Add SPF/DKIM DNS records from Brevo for `technokautilya.in` (GoDaddy DNS).
 1. Import this GitHub repo at https://vercel.com/new  
 2. Framework preset: **Next.js** (auto-detected)  
 3. Production branch: **`main`**  
-4. Add environment variables for **Production** (copy from `.env.production.example`):
+4. `staging` (and other branches) → Preview deployments only  
+5. Add environment variables for **Production** (copy from `.env.production.example`):
 
 | Variable | Notes |
 |----------|--------|
@@ -96,17 +129,22 @@ Add SPF/DKIM DNS records from Brevo for `technokautilya.in` (GoDaddy DNS).
 | `MAILPIT_URL` | leave **empty** |
 | `SUPABASE_INTERNAL_URL` | leave **empty** |
 
-`DATABASE_URL` is only needed locally for `supabase db push` / bootstrap — not required on Vercel unless you add server-side migration tooling.
+`DATABASE_URL` is **not** required on Vercel. Migrations run from GitHub Actions on `main` (or your laptop), not from the Next.js build.
 
-5. Deploy once from the Vercel dashboard (or push to `main` after connecting the repo).
+6. Deploy once from the Vercel dashboard (or push to `main` after connecting the repo).
 
-6. **Settings → Domains**: add `technokautilya.in` and `www.technokautilya.in`. Vercel shows the DNS records to add at GoDaddy.
+7. **Settings → Domains**: add `technokautilya.in` and `www.technokautilya.in`. Vercel shows the DNS records to add at GoDaddy.
 
-7. Optional — wait for CI before production: **Settings → Git → Deployment Checks** → require the **ci / check** status on `main`.
+8. **Required for Production (`main`) — wait for migrations before traffic:**  
+   **Settings → Git → Deployment Checks** → require:  
+   - `ci / check`  
+   - `migrate / apply`  
 
-8. Bootstrap superadmin (section above).
+   Do **not** require `migrate / apply` for Preview/`staging` — that workflow only runs on `main`.
 
-9. Smoke test:
+9. Bootstrap superadmin (section above).
+
+10. Smoke test:
 
 ```bash
 curl -fsS https://technokautilya.in/api/health
@@ -127,7 +165,16 @@ Wait for DNS propagation, then open `https://technokautilya.in`.
 
 ---
 
-## 5. GitHub: CI gate (no separate deploy workflow)
+## 5. GitHub: CI + migrate
+
+### Secrets (Settings → Secrets and variables → Actions)
+
+| Secret | Used when |
+|--------|-----------|
+| `PRODUCTION_DATABASE_URL` | push to `main` / manual migrate dispatch |
+| `DATABASE_URL` | optional fallback for the same production URL |
+
+Optional: Environment **production** with required reviewers so a human must approve schema changes to live Supabase.
 
 ### Branch protection (Settings → Branches → main)
 
@@ -137,21 +184,36 @@ Wait for DNS propagation, then open `https://technokautilya.in`.
 
 ### Workflows
 
-- `.github/workflows/ci.yml` — lint, test, build on every PR and push  
-- **Vercel** — production deploy when `main` is updated (Git integration; no SSH secrets in GitHub Actions)
+- `.github/workflows/ci.yml` — lint, test, build on PRs and pushes to `main` / `staging`  
+- `.github/workflows/migrate.yml` — `supabase db push` **only on `main`** (production Supabase)  
+- **Vercel** — Production from `main` after Deployment Checks; Preview from other branches  
 
-No `ORACLE_*` or other deploy secrets are needed in GitHub.
+### Manual migration (laptop)
+
+```bash
+npm run db:push:prod
+```
+
+Confirm with:
+
+```bash
+npx supabase migration list --db-url "$PRODUCTION_DATABASE_URL"
+```
+
+Remote must list every migration file, including `20260914230000`, `20260915001500`, and `20260915010000`.
 
 ---
 
 ## 6. Smoke test before opening registrations
 
 1. Signup → Brevo verification email arrives  
-2. Register for a committee  
-3. Upload payment proof (image is compressed to WebP server-side)  
-4. Admin verify → QR email via Brevo  
-5. Open `/dashboard/qr`  
-6. `/api/health` and `/api/ready` return OK  
+2. Register with 2–3 committee preferences (payment stays locked)  
+3. Admin allocates committee/portfolio → payment unlocks at allotted fee  
+4. Upload payment proof (image is compressed to WebP server-side)  
+5. Admin verify → QR email via Brevo  
+6. Open `/dashboard/qr`  
+7. `/api/health` and `/api/ready` return OK  
+8. Admin → Edition → switch Early bird ↔ Phase 1 ↔ Phase 2 without errors  
 
 ---
 
@@ -161,8 +223,9 @@ No `ORACLE_*` or other deploy secrets are needed in GitHub.
 # Local development (unchanged)
 docker compose up -d --build
 
-# Production: merge PR to main → Vercel redeploys automatically
-# Preview URLs: every PR gets a Vercel preview deployment
+# Release:
+# 1. PR → CI green (preview on Vercel is fine; no DB migrate)
+# 2. Merge to main → migrate production Supabase → Vercel Production
 ```
 
 Images (logos, team photos, payment proofs) are compressed with Sharp to WebP before Storage upload. Previews still use the public URL at full display size — quality stays high; storage stays small enough for Supabase Free at ~400 registrations.

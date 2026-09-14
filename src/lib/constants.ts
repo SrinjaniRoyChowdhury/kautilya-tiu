@@ -58,45 +58,25 @@ export const DEFAULT_REGISTRATION_FIELDS = [
     section: "MUN_INFO" as const,
   },
   {
-    field_key: "portfolio_pref_1",
-    label: "Country / portfolio preference 1",
+    field_key: "mun_experience_details",
+    label: "Prior MUN experience details",
     field_type: "text" as const,
     required: false,
     options: null,
-    validation: null,
+    validation: { max: 2000 },
     display_order: 5,
     section: "MUN_INFO" as const,
   },
-  {
-    field_key: "portfolio_pref_2",
-    label: "Country / portfolio preference 2",
-    field_type: "text" as const,
-    required: false,
-    options: null,
-    validation: null,
-    display_order: 6,
-    section: "MUN_INFO" as const,
-  },
-  {
-    field_key: "dietary_notes",
-    label: "Dietary notes (allergies, etc.)",
-    field_type: "text" as const,
-    required: false,
-    options: null,
-    validation: { max: 240 },
-    display_order: 7,
-    section: "FOOD" as const,
-  },
-  {
-    field_key: "accommodation",
-    label: "Need accommodation assistance?",
-    field_type: "boolean" as const,
-    required: false,
-    options: null,
-    validation: null,
-    display_order: 8,
-    section: "ADDITIONAL" as const,
-  },
 ];
+
+export const RETIRED_REGISTRATION_FIELD_KEYS = [
+  "portfolio_pref_1",
+  "portfolio_pref_2",
+  "dietary_notes",
+  "accommodation",
+] as const;
+
+export const MUN_EXPERIENCE_FORMAT = "Event Name : Committee : Portfolio : Award Won";
+export const MUN_EXPERIENCE_EXAMPLE = "NITISABHA 2025 : Loksabha : Narendra Modi : Best Delegate";
 
 export const DEFAULT_MEAL_TYPES = ["Breakfast", "Lunch", "Snacks", "Dinner"];

@@ -17,6 +17,7 @@ export function PaymentInstructionsForm({
 }) {
   const action = updatePaymentInstructionsAction.bind(null, editionId);
   const [state, formAction, pending] = useActionState(action, {} as PaymentState);
+  const hasQr = Boolean(instructions?.upi_qr_image_key);
 
   return (
     <form action={formAction} className="grid gap-4 sm:grid-cols-2">
@@ -43,28 +44,40 @@ export function PaymentInstructionsForm({
       <Field label="IFSC" htmlFor="ifsc">
         <Input id="ifsc" name="ifsc" defaultValue={instructions?.ifsc ?? ""} />
       </Field>
-      <div className="sm:col-span-2">
-        <Field
-          label="UPI QR image"
-          htmlFor="upi_qr"
-          hint="Delegates see this on payment details. You can also change it from Admin → Payments."
-        >
-          <Input id="upi_qr" name="upi_qr" type="file" accept="image/jpeg,image/png,image/webp" />
-        </Field>
-        {instructions?.upi_qr_image_key ? (
-          <div className="mt-3 flex flex-wrap items-start gap-4">
-            <PaymentQrImage
-              editionId={editionId}
-              imageKey={instructions.upi_qr_image_key}
-              alt="Current receiving QR"
-              className="h-36 w-36 rounded-sm border border-gold-700/25 bg-parchment-50 object-contain p-1"
-            />
-            <label className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
-              <input type="checkbox" name="remove_qr" />
-              Remove the current QR
-            </label>
+      <div className="sm:col-span-2 rounded-sm border border-gold-700/20 bg-parchment-100/50 p-4">
+        <p className="font-medium text-gold-800">Payment QR</p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Delegates scan this on payment details. Upload a new image to replace the current one.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
+          <div>
+            {hasQr ? (
+              <PaymentQrImage
+                editionId={editionId}
+                imageKey={instructions?.upi_qr_image_key}
+                alt="Current payment QR"
+                className="h-36 w-36 rounded-sm border border-gold-700/25 bg-parchment-50 object-contain p-1"
+              />
+            ) : (
+              <p className="text-sm text-ink-muted">No payment QR uploaded yet.</p>
+            )}
           </div>
-        ) : null}
+          <div className="grid gap-3">
+            <Field
+              label={hasQr ? "Replace QR image" : "Upload QR image"}
+              htmlFor="upi_qr"
+              hint="JPEG, PNG, or WebP. Max 5 MB."
+            >
+              <Input id="upi_qr" name="upi_qr" type="file" accept="image/jpeg,image/png,image/webp" />
+            </Field>
+            {hasQr ? (
+              <label className="flex items-center gap-2 text-sm text-ink-muted">
+                <input type="checkbox" name="remove_qr" />
+                Remove the current QR
+              </label>
+            ) : null}
+          </div>
+        </div>
       </div>
       <div className="sm:col-span-2">
         <Field label="Notes shown to payers" htmlFor="notes">
@@ -73,7 +86,7 @@ export function PaymentInstructionsForm({
       </div>
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save payment instructions"}
+          {pending ? "Saving…" : "Save payment information"}
         </Button>
         <ActionFeedback error={state.error} success={state.success} />
       </div>
