@@ -1479,7 +1479,7 @@ export async function getConferenceDocuments(): Promise<ConferenceDocument[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("conference_documents")
-    .select("kind, file_name, storage_key, uploaded_by, created_at, updated_at");
+    .select("kind, file_name, storage_key, external_url, uploaded_by, created_at, updated_at");
   return (data as ConferenceDocument[]) ?? [];
 }
 
@@ -1489,10 +1489,27 @@ export async function getConferenceDocument(
   const supabase = await createClient();
   const { data } = await supabase
     .from("conference_documents")
-    .select("kind, file_name, storage_key, uploaded_by, created_at, updated_at")
+    .select("kind, file_name, storage_key, external_url, uploaded_by, created_at, updated_at")
     .eq("kind", kind)
     .maybeSingle();
   return (data as ConferenceDocument | null) ?? null;
+}
+
+export async function getConferenceDocLinks(): Promise<Record<"rulebook" | "guidelines", string | null>> {
+  const docs = await getConferenceDocuments();
+  const links: Record<"rulebook" | "guidelines", string | null> = {
+    rulebook: null,
+    guidelines: null,
+  };
+  for (const doc of docs) {
+    const external = typeof doc.external_url === "string" ? doc.external_url.trim() : "";
+    if (external) {
+      links[doc.kind] = external;
+    } else if (doc.storage_key) {
+      links[doc.kind] = `/api/docs/${doc.kind}`;
+    }
+  }
+  return links;
 }
 
 export async function getCollectives(): Promise<Collective[]> {

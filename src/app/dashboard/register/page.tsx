@@ -13,7 +13,7 @@ import {
   getPublicCommittees,
   getRegistrationPreferences,
   getRegistrationValues,
-  getConferenceDocuments,
+  getConferenceDocLinks,
   getCollectives,
   getInstitutions,
 } from "@/lib/data";
@@ -113,11 +113,7 @@ async function RegistrationBody({
     );
   }
 
-  const docs = await getConferenceDocuments();
-  const published = {
-    rulebook: docs.some((doc) => doc.kind === "rulebook"),
-    guidelines: docs.some((doc) => doc.kind === "guidelines"),
-  };
+  const publishedDocs = await getConferenceDocLinks();
 
   const [fields, committees, values, collectives, institutions, preferences] = await Promise.all([
     getFieldDefinitions(edition.id),
@@ -149,7 +145,7 @@ async function RegistrationBody({
         preferences={preferences}
         preferredCommitteeId={preferred?.id}
         paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
-        publishedDocs={published}
+        publishedDocs={publishedDocs}
         portfolioMatrixUrl={edition.portfolio_matrix_url}
       />
     </Card>

@@ -1,7 +1,7 @@
 const DOCUMENT_PATH_KEY = "kautilya:document-path";
-const INTRO_SEEN_KEY = "kautilya:intro-seen";
+/** Bumped after broken intro path / abort-as-seen so prior visits get one replay. */
+const INTRO_SEEN_KEY = "kautilya:intro-seen:v4";
 
-let completed = true;
 const listeners = new Set<() => void>();
 
 if (typeof window !== "undefined" && sessionStorage.getItem(DOCUMENT_PATH_KEY) === null) {
@@ -9,6 +9,25 @@ if (typeof window !== "undefined" && sessionStorage.getItem(DOCUMENT_PATH_KEY) =
     sessionStorage.setItem(DOCUMENT_PATH_KEY, window.location.pathname);
   } catch {}
 }
+
+/** Hold header/ribbon until intro finishes or is skipped. Start held when intro will play. */
+let completed =
+  typeof window === "undefined"
+    ? true
+    : !(
+        window.location.pathname === "/" &&
+        (() => {
+          try {
+            return (
+              localStorage.getItem(INTRO_SEEN_KEY) !== "1" &&
+              sessionStorage.getItem(INTRO_SEEN_KEY) !== "1" &&
+              (sessionStorage.getItem(DOCUMENT_PATH_KEY) ?? window.location.pathname) === "/"
+            );
+          } catch {
+            return false;
+          }
+        })()
+      );
 
 function emit() {
   listeners.forEach((listener) => listener());
@@ -60,12 +79,6 @@ export function shouldPlayHomeIntro(): boolean {
 }
 
 export function beginHomeIntro() {
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(INTRO_SEEN_KEY, "1");
-      sessionStorage.setItem(INTRO_SEEN_KEY, "1");
-    } catch {}
-  }
   if (!completed) return;
   completed = false;
   emit();

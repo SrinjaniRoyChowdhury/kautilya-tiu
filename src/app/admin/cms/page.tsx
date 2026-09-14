@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { deleteAnnouncementAction, deleteGalleryAlbumAction, deleteGalleryImageAction } from "@/app/actions/cms";
 import {
-  ConferenceDocForm,
-  PublishedDocs,
+  ConferenceDocLinksForm,
+  PublishedDocLinks,
 } from "@/components/admin/conference-doc-forms";
 import {
   AnnouncementsTable,
@@ -21,7 +21,7 @@ import {
   getAnnouncementsAdmin,
   getGalleryAlbums,
   getSiteSettings,
-  getConferenceDocuments,
+  getConferenceDocLinks,
 } from "@/lib/data";
 
 export const metadata: Metadata = { title: "CMS" };
@@ -42,13 +42,12 @@ export default async function AdminCmsPage() {
     );
   }
 
-  const [settings, editions, announcements, albums, docs, canManageDocs] = await Promise.all([
+  const [settings, editions, announcements, albums, docLinks] = await Promise.all([
     getSiteSettings(),
     getAllEditionsAdmin(),
     getAnnouncementsAdmin(),
     getGalleryAlbums(false),
-    getConferenceDocuments(),
-    hasPermission("edition.manage"),
+    getConferenceDocLinks(),
   ]);
 
   return (
@@ -59,18 +58,19 @@ export default async function AdminCmsPage() {
         description="Changes go live on the public site without a deploy. Paste plain text only — HTML tags are stripped."
       />
 
-      {canManageDocs ? (
+      {!readOnly ? (
         <Card>
           <p className="mb-2 font-serif text-2xl text-gold-700">Rulebook and guidelines</p>
           <p className="mb-6 text-sm text-ink-muted">
-            Public PDFs at /rulebook. Delegates must acknowledge both before they can register.
+            Paste a public link for each (Google Doc, Drive, etc.). Shown on /rulebook; delegates must
+            acknowledge both before they can register.
           </p>
-          <ConferenceDocForm />
-          <PublishedDocs docs={docs} />
+          <ConferenceDocLinksForm links={docLinks} />
+          <PublishedDocLinks links={docLinks} />
         </Card>
       ) : null}
 
-      <Card className={canManageDocs ? "mt-6" : undefined}>
+      <Card className={!readOnly ? "mt-6" : undefined}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-serif text-2xl text-gold-700">Site copy</p>

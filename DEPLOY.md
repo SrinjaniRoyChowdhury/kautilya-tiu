@@ -26,6 +26,7 @@ If you deploy app code to production without the new migrations, registration/pa
 | `20260914230000_registration_preferences_allocation.sql` | Prefer 2–3 committees, allocate-before-pay, portfolio matrix URL |
 | `20260915001500_fix_phase_activation.sql` | Fix phase switch unique-index error |
 | `20260915010000_preserve_submitted_with_fee.sql` | Keep existing SUBMITTED+fee delegates payable after cutover |
+| `20260915020000_conference_doc_links.sql` | Rulebook/guidelines stored as CMS links instead of PDF uploads |
 
 ---
 

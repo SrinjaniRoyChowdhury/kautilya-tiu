@@ -12,6 +12,10 @@ export const metadata: Metadata = { title: "Committees" };
 
 export default async function AdminCommitteesPage() {
   const editions = await getAllEditionsAdmin();
+  const currentEdition =
+    editions.find((edition) => edition.is_public_active) ??
+    editions.find((edition) => edition.status === "PUBLISHED") ??
+    null;
   const committees = (
     await Promise.all(editions.map((edition) => getCommitteesForEdition(edition.id)))
   ).flat();
@@ -29,18 +33,20 @@ export default async function AdminCommitteesPage() {
         <Card className="mb-6">
           <p className="mb-4 font-serif text-2xl text-gold-700">Portfolio Matrix</p>
           <p className="mb-4 text-sm text-ink-muted">
-            This Google Sheet link appears as a button on the delegate registration form.
+            Google Sheet link for the current public edition. Shown as a button on the delegate
+            registration form.
           </p>
-          <div className="grid gap-6">
-            {editions.map((edition) => (
-              <PortfolioMatrixUrlForm
-                key={edition.id}
-                editionId={edition.id}
-                editionName={edition.name}
-                currentUrl={edition.portfolio_matrix_url}
-              />
-            ))}
-          </div>
+          {currentEdition ? (
+            <PortfolioMatrixUrlForm
+              editionId={currentEdition.id}
+              editionName={currentEdition.name}
+              currentUrl={currentEdition.portfolio_matrix_url}
+            />
+          ) : (
+            <p className="text-sm text-ink-muted">
+              No public-active edition. Set one under Editions first.
+            </p>
+          )}
         </Card>
       ) : null}
       <div className="mb-6 flex flex-wrap gap-3">

@@ -113,7 +113,7 @@ export function RegistrationForm({
   preferences: RegistrationPreference[];
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
-  publishedDocs?: { rulebook?: boolean; guidelines?: boolean };
+  publishedDocs?: { rulebook?: string | null; guidelines?: string | null };
   portfolioMatrixUrl?: string | null;
 }) {
   const visibleFields = useMemo(() => visibleRegistrationFields(fields), [fields]);
@@ -499,7 +499,7 @@ export function RegistrationForm({
             </div>
             <div className="flex flex-wrap gap-3">
               <a
-                href={publishedDocs?.rulebook ? "/api/docs/rulebook" : "/rulebook"}
+                href={publishedDocs?.rulebook || "/rulebook"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-9 items-center justify-center rounded-sm border border-gold-700/40 bg-parchment-50 px-4 text-xs font-medium text-gold-800 transition hover:bg-parchment-200"
@@ -507,7 +507,7 @@ export function RegistrationForm({
                 View Rulebook ↗
               </a>
               <a
-                href={publishedDocs?.guidelines ? "/api/docs/guidelines" : "/rulebook"}
+                href={publishedDocs?.guidelines || "/rulebook"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-9 items-center justify-center rounded-sm border border-gold-700/40 bg-parchment-50 px-4 text-xs font-medium text-gold-800 transition hover:bg-parchment-200"

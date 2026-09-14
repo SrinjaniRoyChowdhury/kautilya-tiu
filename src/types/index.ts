@@ -205,8 +205,9 @@ export type Institution = Collective;
 
 export type ConferenceDocument = {
   kind: "rulebook" | "guidelines";
-  file_name: string;
-  storage_key: string;
+  file_name: string | null;
+  storage_key: string | null;
+  external_url?: string | null;
   uploaded_by: string | null;
   created_at: string;
   updated_at: string;

@@ -23,9 +23,9 @@ export function PortfolioMatrixUrlForm({
     <form action={formAction} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
       <input type="hidden" name="edition_id" value={editionId} />
       <Field
-        label={`Portfolio Matrix link · ${editionName}`}
+        label="Portfolio Matrix link"
         htmlFor={`portfolio-matrix-${editionId}`}
-        hint="Google Sheet shown to delegates on the registration form."
+        hint={`${editionName} · Google Sheet shown to delegates on the registration form.`}
       >
         <Input
           id={`portfolio-matrix-${editionId}`}

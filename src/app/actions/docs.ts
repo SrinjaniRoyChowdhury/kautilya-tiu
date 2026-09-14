@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { DOC_KINDS, DOC_LABELS, MAX_DOC_BYTES, isDocKind, type DocKind } from "@/lib/docs";
+import { DOC_LABELS, bothDocsPublished, isDocKind, type DocKind } from "@/lib/docs";
 import { hasPermission } from "@/lib/auth";
-import { sniffPdf } from "@/lib/upload";
+import { getConferenceDocLinks } from "@/lib/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { z } from "zod";
 
 export type DocsState = {
   error?: string;
@@ -18,20 +19,22 @@ function revalidateDocs() {
   revalidatePath("/dashboard/register");
 }
 
-export async function uploadConferenceDocAction(
+const urlSchema = z.union([z.literal(""), z.string().trim().url()]);
+
+export async function saveConferenceDocLinksAction(
   _prev: DocsState,
   formData: FormData,
 ): Promise<DocsState> {
-  const allowed = await hasPermission("edition.manage");
-  if (!allowed) return { error: "Only an admin can upload the rulebook or guidelines." };
-  const kindRaw = String(formData.get("kind") ?? "");
-  if (!isDocKind(kindRaw)) return { error: "Choose rulebook or guidelines." };
-  const kind: DocKind = kindRaw;
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Upload a PDF." };
-  if (file.size > MAX_DOC_BYTES) return { error: "PDF must be 12 MB or smaller." };
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (!sniffPdf(buffer)) return { error: "That file is not a PDF." };
+  const allowed =
+    (await hasPermission("cms.manage")) || (await hasPermission("edition.manage"));
+  if (!allowed) return { error: "Only staff with CMS access can set rulebook and guidelines links." };
+
+  const rulebookRaw = String(formData.get("rulebook_url") ?? "").trim();
+  const guidelinesRaw = String(formData.get("guidelines_url") ?? "").trim();
+  const rulebook = urlSchema.safeParse(rulebookRaw);
+  const guidelines = urlSchema.safeParse(guidelinesRaw);
+  if (!rulebook.success) return { error: "Enter a valid Rulebook URL (or leave it blank)." };
+  if (!guidelines.success) return { error: "Enter a valid Guidelines URL (or leave it blank)." };
 
   const supabase = await createClient();
   const {
@@ -39,41 +42,53 @@ export async function uploadConferenceDocAction(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sign in to continue." };
 
-  const key = `${kind}.pdf`;
   const admin = createAdminClient();
-  const upload = await admin.storage.from("conference-docs").upload(key, buffer, {
-    contentType: "application/pdf",
-    upsert: true,
-  });
-  if (upload.error) return { error: "Could not store the PDF." };
+  const pairs: Array<{ kind: DocKind; url: string }> = [
+    { kind: "rulebook", url: rulebook.data },
+    { kind: "guidelines", url: guidelines.data },
+  ];
 
-  const { error } = await admin.from("conference_documents").upsert(
-    {
-      kind,
-      file_name: file.name.replace(/[^\w.\- ()]/g, "") || `${kind}.pdf`,
-      storage_key: key,
-      uploaded_by: user.id,
-    },
-    { onConflict: "kind" },
-  );
-  if (error) return { error: error.message };
+  for (const { kind, url } of pairs) {
+    if (!url) {
+      await admin.storage.from("conference-docs").remove([`${kind}.pdf`]);
+      const { error } = await admin.from("conference_documents").delete().eq("kind", kind);
+      if (error) return { error: error.message };
+      continue;
+    }
+    const { error } = await admin.from("conference_documents").upsert(
+      {
+        kind,
+        external_url: url,
+        storage_key: null,
+        file_name: null,
+        uploaded_by: user.id,
+      },
+      { onConflict: "kind" },
+    );
+    if (error) return { error: error.message };
+  }
+
   await supabase.rpc("write_audit", {
-    p_action: "document.upload",
+    p_action: "document.links",
     p_entity: "conference_documents",
     p_entity_id: null,
     p_old: null,
-    p_new: { kind, file_name: file.name },
+    p_new: {
+      rulebook_url: rulebook.data || null,
+      guidelines_url: guidelines.data || null,
+    },
   });
   revalidateDocs();
-  return { success: `${DOC_LABELS[kind]} published.` };
+  return { success: "Rulebook and guidelines links saved." };
 }
 
-export async function deleteConferenceDocAction(
+export async function clearConferenceDocLinkAction(
   _prev: DocsState,
   formData: FormData,
 ): Promise<DocsState> {
-  const allowed = await hasPermission("edition.manage");
-  if (!allowed) return { error: "Only an admin can delete the rulebook or guidelines." };
+  const allowed =
+    (await hasPermission("cms.manage")) || (await hasPermission("edition.manage"));
+  if (!allowed) return { error: "Only staff with CMS access can clear these links." };
   const kindRaw = String(formData.get("kind") ?? "");
   if (!isDocKind(kindRaw)) return { error: "Choose rulebook or guidelines." };
   const admin = createAdminClient();
@@ -82,14 +97,14 @@ export async function deleteConferenceDocAction(
   if (error) return { error: error.message };
   const supabase = await createClient();
   await supabase.rpc("write_audit", {
-    p_action: "document.delete",
+    p_action: "document.clear",
     p_entity: "conference_documents",
     p_entity_id: null,
     p_old: { kind: kindRaw },
     p_new: null,
   });
   revalidateDocs();
-  return { success: `${DOC_LABELS[kindRaw]} removed.` };
+  return { success: `${DOC_LABELS[kindRaw]} link cleared.` };
 }
 
 export async function acceptConferenceRulesAction(
@@ -109,10 +124,9 @@ export async function acceptConferenceRulesAction(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Sign in to continue." };
 
-  const { data: docs } = await supabase.from("conference_documents").select("kind");
-  const kinds = new Set(((docs as Array<{ kind: string }> | null) ?? []).map((row) => row.kind));
-  if (!DOC_KINDS.every((kind) => kinds.has(kind))) {
-    return { error: "The secretariat has not published both PDFs yet." };
+  const links = await getConferenceDocLinks();
+  if (!bothDocsPublished(links)) {
+    return { error: "The secretariat has not published both document links yet." };
   }
 
   const { data: registration } = await supabase

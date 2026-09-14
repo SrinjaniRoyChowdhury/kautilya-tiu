@@ -2,32 +2,48 @@
 
 import { useActionState } from "react";
 import {
-  deleteConferenceDocAction,
-  uploadConferenceDocAction,
+  clearConferenceDocLinkAction,
+  saveConferenceDocLinksAction,
   type DocsState,
 } from "@/app/actions/docs";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import { Field, Input, Select } from "@/components/ui/field";
-import { DOC_LABELS, type DocKind } from "@/lib/docs";
-import type { ConferenceDocument } from "@/types";
+import { Field, Input } from "@/components/ui/field";
+import { DOC_LABELS, type DocKind, type DocLinks } from "@/lib/docs";
 
-export function ConferenceDocForm() {
-  const [state, action, pending] = useActionState(uploadConferenceDocAction, {} as DocsState);
+export function ConferenceDocLinksForm({ links }: { links: DocLinks }) {
+  const [state, action, pending] = useActionState(saveConferenceDocLinksAction, {} as DocsState);
   return (
-    <form action={action} className="grid gap-4 sm:grid-cols-2">
-      <Field label="Document" htmlFor="kind">
-        <Select id="kind" name="kind" defaultValue="rulebook" required>
-          <option value="rulebook">Rulebook</option>
-          <option value="guidelines">Guidelines</option>
-        </Select>
+    <form action={action} className="grid gap-4">
+      <Field
+        label="Rulebook link"
+        htmlFor="rulebook_url"
+        hint="Google Doc, Drive, or any public URL. Shown on /rulebook and registration."
+      >
+        <Input
+          id="rulebook_url"
+          name="rulebook_url"
+          type="url"
+          defaultValue={links.rulebook ?? ""}
+          placeholder="https://…"
+        />
       </Field>
-      <Field label="PDF" htmlFor="file" hint="PDF only, max 12 MB.">
-        <Input id="file" name="file" type="file" accept="application/pdf" required />
+      <Field
+        label="Guidelines link"
+        htmlFor="guidelines_url"
+        hint="Google Doc, Drive, or any public URL."
+      >
+        <Input
+          id="guidelines_url"
+          name="guidelines_url"
+          type="url"
+          defaultValue={links.guidelines ?? ""}
+          placeholder="https://…"
+        />
       </Field>
-      <div className="sm:col-span-2">
+      <div>
         <Button type="submit" disabled={pending}>
-          {pending ? "Publishing…" : "Upload PDF"}
+          {pending ? "Saving…" : "Save links"}
         </Button>
         <ActionFeedback error={state.error} success={state.success} />
       </div>
@@ -35,31 +51,42 @@ export function ConferenceDocForm() {
   );
 }
 
-export function DeleteConferenceDocButton({ kind }: { kind: DocKind }) {
-  const [state, action, pending] = useActionState(deleteConferenceDocAction, {} as DocsState);
+export function ClearConferenceDocLinkButton({ kind }: { kind: DocKind }) {
+  const [state, action, pending] = useActionState(clearConferenceDocLinkAction, {} as DocsState);
   return (
     <form action={action} className="inline">
       <input type="hidden" name="kind" value={kind} />
       <Button type="submit" variant="ghost" size="sm" disabled={pending}>
-        {pending ? "Removing…" : `Delete ${DOC_LABELS[kind]}`}
+        {pending ? "Clearing…" : `Clear ${DOC_LABELS[kind]}`}
       </Button>
       <ActionFeedback error={state.error} className="text-xs" />
     </form>
   );
 }
 
-export function PublishedDocs({ docs }: { docs: ConferenceDocument[] }) {
-  if (!docs.length) {
-    return <p className="text-sm text-ink-muted">No PDFs published yet.</p>;
+export function PublishedDocLinks({ links }: { links: DocLinks }) {
+  const rows = (Object.entries(links) as Array<[DocKind, string | null]>).filter(([, url]) =>
+    Boolean(url),
+  );
+  if (!rows.length) {
+    return <p className="mt-4 text-sm text-ink-muted">No links saved yet.</p>;
   }
   return (
     <ul className="mt-4 grid gap-3">
-      {docs.map((doc) => (
-        <li key={doc.kind} className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <span>
-            {DOC_LABELS[doc.kind]} · {doc.file_name}
+      {rows.map(([kind, url]) => (
+        <li key={kind} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span className="min-w-0">
+            <span className="font-medium">{DOC_LABELS[kind]}</span>
+            <a
+              href={url!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 block truncate text-gold-700 hover:underline"
+            >
+              {url}
+            </a>
           </span>
-          <DeleteConferenceDocButton kind={doc.kind} />
+          <ClearConferenceDocLinkButton kind={kind} />
         </li>
       ))}
     </ul>
