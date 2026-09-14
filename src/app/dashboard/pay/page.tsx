@@ -7,6 +7,7 @@ import { getProfile, getSessionUser } from "@/lib/auth";
 import { getActiveEdition, getMyPayments, getMyRegistration } from "@/lib/data";
 import { formatInrFromMinor } from "@/lib/format";
 import { PAYMENT_STATUS_COPY } from "@/lib/payments";
+import { isPayableRegistration } from "@/lib/registration";
 
 export const metadata: Metadata = { title: "Payment" };
 
@@ -20,17 +21,14 @@ export default async function PayIndexPage() {
   const verified = Boolean(profile?.email_verified_at || user?.email_confirmed_at);
   const registration = edition ? await getMyRegistration(edition.id) : null;
   const payments = edition ? await getMyPayments(edition.id) : [];
-  const canIncludeSelf =
-    registration?.status === "SUBMITTED" ||
-    registration?.status === "PAYMENT_PENDING" ||
-    registration?.status === "PAYMENT_REJECTED";
+  const canIncludeSelf = isPayableRegistration(registration?.status);
 
   return (
     <Container className="py-12">
       <PageHeader
         eyebrow="Participant"
         title="Payment"
-        description="Pay for yourself or several delegates in one UPI transfer. Each person still registers individually."
+        description="Pay after your committee is allocated. Someone else may still pay for you in one UPI transfer."
       />
       <DashboardNav current="/dashboard/pay" showTeam={showTeam} />
 
@@ -47,8 +45,9 @@ export default async function PayIndexPage() {
           <Card>
             <p className="font-serif text-2xl text-gold-700">New payment</p>
             <p className="mt-2 mb-6 text-sm text-ink-muted">
-              Search for people who have already submitted a registration. The amount is taken from
-              each linked form — unregistered emails cannot be paid for.
+              {registration?.status === "SUBMITTED"
+                ? "Payment is locked until the secretariat allocates your committee and portfolio. The fee depends on the allotted committee."
+                : "Search for people who have already been allocated a committee. The amount is taken from each linked form."}
             </p>
             <StartPaymentForm editionId={edition.id} canIncludeSelf={Boolean(canIncludeSelf)} />
           </Card>

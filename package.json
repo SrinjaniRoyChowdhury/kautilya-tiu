@@ -14,6 +14,7 @@
     "db:reset": "npx supabase db reset",
     "db:status": "npx supabase status",
     "db:backup": "node scripts/backup.mjs",
+    "db:push:prod": "node scripts/db-push-remote.mjs --production",
     "secrets:check": "node scripts/check-secrets.mjs",
     "smoke": "node scripts/load-smoke.mjs",
     "bootstrap:admin": "node scripts/bootstrap-superadmin.mjs",

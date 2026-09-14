@@ -2,7 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-export function QrLightbox({ src, alt }: { src: string; alt: string }) {
+export function QrLightbox({
+  src,
+  alt,
+  dialogLabel = "QR code",
+  hint = "Tap the QR to fill the screen for scanning",
+  thumbnailClassName = "rounded-sm border border-gold-700/20 bg-parchment-50",
+}: {
+  src: string;
+  alt: string;
+  dialogLabel?: string;
+  hint?: string;
+  thumbnailClassName?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -27,15 +39,15 @@ export function QrLightbox({ src, alt }: { src: string; alt: string }) {
           alt={alt}
           width={280}
           height={280}
-          className="rounded-sm border border-gold-700/20 bg-parchment-50"
+          className={thumbnailClassName}
         />
-        <span className="text-xs text-gold-700">Tap the QR to fill the screen for scanning</span>
+        <span className="text-xs text-gold-700">{hint}</span>
       </button>
       {open ? (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Credential QR"
+          aria-label={dialogLabel}
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink/90 p-4"
           onClick={() => setOpen(false)}
         >

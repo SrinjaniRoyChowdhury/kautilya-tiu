@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Participants" };
 
 const STATUS_COPY: Record<string, string> = {
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
+  SUBMITTED: "Awaiting allocation",
   PAYMENT_PENDING: "Awaiting pay",
   PAYMENT_VERIFIED: "Pay verified",
   PAYMENT_REJECTED: "Pay rejected",
@@ -49,9 +49,15 @@ export default async function AdminParticipantsPage({
       row.email,
       row.committee_short_name,
       row.status,
+      STATUS_COPY[row.status],
       row.collective_name,
       row.allocated_portfolio,
       row.display_code,
+      ...(row.preferences ?? []).flatMap((pref) => [
+        pref.committee_short_name,
+        pref.portfolio_1,
+        pref.portfolio_2,
+      ]),
     ),
   );
   const paged = paginate(visible, parsePage(pageRaw));
@@ -95,11 +101,19 @@ export default async function AdminParticipantsPage({
       }
     >
       {paged.items.length ? (
-        <AdminTable columns={["Name", "Email", "Committee", "Allotment", "Collective", "Delegation", "Status", "QR", ""]}>
+        <AdminTable columns={["Name", "Email", "Preferences", "Committee", "Allotment", "Collective", "Delegation", "Status", "QR", ""]}>
           {paged.items.map((row) => (
             <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
               <td className="px-2 py-1.5 font-medium">{row.full_name}</td>
               <td className="px-2 py-1.5 text-ink-muted">{row.email}</td>
+              <td className="px-2 py-1.5 text-ink-muted">
+                {(row.preferences ?? [])
+                  .map((pref) => {
+                    const portfolios = [pref.portfolio_1, pref.portfolio_2].filter(Boolean).join(" / ");
+                    return `${pref.preference_order}. ${pref.committee_short_name ?? "Committee"}${portfolios ? ` (${portfolios})` : ""}`;
+                  })
+                  .join(" · ") || "—"}
+              </td>
               <td className="px-2 py-1.5 text-ink-muted">{row.committee_short_name ?? "—"}</td>
               <td className="px-2 py-1.5 text-ink-muted">
                 {formatDelegation(row.allocated_slr, row.allocated_portfolio) ?? ""}
@@ -116,7 +130,7 @@ export default async function AdminParticipantsPage({
               <td className="px-2 py-1.5 font-mono text-sm tracking-wider">{row.display_code ?? ""}</td>
               <td className="px-2 py-1.5 text-right">
                 <Link href={`/admin/participants/${row.id}`} className="text-gold-700 hover:underline">
-                  Open
+                  {row.status === "SUBMITTED" ? "Allocate" : "Open"}
                 </Link>
               </td>
             </tr>

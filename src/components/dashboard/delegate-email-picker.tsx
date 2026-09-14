@@ -18,7 +18,7 @@ export function DelegateEmailPicker({
   excludeEmails,
   single = false,
   label = "Pay for registered delegates",
-  hint = "Search by name or email. Only people who have submitted a registration (so the fee is known) can be added. Unregistered emails cannot be paid for.",
+  hint = "Search by name or email. Only people who have been allocated a committee (so the fee is known) can be added.",
 }: {
   editionId: string;
   name?: string;

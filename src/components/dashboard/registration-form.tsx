@@ -8,11 +8,16 @@ import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { NameSuggestInput } from "@/components/ui/name-suggest";
 import { registrationFormAction, type RegistrationState } from "@/app/actions/registrations";
+import { MUN_EXPERIENCE_EXAMPLE, MUN_EXPERIENCE_FORMAT } from "@/lib/constants";
 import {
   buildRegistrationSchema,
+  isPreAllocationStatus,
   PRE_PAYMENT_STATUSES,
+  preferencesToFormItems,
   SECTION_LABELS,
   seatsHeld,
+  visibleRegistrationFields,
+  type PreferenceFormItem,
   type RegistrationFormValues,
 } from "@/lib/registration";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
@@ -24,6 +29,7 @@ import type {
   Registration,
   RegistrationFieldDefinition,
   RegistrationFieldValue,
+  RegistrationPreference,
 } from "@/types";
 
 const SECTION_ORDER: FieldSection[] = ["PERSONAL", "MUN_INFO", "FOOD", "ADDITIONAL"];
@@ -32,15 +38,16 @@ function defaultValues(
   fields: RegistrationFieldDefinition[],
   values: RegistrationFieldValue[],
   registration: Registration,
+  preferences: RegistrationPreference[],
   preferredCommitteeId?: string,
 ): RegistrationFormValues {
   const byDef = new Map(values.map((row) => [row.field_definition_id, row]));
   const out: RegistrationFormValues = {
-    committee_id: registration.committee_id ?? preferredCommitteeId ?? "",
     food_preference: registration.food_preference ?? ("" as RegistrationFormValues["food_preference"]),
     collective_id: registration.collective_id ?? "",
     delegation_type: registration.delegation_type ?? "SINGLE",
     partner_email: registration.partner_email ?? "",
+    preferences: preferencesToFormItems(preferences, preferredCommitteeId),
   };
   for (const field of fields) {
     const row = byDef.get(field.id);
@@ -58,11 +65,17 @@ function defaultValues(
 }
 
 function appendValues(fd: FormData, values: RegistrationFormValues, fields: RegistrationFieldDefinition[]) {
-  fd.set("committee_id", String(values.committee_id ?? ""));
   fd.set("food_preference", String(values.food_preference ?? ""));
   fd.set("collective_id", String(values.collective_id ?? ""));
   fd.set("delegation_type", String(values.delegation_type ?? "SINGLE"));
   fd.set("partner_email", String(values.partner_email ?? ""));
+  const prefs = Array.isArray(values.preferences) ? values.preferences : [];
+  fd.set("preference_count", String(prefs.length));
+  prefs.forEach((pref, index) => {
+    fd.set(`preference_${index}_committee_id`, pref.committee_id);
+    fd.set(`preference_${index}_portfolio_1`, String(pref.portfolio_1 ?? ""));
+    fd.set(`preference_${index}_portfolio_2`, String(pref.portfolio_2 ?? ""));
+  });
   for (const field of fields) {
     const raw = values[field.field_key];
     if (field.field_type === "multiselect") {
@@ -84,9 +97,11 @@ export function RegistrationForm({
   values,
   collectives,
   institutions,
+  preferences,
   preferredCommitteeId,
   paymentLocked = false,
   publishedDocs,
+  portfolioMatrixUrl,
 }: {
   editionId: string;
   registration: Registration;
@@ -95,13 +110,22 @@ export function RegistrationForm({
   values: RegistrationFieldValue[];
   collectives: { id: string; name: string }[];
   institutions: { id: string; name: string }[];
+  preferences: RegistrationPreference[];
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
   publishedDocs?: { rulebook?: boolean; guidelines?: boolean };
+  portfolioMatrixUrl?: string | null;
 }) {
+  const visibleFields = useMemo(() => visibleRegistrationFields(fields), [fields]);
+  const pairLocked = registration.is_pair_lead === false;
+  const allocated = Boolean(registration.committee_id) && !isPreAllocationStatus(registration.status);
   const editable =
     (PRE_PAYMENT_STATUSES as readonly string[]).includes(registration.status) && !paymentLocked;
-  const schema = useMemo(() => buildRegistrationSchema(fields), [fields]);
+  const committeeEditable = editable && isPreAllocationStatus(registration.status);
+  const schema = useMemo(
+    () => buildRegistrationSchema(visibleFields, { requirePreferences: !pairLocked }),
+    [visibleFields, pairLocked],
+  );
   const [state, formAction, actionPending] = useActionState(
     registrationFormAction,
     {} as RegistrationState,
@@ -109,23 +133,26 @@ export function RegistrationForm({
   const [pending, startTransition] = useTransition();
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(schema) as unknown as Resolver<RegistrationFormValues>,
-    defaultValues: defaultValues(fields, values, registration, preferredCommitteeId),
+    defaultValues: defaultValues(visibleFields, values, registration, preferences, preferredCommitteeId),
   });
 
   const busy = pending || actionPending;
   const holdsSeat =
-    registration.committee_id &&
-    registration.status !== "DRAFT" &&
-    registration.status !== "CANCELLED";
+    allocated && registration.status !== "DRAFT" && registration.status !== "CANCELLED";
 
   const [readRulebook, setReadRulebook] = useState(Boolean(registration.accepted_rules_at));
   const [readGuidelines, setReadGuidelines] = useState(Boolean(registration.accepted_rules_at));
   const bothChecked = readRulebook && readGuidelines;
 
   function dispatch(intent: "draft" | "submit", data: RegistrationFormValues) {
-    const committee = committees.find((item) => item.id === data.committee_id);
-    if (committee?.allows_double_del && !committee.allows_single_del) data.delegation_type = "DOUBLE";
-    if (committee && !committee.allows_double_del) data.delegation_type = "SINGLE";
+    const prefs = Array.isArray(data.preferences) ? data.preferences : [];
+    const selected = prefs
+      .map((pref) => committees.find((item) => item.id === pref.committee_id))
+      .filter((item): item is Committee => Boolean(item));
+    const allDouble = selected.length > 0 && selected.every((item) => item.allows_double_del && !item.allows_single_del);
+    const noneDouble = selected.length > 0 && selected.every((item) => !item.allows_double_del);
+    if (allDouble) data.delegation_type = "DOUBLE";
+    if (noneDouble) data.delegation_type = "SINGLE";
     const fd = new FormData();
     fd.set("intent", intent);
     fd.set("registration_id", registration.id);
@@ -134,19 +161,46 @@ export function RegistrationForm({
       fd.set("read_rulebook", readRulebook ? "on" : "off");
       fd.set("read_guidelines", readGuidelines ? "on" : "off");
     }
-    appendValues(fd, data, fields);
+    appendValues(fd, data, visibleFields);
     startTransition(() => formAction(fd));
   }
 
   const grouped = SECTION_ORDER.map((section) => ({
     section,
-    fields: fields.filter((field) => field.section === section),
+    fields: visibleFields.filter((field) => field.section === section),
   })).filter((group) => group.fields.length > 0);
   const collectiveId = String(useWatch({ control: form.control, name: "collective_id" }) ?? "");
-  const selectedCommitteeId = String(useWatch({ control: form.control, name: "committee_id" }) ?? "");
+  const selectedPrefs = (useWatch({ control: form.control, name: "preferences" }) ?? []) as PreferenceFormItem[];
   const delegationType = String(useWatch({ control: form.control, name: "delegation_type" }) ?? "SINGLE");
-  const selectedCommittee = committees.find((item) => item.id === selectedCommitteeId);
-  const pairLocked = registration.is_pair_lead === false;
+  const selectedCommittees = selectedPrefs
+    .map((pref) => committees.find((item) => item.id === pref.committee_id))
+    .filter((item): item is Committee => Boolean(item));
+  const allowsBoth =
+    selectedCommittees.some((item) => item.allows_single_del) &&
+    selectedCommittees.some((item) => item.allows_double_del);
+  const doubleOnly =
+    selectedCommittees.length > 0 &&
+    selectedCommittees.every((item) => item.allows_double_del && !item.allows_single_del);
+  const allocatedCommittee = committees.find((item) => item.id === registration.committee_id);
+
+  function toggleCommittee(committeeId: string) {
+    const current = form.getValues("preferences") ?? [];
+    const index = current.findIndex((pref) => pref.committee_id === committeeId);
+    if (index >= 0) {
+      form.setValue(
+        "preferences",
+        current.filter((_, i) => i !== index),
+        { shouldDirty: true, shouldValidate: false },
+      );
+      return;
+    }
+    if (current.length >= 3) return;
+    form.setValue(
+      "preferences",
+      [...current, { committee_id: committeeId, portfolio_1: "", portfolio_2: "" }],
+      { shouldDirty: true, shouldValidate: false },
+    );
+  }
 
   return (
     <form
@@ -162,39 +216,76 @@ export function RegistrationForm({
         </p>
       ) : null}
 
-      <fieldset disabled={!editable || busy || pairLocked} className="grid gap-3">
-        <legend className="mb-2 font-serif text-2xl text-gold-700">Committee</legend>
+      {allocated && allocatedCommittee ? (
+        <div className="rounded-sm border border-gold-700/25 bg-parchment-100/70 p-4">
+          <p className="text-xs uppercase tracking-widest text-gold-700">Allocated committee</p>
+          <p className="mt-1 font-serif text-2xl">
+            {allocatedCommittee.short_name} · {allocatedCommittee.name}
+          </p>
+          {registration.allocated_portfolio ? (
+            <p className="mt-1 text-sm">Portfolio: {registration.allocated_portfolio}</p>
+          ) : null}
+          {registration.expected_fee_minor != null ? (
+            <p className="mt-1 text-sm text-ink-muted">
+              Amount due: {formatInrFromMinor(registration.expected_fee_minor)}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      <fieldset disabled={!committeeEditable || busy || pairLocked} className="grid gap-3">
+        <legend className="mb-2 font-serif text-2xl text-gold-700">Committees</legend>
+        <p className="text-sm text-ink-muted">
+          Select 2 or 3 committees in order of preference. Click to add; click again to remove.
+          Preference number appears as you choose.
+        </p>
         {committees.map((committee) => {
+          const prefIndex = selectedPrefs.findIndex((pref) => pref.committee_id === committee.id);
+          const selected = prefIndex >= 0;
           const taken = seatsHeld(committee.occupied_count, committee.confirmed_count);
           const holdingThis = holdsSeat && registration.committee_id === committee.id;
           const remaining = seatsRemaining(committee.capacity, holdingThis ? Math.max(taken - 1, 0) : taken);
-          const full = remaining <= 0 && committee.status === "OPEN" && !holdingThis;
+          const full = remaining <= 0 && committee.status === "OPEN" && !holdingThis && !selected;
           const closed = committee.status !== "OPEN";
           const phaseLabel = committee.current_phase_kind
             ? PHASE_LABELS[committee.current_phase_kind]
             : null;
+          const atCap = !selected && selectedPrefs.length >= 3;
+          const disabled = full || closed || pairLocked || atCap;
           return (
-            <label
+            <button
               key={committee.id}
-              className="frame-gold flex cursor-pointer items-start gap-3 rounded-sm bg-parchment-50/90 p-4 has-[:checked]:bg-parchment-200"
+              type="button"
+              disabled={disabled && !selected}
+              onClick={() => toggleCommittee(committee.id)}
+              className={`frame-gold flex w-full items-start gap-3 rounded-sm p-4 text-left transition ${
+                selected ? "bg-parchment-200" : "bg-parchment-50/90 hover:bg-parchment-100"
+              } disabled:cursor-not-allowed disabled:opacity-60`}
             >
-              <input
-                type="radio"
-                value={committee.id}
-                disabled={full || closed || pairLocked}
-                className="mt-1"
-                {...form.register("committee_id")}
-              />
+              <span
+                className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border ${
+                  selected ? "border-gold-700 bg-gold-700 text-[10px] text-parchment-50" : "border-gold-700/40"
+                }`}
+              >
+                {selected ? prefIndex + 1 : ""}
+              </span>
               <span className="flex-1">
                 <span className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-serif text-xl">
                     {committee.short_name} · {committee.name}
                   </span>
-                  <span className="text-sm text-ink-muted">
-                    {formatInrFromMinor(committee.fee_minor)}
-                    {committee.allows_double_del
-                      ? ` · double ${formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}`
-                      : ""}
+                  <span className="flex flex-wrap items-center gap-2">
+                    {selected ? (
+                      <span className="rounded-sm bg-gold-700 px-2 py-0.5 text-xs font-medium text-parchment-50">
+                        Preference {prefIndex + 1}
+                      </span>
+                    ) : null}
+                    <span className="text-sm text-ink-muted">
+                      {formatInrFromMinor(committee.fee_minor)}
+                      {committee.allows_double_del
+                        ? ` · double ${formatInrFromMinor(committee.double_fee_minor ?? committee.fee_minor)}`
+                        : ""}
+                    </span>
                   </span>
                 </span>
                 <span className="mt-1 block text-xs text-ink-muted">
@@ -206,45 +297,125 @@ export function RegistrationForm({
                   {phaseLabel ? ` · ${phaseLabel}` : ""}
                 </span>
               </span>
-            </label>
+            </button>
           );
         })}
-        {form.formState.errors.committee_id ? (
-          <p className="text-xs text-red-800" role="alert">
-            {String(form.formState.errors.committee_id.message ?? state.fieldErrors?.committee_id ?? "")}
-          </p>
+        {selectedPrefs.length < 2 ? (
+          <p className="text-xs text-ink-muted">Select at least two committees.</p>
         ) : null}
       </fieldset>
 
-      <fieldset disabled={!editable || busy || pairLocked} className="grid gap-3">
+      <fieldset disabled={!committeeEditable || busy || pairLocked} className="grid gap-4">
+        <legend className="sr-only">Country / portfolio</legend>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-serif text-2xl text-gold-700">Country / portfolio</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              For each preference, choose 1 or 2 portfolios. The two fields cannot be the same.
+            </p>
+          </div>
+          {portfolioMatrixUrl ? (
+            <a
+              href={portfolioMatrixUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm border border-gold-700/50 bg-parchment-50 px-4 text-sm font-medium text-gold-700 hover:bg-parchment-200"
+            >
+              Portfolio Matrix
+            </a>
+          ) : null}
+        </div>
+        {selectedPrefs.length === 0 ? (
+          <p className="text-sm text-ink-muted">Select committees above to add portfolio preferences.</p>
+        ) : (
+          selectedPrefs.map((pref, index) => {
+            const committee = committees.find((item) => item.id === pref.committee_id);
+            const options = (committee?.portfolio_config ?? []).map((row) => row.name).filter(Boolean);
+            const p1Error = form.formState.errors.preferences?.[index]?.portfolio_1?.message as
+              | string
+              | undefined;
+            const p2Error = form.formState.errors.preferences?.[index]?.portfolio_2?.message as
+              | string
+              | undefined;
+            return (
+              <div
+                key={`${pref.committee_id}-${index}`}
+                className="grid gap-3 rounded-sm border border-gold-700/20 bg-parchment-50/80 p-4"
+              >
+                <p className="font-serif text-lg">
+                  Preference {index + 1}
+                  {committee ? ` · ${committee.short_name}` : ""}
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field
+                    label="Portfolio 1"
+                    htmlFor={`pref-${index}-p1`}
+                    error={p1Error}
+                    hint="Required"
+                  >
+                    <PortfolioInput
+                      id={`pref-${index}-p1`}
+                      options={options}
+                      exclude={String(pref.portfolio_2 ?? "")}
+                      value={String(pref.portfolio_1 ?? "")}
+                      onChange={(next) => {
+                        const nextPrefs = [...selectedPrefs];
+                        nextPrefs[index] = { ...nextPrefs[index], portfolio_1: next };
+                        form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
+                      }}
+                    />
+                  </Field>
+                  <Field
+                    label="Portfolio 2"
+                    htmlFor={`pref-${index}-p2`}
+                    error={p2Error}
+                    hint="Optional"
+                  >
+                    <PortfolioInput
+                      id={`pref-${index}-p2`}
+                      options={options}
+                      exclude={String(pref.portfolio_1 ?? "")}
+                      value={String(pref.portfolio_2 ?? "")}
+                      onChange={(next) => {
+                        const nextPrefs = [...selectedPrefs];
+                        nextPrefs[index] = { ...nextPrefs[index], portfolio_2: next };
+                        form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
+                      }}
+                    />
+                  </Field>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </fieldset>
+
+      <fieldset disabled={!committeeEditable || busy || pairLocked} className="grid gap-3">
         <legend className="font-serif text-2xl text-gold-700">Delegation</legend>
-        {selectedCommittee?.allows_single_del && selectedCommittee.allows_double_del ? (
+        {allowsBoth ? (
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" value="SINGLE" {...form.register("delegation_type")} />
-              Single del · {formatInrFromMinor(selectedCommittee.fee_minor)}
+              Single del
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" value="DOUBLE" {...form.register("delegation_type")} />
-              Double del · {formatInrFromMinor(selectedCommittee.double_fee_minor ?? selectedCommittee.fee_minor)}
+              Double del
             </label>
           </div>
-        ) : selectedCommittee ? (
+        ) : selectedCommittees.length ? (
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio"
-              value={selectedCommittee.allows_double_del && !selectedCommittee.allows_single_del ? "DOUBLE" : "SINGLE"}
-              {...form.register("delegation_type")}
-            />
-            {selectedCommittee.allows_double_del && !selectedCommittee.allows_single_del
-              ? `Double del · ${formatInrFromMinor(selectedCommittee.double_fee_minor ?? selectedCommittee.fee_minor)}`
-              : `Single del · ${formatInrFromMinor(selectedCommittee.fee_minor)}`}
+            <input type="radio" value={doubleOnly ? "DOUBLE" : "SINGLE"} {...form.register("delegation_type")} />
+            {doubleOnly ? "Double del" : "Single del"}
           </label>
         ) : (
-          <p className="text-sm text-ink-muted">Select a committee first.</p>
+          <p className="text-sm text-ink-muted">Select committees first.</p>
         )}
-        {delegationType === "DOUBLE" ||
-        (selectedCommittee?.allows_double_del && !selectedCommittee.allows_single_del) ? (
+        <p className="text-xs text-ink-muted">
+          Fees differ by committee. The amount to pay is set after the secretariat allocates a
+          committee.
+        </p>
+        {delegationType === "DOUBLE" || doubleOnly ? (
           <Field
             label="Partner email"
             htmlFor="partner_email"
@@ -317,7 +488,7 @@ export function RegistrationForm({
         </fieldset>
       ))}
 
-      {editable ? (
+      {editable && isPreAllocationStatus(registration.status) ? (
         <div className="space-y-6">
           <div className="space-y-4 rounded-sm border border-gold-700/25 bg-parchment-100/70 p-5">
             <div>
@@ -387,14 +558,65 @@ export function RegistrationForm({
           </div>
           <ActionFeedback error={state.error} success={state.success} />
         </div>
+      ) : editable ? (
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            Your committee has been allocated. Food preference and personal details can still be
+            updated until payment is under review.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => dispatch("draft", form.getValues())}>
+              {busy ? "Working…" : "Save details"}
+            </Button>
+          </div>
+          <ActionFeedback error={state.error} success={state.success} />
+        </div>
       ) : (
         <p className="text-sm text-ink-muted">
           {paymentLocked
             ? "Proof is under review or already verified. Committee changes now go through the secretariat."
-            : "This registration is locked. Committee changes after payment require the secretariat."}
+            : allocated
+              ? "This registration is locked. Committee and portfolio were allocated by the secretariat."
+              : "This registration is locked."}
         </p>
       )}
     </form>
+  );
+}
+
+function PortfolioInput({
+  id,
+  options,
+  value,
+  onChange,
+  exclude,
+}: {
+  id: string;
+  options: string[];
+  value: string;
+  onChange: (value: string) => void;
+  exclude?: string;
+}) {
+  const blocked = exclude?.trim().toLowerCase() ?? "";
+  if (options.length) {
+    return (
+      <Select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">Select</option>
+        {options.map((option) => (
+          <option key={option} value={option} disabled={Boolean(blocked) && option.trim().toLowerCase() === blocked}>
+            {option}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  return (
+    <Input
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder="Country / portfolio"
+    />
   );
 }
 
@@ -456,6 +678,8 @@ function DynamicField({
       ? optional
         ? "Optional because you selected a collective. Type to search, or enter any name."
         : "Type to search suggested institutions. You can enter a name that is not on the list."
+      : field.field_key === "mun_experience_details"
+        ? `Format : ${MUN_EXPERIENCE_FORMAT}. Example : ${MUN_EXPERIENCE_EXAMPLE}`
       : isParticipantPhoneField(field.field_key)
         ? PHONE_HINT
         : field.required && !optional
@@ -478,6 +702,22 @@ function DynamicField({
               onChange={(text) => rhf.onChange(text)}
             />
           )}
+        />
+      </Field>
+    );
+  }
+
+  if (field.field_key === "mun_experience_details") {
+    return (
+      <Field label={field.label} htmlFor={field.field_key} error={error}>
+        <div className="rounded-sm border border-gold-700/20 bg-parchment-100/80 px-3 py-2 text-xs leading-relaxed text-ink-muted">
+          <p>Format : {MUN_EXPERIENCE_FORMAT}</p>
+          <p>Example : {MUN_EXPERIENCE_EXAMPLE}</p>
+        </div>
+        <Textarea
+          id={field.field_key}
+          {...register(field.field_key)}
+          placeholder={`${MUN_EXPERIENCE_FORMAT}\n${MUN_EXPERIENCE_EXAMPLE}`}
         />
       </Field>
     );
@@ -563,15 +803,11 @@ function DynamicField({
 
   return (
     <Field label={field.label} htmlFor={field.field_key} error={error} hint={hint}>
-      {field.field_key === "dietary_notes" ? (
-        <Textarea id={field.field_key} {...register(field.field_key)} />
-      ) : (
-        <Input
-          id={field.field_key}
-          {...register(field.field_key)}
-          {...(isParticipantPhoneField(field.field_key) ? phoneInputProps : {})}
-        />
-      )}
+      <Input
+        id={field.field_key}
+        {...register(field.field_key)}
+        {...(isParticipantPhoneField(field.field_key) ? phoneInputProps : {})}
+      />
     </Field>
   );
 }

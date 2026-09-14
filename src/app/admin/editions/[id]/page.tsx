@@ -31,14 +31,14 @@ export default async function EditEditionPage({ params }: Props) {
         <p className="mb-2 font-serif text-2xl text-gold-700">Registration phase</p>
         <p className="mb-4 text-sm text-ink-muted">
           Only one phase is active. Committee fees and new registration amounts follow the active
-          phase. Existing submissions keep the fee snapshotted at submit.
+          phase. Existing allocations keep the fee snapshotted at allotment.
         </p>
         <PhaseActivateList phases={phases} />
       </Card>
       <Card className="mt-6">
-        <p className="mb-4 font-serif text-2xl text-gold-700">Payment instructions</p>
+        <p className="mb-4 font-serif text-2xl text-gold-700">Payment information</p>
         <p className="mb-6 text-sm text-ink-muted">
-          Shown to delegates when they pay. Static UPI / bank details only — no gateway.
+          Shown to delegates when they pay. UPI, bank details, and the receiving QR — no gateway.
         </p>
         <PaymentInstructionsForm editionId={edition.id} instructions={instructions} />
       </Card>

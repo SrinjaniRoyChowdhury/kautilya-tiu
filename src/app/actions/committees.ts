@@ -484,7 +484,7 @@ export async function updateCommitteeAction(
   });
 
   revalidateCommittee(committeeId);
-  return { success: "Committee saved. Existing registrations keep their snapshotted fee." };
+  return { success: "Committee saved. Allocated registrations keep their snapshotted fee." };
 }
 
 const contentSchema = z.object({
@@ -740,4 +740,42 @@ export async function assignDelegationAction(
   });
   revalidateCommittee(committeeId);
   return { success: "Delegation assigned. Existing QR codes are unchanged." };
+}
+
+export async function updatePortfolioMatrixUrlAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const editionId = String(formData.get("edition_id") ?? "").trim();
+  if (!isUuid(editionId)) return { error: "Missing edition." };
+  const canCommittee = await hasPermission("committee.manage", editionId);
+  const canEdition = await hasPermission("edition.manage", editionId);
+  if (!canCommittee && !canEdition) {
+    return { error: "You do not have permission to edit the portfolio matrix link." };
+  }
+
+  const raw = String(formData.get("portfolio_matrix_url") ?? "").trim();
+  if (raw) {
+    const parsed = z.string().url().safeParse(raw);
+    if (!parsed.success) return { error: "Enter a valid URL." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("mun_editions")
+    .update({ portfolio_matrix_url: raw || null })
+    .eq("id", editionId);
+  if (error) return { error: error.message };
+
+  const supabase = await createClient();
+  await supabase.rpc("write_audit", {
+    p_action: "edition.portfolio_matrix",
+    p_entity: "mun_editions",
+    p_entity_id: editionId,
+    p_old: null,
+    p_new: { portfolio_matrix_url: raw || null },
+  });
+  revalidatePath("/admin/committees");
+  revalidatePath("/dashboard/register");
+  return { success: raw ? "Portfolio Matrix link saved." : "Portfolio Matrix link cleared." };
 }

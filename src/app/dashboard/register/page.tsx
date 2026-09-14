@@ -11,6 +11,7 @@ import {
   getFieldDefinitions,
   getMyRegistration,
   getPublicCommittees,
+  getRegistrationPreferences,
   getRegistrationValues,
   getConferenceDocuments,
   getCollectives,
@@ -41,7 +42,7 @@ export default async function RegisterPage({
       <PageHeader
         eyebrow="Participant"
         title="Registration"
-        description="One person, one registration per edition. Someone else may pay for you later."
+        description="One person, one registration per edition. Choose 2–3 committees; payment opens after allocation."
       />
       <DashboardNav current="/dashboard/register" showTeam={showTeam} />
 
@@ -118,16 +119,21 @@ async function RegistrationBody({
     guidelines: docs.some((doc) => doc.kind === "guidelines"),
   };
 
-  const [fields, committees, values, collectives, institutions] = await Promise.all([
+  const [fields, committees, values, collectives, institutions, preferences] = await Promise.all([
     getFieldDefinitions(edition.id),
     getPublicCommittees(edition.id),
     getRegistrationValues(registration.id),
     getCollectives(),
     getInstitutions(),
+    getRegistrationPreferences(registration.id),
   ]);
   const preferred = committees.find((item) => item.slug === committeeSlug);
+  const preferredIds = new Set(preferences.map((item) => item.committee_id));
   const visible = committees.filter(
-    (item) => item.status === "OPEN" || item.id === registration.committee_id,
+    (item) =>
+      item.status === "OPEN" ||
+      item.id === registration.committee_id ||
+      preferredIds.has(item.id),
   );
 
   return (
@@ -140,9 +146,11 @@ async function RegistrationBody({
         values={values}
         collectives={collectives}
         institutions={institutions}
+        preferences={preferences}
         preferredCommitteeId={preferred?.id}
         paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
         publishedDocs={published}
+        portfolioMatrixUrl={edition.portfolio_matrix_url}
       />
     </Card>
   );

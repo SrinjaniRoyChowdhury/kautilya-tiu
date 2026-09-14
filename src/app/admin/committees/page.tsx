@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PortfolioMatrixUrlForm } from "@/components/admin/portfolio-matrix-url-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, getRoleNames } from "@/lib/auth";
 import { isContentEditorOnly, isReadOnlyStaff } from "@/lib/staff-access";
@@ -24,6 +25,24 @@ export default async function AdminCommitteesPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Committees" />
+      {canCreate ? (
+        <Card className="mb-6">
+          <p className="mb-4 font-serif text-2xl text-gold-700">Portfolio Matrix</p>
+          <p className="mb-4 text-sm text-ink-muted">
+            This Google Sheet link appears as a button on the delegate registration form.
+          </p>
+          <div className="grid gap-6">
+            {editions.map((edition) => (
+              <PortfolioMatrixUrlForm
+                key={edition.id}
+                editionId={edition.id}
+                editionName={edition.name}
+                currentUrl={edition.portfolio_matrix_url}
+              />
+            ))}
+          </div>
+        </Card>
+      ) : null}
       <div className="mb-6 flex flex-wrap gap-3">
         {canCreate ? (
           <Link

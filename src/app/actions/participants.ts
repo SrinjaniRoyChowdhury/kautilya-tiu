@@ -185,6 +185,8 @@ export async function confirmParticipantFreeAction(
       ? "This delegate already has a payment or confirmation."
       : error.message?.includes("FORBIDDEN")
         ? "You need registration.edit to confirm without payment."
+        : error.message?.includes("ALLOCATION_REQUIRED")
+          ? "Allocate a committee and portfolio first."
         : error.message || "Could not confirm.";
     return { error: msg };
   }
@@ -196,4 +198,56 @@ export async function confirmParticipantFreeAction(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/qr");
   return { success: "Confirmed as a free participant. No payment was recorded." };
+}
+
+const ALLOCATE_MESSAGES: Record<string, string> = {
+  UNAUTHENTICATED: "Sign in to continue.",
+  FORBIDDEN: "You need registration.edit to allocate a committee.",
+  NOT_FOUND: "Registration not found.",
+  REGISTRATION_LOCKED: "This registration can no longer be allocated. Payment may already be under review.",
+  COMMITTEE_REQUIRED: "Select a committee.",
+  COMMITTEE_NOT_FOUND: "That committee is not available.",
+  COMMITTEE_CLOSED: "That committee is closed.",
+  COMMITTEE_FULL: "That committee has no remaining delegations.",
+  PORTFOLIO_REQUIRED: "Select a portfolio.",
+  DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
+};
+
+export async function allocateRegistrationAction(
+  registrationId: string,
+  _prev: ParticipantAdminState,
+  formData: FormData,
+): Promise<ParticipantAdminState> {
+  void _prev;
+  if (!isUuid(registrationId)) return { error: "Missing participant." };
+  const allowed = await hasPermission("registration.edit");
+  if (!allowed) return { error: "You need registration.edit to allocate a committee." };
+
+  const committeeId = String(formData.get("committee_id") ?? "").trim();
+  const portfolio = String(formData.get("portfolio") ?? "").trim();
+  if (!isUuid(committeeId)) return { error: "Select a committee." };
+  if (!portfolio) return { error: "Select a portfolio." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("allocate_registration", {
+    p_registration_id: registrationId,
+    p_committee_id: committeeId,
+    p_portfolio: portfolio,
+  });
+  if (error) {
+    const raw = (error.message ?? "").toUpperCase();
+    for (const [code, text] of Object.entries(ALLOCATE_MESSAGES)) {
+      if (raw.includes(code)) return { error: text };
+    }
+    return { error: error.message || "Could not allocate." };
+  }
+
+  revalidatePath("/admin/participants");
+  revalidatePath(`/admin/participants/${registrationId}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/committees");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pay");
+  revalidatePath("/dashboard/register");
+  return { success: "Committee and portfolio allocated. Payment is now unlocked for this delegate." };
 }

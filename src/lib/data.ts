@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { RETIRED_REGISTRATION_FIELD_KEYS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { isConferenceMeal } from "@/lib/meals";
 import { normalizePortfolios } from "@/lib/sheet";
@@ -33,6 +34,7 @@ import type {
   RegistrationFieldDefinition,
   RegistrationFieldValue,
   RegistrationPhase,
+  RegistrationPreference,
   SiteSettings,
   TeamMember,
   CmsSponsor,
@@ -96,7 +98,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 const EDITION_SELECT_BASE =
   "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status";
 
-const EDITION_SELECT = `${EDITION_SELECT_BASE}, hide_executive_board, hide_team`;
+const EDITION_SELECT = `${EDITION_SELECT_BASE}, hide_executive_board, hide_team, portfolio_matrix_url`;
 
 function hydrateEdition(row: unknown): Edition | null {
   if (!row || typeof row !== "object") return null;
@@ -105,6 +107,7 @@ function hydrateEdition(row: unknown): Edition | null {
     ...(row as Edition),
     hide_executive_board: Boolean(e.hide_executive_board),
     hide_team: Boolean(e.hide_team),
+    portfolio_matrix_url: typeof e.portfolio_matrix_url === "string" ? e.portfolio_matrix_url : null,
   };
 }
 
@@ -557,7 +560,8 @@ export async function getFieldDefinitions(
     )
     .eq("edition_id", editionId)
     .order("display_order", { ascending: true });
-  return (data as RegistrationFieldDefinition[]) ?? [];
+  const retired = new Set<string>(RETIRED_REGISTRATION_FIELD_KEYS);
+  return ((data as RegistrationFieldDefinition[]) ?? []).filter((field) => !retired.has(field.field_key));
 }
 
 export async function getMyRegistration(editionId: string): Promise<Registration | null> {
@@ -597,6 +601,55 @@ export async function getRegistrationValues(
     .select("id, registration_id, field_definition_id, value_text, value_json")
     .eq("registration_id", registrationId);
   return (data as RegistrationFieldValue[]) ?? [];
+}
+
+export async function getRegistrationPreferences(
+  registrationId: string,
+): Promise<RegistrationPreference[]> {
+  const map = await getRegistrationPreferencesByIds([registrationId]);
+  return map.get(registrationId) ?? [];
+}
+
+export async function getRegistrationPreferencesByIds(
+  registrationIds: string[],
+): Promise<Map<string, RegistrationPreference[]>> {
+  const map = new Map<string, RegistrationPreference[]>();
+  const unique = [...new Set(registrationIds.filter(Boolean))];
+  if (!unique.length) return map;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("registration_preferences")
+    .select(
+      "id, registration_id, preference_order, committee_id, portfolio_1, portfolio_2, committees:committee_id (short_name, name)",
+    )
+    .in("registration_id", unique)
+    .order("preference_order", { ascending: true });
+  type Row = {
+    id: string;
+    registration_id: string;
+    preference_order: number;
+    committee_id: string;
+    portfolio_1: string;
+    portfolio_2: string | null;
+    committees: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
+  };
+  for (const row of (data as Row[] | null) ?? []) {
+    const committee = Array.isArray(row.committees) ? row.committees[0] : row.committees;
+    const item: RegistrationPreference = {
+      id: row.id,
+      registration_id: row.registration_id,
+      preference_order: row.preference_order,
+      committee_id: row.committee_id,
+      portfolio_1: row.portfolio_1,
+      portfolio_2: row.portfolio_2,
+      committee_short_name: committee?.short_name ?? null,
+      committee_name: committee?.name ?? null,
+    };
+    const list = map.get(row.registration_id) ?? [];
+    list.push(item);
+    map.set(row.registration_id, list);
+  }
+  return map;
 }
 
 const PAYMENT_SELECT = `
@@ -1122,7 +1175,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     .from("registrations")
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
-       confirmed_free,
+       confirmed_free, committee_id, expected_fee_minor,
        allocated_slr, allocated_portfolio,
        users:user_id (full_name, email),
        committees:committee_id (short_name),
@@ -1146,6 +1199,8 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     allocated_slr: number | null;
     allocated_portfolio: string | null;
     confirmed_free: boolean;
+    committee_id: string | null;
+    expected_fee_minor: number | null;
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
@@ -1157,6 +1212,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
   };
   const rows = (data as Row[] | null) ?? [];
   const ids = rows.map((row) => row.id);
+  const prefMap = await getRegistrationPreferencesByIds(ids);
   const paidIds = new Set<string>();
   if (ids.length) {
     const { data: links } = await supabase
@@ -1205,6 +1261,9 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       allocated_slr: row.allocated_slr,
       allocated_portfolio: row.allocated_portfolio,
       display_code: active?.display_code ?? null,
+      committee_id: row.committee_id,
+      expected_fee_minor: row.expected_fee_minor,
+      preferences: prefMap.get(row.id) ?? [],
     };
   });
 }

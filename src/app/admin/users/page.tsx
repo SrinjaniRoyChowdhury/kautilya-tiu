@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Users" };
 
 const STATUS_COPY: Record<string, string> = {
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
+  SUBMITTED: "Awaiting allocation",
   PAYMENT_PENDING: "Awaiting pay",
   PAYMENT_VERIFIED: "Pay verified",
   PAYMENT_REJECTED: "Pay rejected",

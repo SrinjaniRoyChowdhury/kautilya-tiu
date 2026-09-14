@@ -105,6 +105,13 @@ export function ConfirmFreeParticipantForm({ participant }: { participant: Admin
       <p className="text-sm text-ink-muted">They must submit a registration before confirmation.</p>
     );
   }
+  if (participant.status === "SUBMITTED" || !participant.committee_id) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Allocate a committee and portfolio first, then you can confirm without payment.
+      </p>
+    );
+  }
 
   return (
     <form action={formAction} className="grid gap-3">

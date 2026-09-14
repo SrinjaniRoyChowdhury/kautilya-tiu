@@ -43,6 +43,7 @@ export type Edition = {
   registration_status?: "OPEN" | "CLOSED";
   hide_executive_board?: boolean;
   hide_team?: boolean;
+  portfolio_matrix_url?: string | null;
 };
 
 export type EbMember = {
@@ -182,6 +183,17 @@ export type Registration = {
   partner_name?: string | null;
 };
 
+export type RegistrationPreference = {
+  id?: string;
+  registration_id?: string;
+  preference_order: number;
+  committee_id: string;
+  portfolio_1: string;
+  portfolio_2?: string | null;
+  committee_short_name?: string | null;
+  committee_name?: string | null;
+};
+
 export type Collective = {
   id: string;
   name: string;
@@ -232,6 +244,9 @@ export type AdminParticipant = {
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
   display_code?: string | null;
+  committee_id?: string | null;
+  expected_fee_minor?: number | null;
+  preferences?: RegistrationPreference[];
 };
 
 export type FoodCollectionRow = {

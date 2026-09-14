@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AllocateRegistrationForm } from "@/components/admin/allocation-form";
 import { DeleteParticipantForm, ConfirmFreeParticipantForm, ParticipantPasswordForm } from "@/components/admin/participant-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
-import { getAdminParticipant } from "@/lib/data";
+import { getAdminParticipant, getCommitteesForEdition } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 
 export const metadata: Metadata = { title: "Participant" };
@@ -27,6 +28,7 @@ export default async function AdminParticipantPage({
 
   const participant = await getAdminParticipant(id);
   if (!participant) notFound();
+  const committees = await getCommitteesForEdition(participant.edition_id);
   const canEdit = await hasPermission("registration.edit", participant.edition_id);
   const protectedAdmin = await isProtectedAdminAccount(participant.user_id, participant.email);
   const canChangePassword = protectedAdmin
@@ -54,6 +56,8 @@ export default async function AdminParticipantPage({
               ? " · free participant (no payment)"
               : participant.paid
                 ? " · payment verified or under review"
+                : participant.status === "SUBMITTED"
+                  ? " · awaiting allocation"
                 : " · not yet paid"}
           </p>
         </Card>
@@ -64,6 +68,16 @@ export default async function AdminParticipantPage({
               <p className="mb-4 text-sm text-ink-muted">Only an admin can set this password.</p>
             ) : null}
             <ParticipantPasswordForm registrationId={participant.id} />
+          </Card>
+        ) : null}
+        {canEdit && !protectedAdmin ? (
+          <Card>
+            <p className="mb-4 font-serif text-2xl text-gold-700">Allocate committee</p>
+            <p className="mb-4 text-sm text-ink-muted">
+              Allot a committee and portfolio from their preferences. Payment unlocks after this,
+              with the fee of the allotted committee.
+            </p>
+            <AllocateRegistrationForm participant={participant} committees={committees} />
           </Card>
         ) : null}
         {canEdit && !protectedAdmin ? (
