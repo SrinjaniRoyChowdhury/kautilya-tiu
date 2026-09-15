@@ -226,13 +226,22 @@ export async function allocateRegistrationAction(
   const committeeId = String(formData.get("committee_id") ?? "").trim();
   const portfolio = String(formData.get("portfolio") ?? "").trim();
   if (!isUuid(committeeId)) return { error: "Select a committee." };
-  if (!portfolio) return { error: "Enter a portfolio." };
 
   const supabase = await createClient();
+  const { data: committeeRow } = await supabase
+    .from("committees")
+    .select("is_special_crisis")
+    .eq("id", committeeId)
+    .maybeSingle();
+  const isSpecialCrisis = Boolean(
+    (committeeRow as { is_special_crisis?: boolean } | null)?.is_special_crisis,
+  );
+  if (!portfolio && !isSpecialCrisis) return { error: "Enter a portfolio." };
+
   const { error } = await supabase.rpc("allocate_registration", {
     p_registration_id: registrationId,
     p_committee_id: committeeId,
-    p_portfolio: portfolio,
+    p_portfolio: portfolio || null,
   });
   if (error) {
     const raw = (error.message ?? "").toUpperCase();
@@ -249,5 +258,9 @@ export async function allocateRegistrationAction(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/pay");
   revalidatePath("/dashboard/register");
-  return { success: "Committee and portfolio allocated. Payment is now unlocked for this delegate." };
+  return {
+    success: isSpecialCrisis && !portfolio
+      ? "Special crisis committee allocated. Payment is unlocked; portfolio can be set later if needed."
+      : "Committee and portfolio allocated. Payment is now unlocked for this delegate.",
+  };
 }

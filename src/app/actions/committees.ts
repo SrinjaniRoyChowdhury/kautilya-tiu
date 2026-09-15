@@ -25,6 +25,7 @@ export type CommitteeFormValues = {
   eb_json: string;
   allows_single_del: boolean;
   allows_double_del: boolean;
+  is_special_crisis: boolean;
   show_prize_money: boolean;
   prize_rows: { category: string; amount: string }[];
   phase_fees: Record<string, { single: string; double: string }>;
@@ -101,6 +102,7 @@ function readCommitteeDraft(formData: FormData): CommitteeFormValues {
     eb_json: String(formData.get("eb_json") ?? ""),
     allows_single_del: formData.get("allows_single_del") === "on",
     allows_double_del: formData.get("allows_double_del") === "on",
+    is_special_crisis: formData.get("is_special_crisis") === "on",
     show_prize_money: formData.get("show_prize_money") === "on",
     prize_rows,
     phase_fees,
@@ -293,6 +295,7 @@ export async function createCommitteeAction(
 
   const allowsSingle = formData.get("allows_single_del") === "on";
   const allowsDouble = formData.get("allows_double_del") === "on";
+  const isSpecialCrisis = formData.get("is_special_crisis") === "on";
   if (!allowsSingle && !allowsDouble) {
     return failCommittee(
       formData,
@@ -332,6 +335,7 @@ export async function createCommitteeAction(
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
+      is_special_crisis: isSpecialCrisis,
       status,
       display_order: parsed.data.display_order,
       eb_json: parseEb(parsed.data.eb_json),
@@ -397,6 +401,7 @@ export async function updateCommitteeAction(
 
   const allowsSingle = formData.get("allows_single_del") === "on";
   const allowsDouble = formData.get("allows_double_del") === "on";
+  const isSpecialCrisis = formData.get("is_special_crisis") === "on";
   if (!allowsSingle && !allowsDouble) {
     return failCommittee(
       formData,
@@ -452,6 +457,7 @@ export async function updateCommitteeAction(
       fee_minor: rupeesFromForm(fallbackRupees),
       allows_single_del: allowsSingle,
       allows_double_del: allowsDouble,
+      is_special_crisis: isSpecialCrisis,
       status,
       display_order: parsed.data.display_order,
       prize_money_json: prizeMoney.prizes,
