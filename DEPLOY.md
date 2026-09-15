@@ -105,7 +105,36 @@ Do **not** drop live tables to “fix” this. Only repair / make idempotent wha
 
 ## 2. Brevo (mail)
 
-### A) Auth emails (signup / reset) — Supabase SMTP
+Auth confirmation / password-reset emails and QR credential emails are **different paths**:
+
+| Email | Who sends it |
+|-------|----------------|
+| Signup verify, resend verify, password reset | **App** via Brevo API (`BREVO_API_KEY` on Vercel) using Supabase `generateLink` |
+| QR / credential | **App** via Brevo API |
+| (Legacy) Supabase dashboard SMTP | Only if something still calls Supabase `signUp`/`resend` without the app mail path |
+
+### Checklist if verify emails do not arrive in production
+
+1. **Vercel → Environment Variables (Production):** `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME`, `MAILPIT_URL` empty, `NEXT_PUBLIC_APP_URL=https://technokautilya.in`
+2. **Brevo → Senders & Domains:** `noreply@technokautilya.in` (or your `MAIL_FROM`) is verified; SPF/DKIM on GoDaddy for `technokautilya.in`
+3. **Brevo → Transactional:** recent sends show as delivered (not blocked / soft-bounce)
+4. **Supabase → Authentication → URL configuration**
+   - Site URL: `https://technokautilya.in`
+   - Redirect URLs include: `https://technokautilya.in/**` and `https://technokautilya.in/auth/confirm**`
+5. **Optional but recommended:** Supabase → Project Settings → Authentication → **SMTP Settings** → enable Custom SMTP with Brevo SMTP (`smtp-relay.brevo.com:587`). Covers any Auth email that still goes through Supabase’s mailer.
+6. Ask the user to check **spam**. Admin → Users can **manually verify** if needed.
+
+### A) Auth emails — app (primary)
+
+Set on Vercel (same as QR mail):
+
+```
+BREVO_API_KEY=xkeysib-...
+MAIL_FROM=noreply@technokautilya.in
+MAIL_FROM_NAME=Niti Sabha
+```
+
+### B) Auth emails — Supabase SMTP (optional backup)
 
 1. Brevo → SMTP & API → SMTP  
 2. Supabase → Project Settings → Authentication → SMTP Settings  
@@ -114,17 +143,9 @@ Do **not** drop live tables to “fix” this. Only repair / make idempotent wha
    - User / password: from Brevo  
    - Sender: e.g. `noreply@technokautilya.in` (must be verified in Brevo)  
 
-### B) QR credential emails — app
+### C) QR credential emails — app
 
-Set these in **Vercel → Project → Settings → Environment Variables** (see `.env.production.example`):
-
-```
-BREVO_API_KEY=xkeysib-...
-MAIL_FROM=noreply@technokautilya.in
-MAIL_FROM_NAME=Niti Sabha
-```
-
-Leave `MAILPIT_URL` empty in production.
+Same Brevo API vars as (A). Leave `MAILPIT_URL` empty in production.
 
 Add SPF/DKIM DNS records from Brevo for `technokautilya.in` (GoDaddy DNS).
 

@@ -50,8 +50,8 @@ export default async function RegisterPage({
         <Card>
           <p className="font-serif text-xl text-gold-700">Verify your email first</p>
           <p className="mt-2 text-sm text-ink-muted">
-            Registration is blocked until the account is verified. Locally the link lands in Inbucket
-            on port 54324.
+            Registration is blocked until the account is verified. Check your inbox and spam
+            folder, or resend the link below.
           </p>
           <ResendVerification />
         </Card>

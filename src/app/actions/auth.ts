@@ -22,6 +22,11 @@ import {
 } from "@/lib/auth";
 import { tenDigitPhoneSchema } from "@/lib/phone";
 import { confirmPasswordSchema } from "@/lib/password";
+import {
+  appMailConfigured,
+  sendPasswordResetEmail,
+  sendSignupConfirmationEmail,
+} from "@/lib/auth-mail";
 import { getAppOrigin } from "@/lib/origin";
 import { safeInternalPath } from "@/lib/safe-path";
 import { createClient } from "@/lib/supabase/server";
@@ -130,8 +135,34 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     // Continue if auth check fails
   }
 
-  const supabase = await createClient();
   const origin = await getAppOrigin();
+
+  // Production (and local Mailpit): send confirmation ourselves via Brevo/Mailpit.
+  // Supabase's built-in SMTP is rate-limited and not reliable for real users.
+  if (appMailConfigured()) {
+    const sent = await sendSignupConfirmationEmail({
+      email: emailLower,
+      password: parsed.data.password,
+      fullName: parsed.data.full_name,
+      phone: parsed.data.phone,
+      origin,
+    });
+    if (!sent.ok) {
+      if (sent.alreadyRegistered) {
+        return {
+          error: sent.error,
+          fieldErrors: { email: sent.error },
+        };
+      }
+      return { error: sent.error };
+    }
+    return {
+      success:
+        "Check your inbox for a verification link. Until you verify, you can browse but cannot register or pay.",
+    };
+  }
+
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email: emailLower,
     password: parsed.data.password,
@@ -235,16 +266,20 @@ export async function forgotPasswordAction(
 
   if (isProtectedAdminEmail(parsed.data)) {
     return {
-      success: "If that email exists, a reset link is on its way. Check Inbucket locally (port 54324).",
+      success: "If that email exists, a reset link is on its way.",
     };
   }
 
-  const supabase = await createClient();
   const origin = await getAppOrigin();
-  await supabase.auth.resetPasswordForEmail(parsed.data, {
-    redirectTo: `${origin}/auth/confirm?next=/dashboard/profile`,
-  });
+  if (appMailConfigured()) {
+    await sendPasswordResetEmail({ email: parsed.data, origin });
+  } else {
+    const supabase = await createClient();
+    await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${origin}/auth/confirm?next=/dashboard/profile`,
+    });
+  }
   return {
-    success: "If that email exists, a reset link is on its way. Check Inbucket locally (port 54324).",
+    success: "If that email exists, a reset link is on its way.",
   };
 }

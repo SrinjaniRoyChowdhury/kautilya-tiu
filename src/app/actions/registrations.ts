@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { appMailConfigured, sendResendVerificationEmail } from "@/lib/auth-mail";
 import { createClient } from "@/lib/supabase/server";
 import { getAppOrigin } from "@/lib/origin";
 import { getEditionById, getFieldDefinitions } from "@/lib/data";
@@ -17,7 +18,7 @@ export type RegistrationState = {
 
 const RPC_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: "Sign in to continue.",
-  EMAIL_UNVERIFIED: "Verify your email before registering. Check Inbucket on port 54324 locally.",
+  EMAIL_UNVERIFIED: "Verify your email before registering. Check your inbox (and spam) for the link.",
   NOT_FOUND: "Registration not found.",
   ALREADY_REGISTERED: "You already have a registration for this edition.",
   EDITION_NOT_OPEN: "This edition is not open for registration.",
@@ -294,11 +295,29 @@ export async function resendVerificationAction(
   } = await supabase.auth.getUser();
   if (!user?.email) return { error: "Sign in to continue." };
   const origin = await getAppOrigin();
+
+  if (appMailConfigured()) {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const mail = await sendResendVerificationEmail({
+      email: user.email,
+      fullName: profile?.full_name,
+      origin,
+    });
+    if (!mail.delivered) {
+      return { error: mail.error ?? "Could not send verification email." };
+    }
+    return { success: "Verification email sent. Check your inbox (and spam)." };
+  }
+
   const { error } = await supabase.auth.resend({
     type: "signup",
     email: user.email,
     options: { emailRedirectTo: `${origin}/auth/confirm?next=/dashboard` },
   });
   if (error) return { error: error.message };
-  return { success: "Verification email sent. Locally it appears in Inbucket on port 54324." };
+  return { success: "Verification email sent. Locally it appears in Mailpit/Inbucket on port 54324." };
 }
