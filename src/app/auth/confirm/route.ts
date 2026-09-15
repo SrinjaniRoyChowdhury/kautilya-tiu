@@ -12,11 +12,16 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") as EmailOtpType | null;
   const dest = safeRedirectUrl(cleanOrigin, searchParams.get("next"), "/dashboard");
 
+  const redirectWithToast = (destUrl: URL) => {
+    destUrl.searchParams.set("toast", "email_confirmed");
+    return NextResponse.redirect(destUrl.toString());
+  };
+
   if (token_hash && type) {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
-      return NextResponse.redirect(dest);
+      return redirectWithToast(dest);
     }
   }
 
@@ -25,7 +30,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(dest);
+      return redirectWithToast(dest);
     }
   }
 
