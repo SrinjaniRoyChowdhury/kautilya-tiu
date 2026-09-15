@@ -26,6 +26,7 @@ export function AllocateRegistrationForm({
   );
 
   const committee = committees.find((item) => item.id === committeeId);
+  const isSpecialCrisis = Boolean(committee?.is_special_crisis);
   const pref = prefs.find((item) => item.committee_id === committeeId);
   const suggested = [pref?.portfolio_1, pref?.portfolio_2].filter(
     (name): name is string => Boolean(name && name.trim()),
@@ -103,24 +104,31 @@ export function AllocateRegistrationForm({
         label="Portfolio"
         htmlFor="portfolio"
         hint={
-          compact
-            ? suggested.length
-              ? `Hint: ${suggested.join(" / ")}`
-              : undefined
-            : suggested.length
-              ? `Type the country/portfolio. Pref hint: ${suggested.join(" / ")}`
-              : "Type the country/portfolio name manually."
+          isSpecialCrisis
+            ? "Optional for special crisis — leave blank to unlock payment now; assign later if needed."
+            : compact
+              ? suggested.length
+                ? `Hint: ${suggested.join(" / ")}`
+                : undefined
+              : suggested.length
+                ? `Type the country/portfolio. Pref hint: ${suggested.join(" / ")}`
+                : "Type the country/portfolio name manually."
         }
       >
         <Input
           id="portfolio"
           name="portfolio"
-          required
+          required={!isSpecialCrisis}
           defaultValue={defaultPortfolio}
-          key={`${committeeId}-${defaultPortfolio}`}
-          placeholder="e.g. France"
+          key={`${committeeId}-${defaultPortfolio}-${isSpecialCrisis ? "special" : "normal"}`}
+          placeholder={isSpecialCrisis ? "Optional — secretariat can assign later" : "e.g. France"}
         />
       </Field>
+      {isSpecialCrisis ? (
+        <p className="text-xs text-ink-muted">
+          Special crisis: allocating the committee alone unlocks payment.
+        </p>
+      ) : null}
       {fee ? (
         <p className="text-xs text-ink-muted">
           Fee: {fee}

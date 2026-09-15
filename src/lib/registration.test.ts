@@ -107,6 +107,30 @@ describe("buildRegistrationSchema", () => {
     ).toBe(false);
   });
 
+  it("skips portfolio requirement for special crisis committees", () => {
+    const schema = buildRegistrationSchema([], {
+      specialCrisisCommitteeIds: [committeeA],
+    });
+    expect(
+      schema.safeParse({
+        food_preference: "VEG",
+        preferences: [
+          { committee_id: committeeA, portfolio_1: "" },
+          { committee_id: committeeB, portfolio_1: "India" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      schema.safeParse({
+        food_preference: "VEG",
+        preferences: [
+          { committee_id: committeeA, portfolio_1: "" },
+          { committee_id: committeeB, portfolio_1: "" },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
   it("requires an institution unless a collective is selected", () => {
     const schema = buildRegistrationSchema([institutionField]);
     const base = { food_preference: "VEG" as const, preferences };

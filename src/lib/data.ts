@@ -204,7 +204,7 @@ export async function getEditionById(id: string): Promise<Edition | null> {
 }
 
 const COMMITTEE_SELECT =
-  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del";
+  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del, is_special_crisis";
 
 const REGISTRATION_SELECT =
   "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
@@ -229,6 +229,7 @@ function hydrateCommittee(committee: Committee): Committee {
     capacity: Number(committee.capacity) || 0,
     prize_money_json: normalizePrizeMoney(committee.prize_money_json),
     show_prize_money: Boolean(committee.show_prize_money),
+    is_special_crisis: Boolean(committee.is_special_crisis),
   };
 }
 

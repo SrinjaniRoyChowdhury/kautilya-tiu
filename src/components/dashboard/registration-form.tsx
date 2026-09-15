@@ -122,9 +122,20 @@ export function RegistrationForm({
   const editable =
     (PRE_PAYMENT_STATUSES as readonly string[]).includes(registration.status) && !paymentLocked;
   const committeeEditable = editable && isPreAllocationStatus(registration.status);
+  const specialCrisisIds = useMemo(
+    () =>
+      new Set(
+        committees.filter((item) => item.is_special_crisis).map((item) => item.id),
+      ),
+    [committees],
+  );
   const schema = useMemo(
-    () => buildRegistrationSchema(visibleFields, { requirePreferences: !pairLocked }),
-    [visibleFields, pairLocked],
+    () =>
+      buildRegistrationSchema(visibleFields, {
+        requirePreferences: !pairLocked,
+        specialCrisisCommitteeIds: specialCrisisIds,
+      }),
+    [visibleFields, pairLocked, specialCrisisIds],
   );
   const [state, formAction, actionPending] = useActionState(
     registrationFormAction,
@@ -280,6 +291,11 @@ export function RegistrationForm({
                         Preference {prefIndex + 1}
                       </span>
                     ) : null}
+                    {committee.is_special_crisis ? (
+                      <span className="rounded-sm border border-gold-700/40 px-2 py-0.5 text-xs text-gold-800">
+                        Special crisis
+                      </span>
+                    ) : null}
                     <span className="text-sm text-ink-muted">
                       {formatInrFromMinor(committee.fee_minor)}
                       {committee.allows_double_del
@@ -331,6 +347,7 @@ export function RegistrationForm({
         ) : (
           selectedPrefs.map((pref, index) => {
             const committee = committees.find((item) => item.id === pref.committee_id);
+            const isSpecial = Boolean(committee?.is_special_crisis);
             const p1Error = form.formState.errors.preferences?.[index]?.portfolio_1?.message as
               | string
               | undefined;
@@ -345,43 +362,56 @@ export function RegistrationForm({
                 <p className="font-serif text-lg">
                   Preference {index + 1}
                   {committee ? ` · ${committee.short_name}` : ""}
+                  {isSpecial ? " · Special crisis" : ""}
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field
-                    label="Portfolio 1"
-                    htmlFor={`pref-${index}-p1`}
-                    error={p1Error}
-                    hint="Required"
-                  >
-                    <Input
-                      id={`pref-${index}-p1`}
-                      value={String(pref.portfolio_1 ?? "")}
-                      placeholder="e.g. France"
-                      onChange={(event) => {
-                        const nextPrefs = [...selectedPrefs];
-                        nextPrefs[index] = { ...nextPrefs[index], portfolio_1: event.target.value };
-                        form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
-                      }}
-                    />
-                  </Field>
-                  <Field
-                    label="Portfolio 2"
-                    htmlFor={`pref-${index}-p2`}
-                    error={p2Error}
-                    hint="Optional"
-                  >
-                    <Input
-                      id={`pref-${index}-p2`}
-                      value={String(pref.portfolio_2 ?? "")}
-                      placeholder="Optional second choice"
-                      onChange={(event) => {
-                        const nextPrefs = [...selectedPrefs];
-                        nextPrefs[index] = { ...nextPrefs[index], portfolio_2: event.target.value };
-                        form.setValue("preferences", nextPrefs, { shouldDirty: true, shouldValidate: true });
-                      }}
-                    />
-                  </Field>
-                </div>
+                {isSpecial ? (
+                  <p className="text-sm text-ink-muted">
+                    Special crisis committee portfolio will be assigned directly by the secretariat.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field
+                      label="Portfolio 1"
+                      htmlFor={`pref-${index}-p1`}
+                      error={p1Error}
+                      hint="Required"
+                    >
+                      <Input
+                        id={`pref-${index}-p1`}
+                        value={String(pref.portfolio_1 ?? "")}
+                        placeholder="e.g. France"
+                        onChange={(event) => {
+                          const nextPrefs = [...selectedPrefs];
+                          nextPrefs[index] = { ...nextPrefs[index], portfolio_1: event.target.value };
+                          form.setValue("preferences", nextPrefs, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                    </Field>
+                    <Field
+                      label="Portfolio 2"
+                      htmlFor={`pref-${index}-p2`}
+                      error={p2Error}
+                      hint="Optional"
+                    >
+                      <Input
+                        id={`pref-${index}-p2`}
+                        value={String(pref.portfolio_2 ?? "")}
+                        placeholder="Optional second choice"
+                        onChange={(event) => {
+                          const nextPrefs = [...selectedPrefs];
+                          nextPrefs[index] = { ...nextPrefs[index], portfolio_2: event.target.value };
+                          form.setValue("preferences", nextPrefs, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                    </Field>
+                  </div>
+                )}
               </div>
             );
           })

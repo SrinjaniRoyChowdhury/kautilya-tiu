@@ -108,6 +108,8 @@ export type Committee = {
   current_phase_kind?: RegistrationPhaseKind | null;
   allows_single_del?: boolean;
   allows_double_del?: boolean;
+  /** When true, delegates do not enter portfolio prefs; secretariat assigns. */
+  is_special_crisis?: boolean;
   eb_json: EbMember[];
   logo_url?: string | null;
   card_background_url?: string | null;
