@@ -11,6 +11,8 @@ import { APP_NAME } from "@/lib/constants";
 import { getActiveEdition, getAnnouncements, getSiteSettings } from "@/lib/data";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
+import { ToastListener } from "@/components/ui/toast-listener";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -69,6 +71,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={cn("h-full", "antialiased", poppins.variable, montserrat.variable, "font-sans", geist.variable)}
     >
       <body className="min-h-full flex flex-col font-sans text-ink">
+        <Toaster position="top-right" richColors />
+        <ToastListener />
         <Header
           societyName={settings.society_name}
           email={profile?.email ?? user?.email ?? null}
