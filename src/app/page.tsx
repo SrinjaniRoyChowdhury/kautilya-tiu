@@ -16,16 +16,13 @@ import {
 import { mapCmsSponsor } from "@/lib/sponsors";
 
 export default async function HomePage() {
-  const settings = await getSiteSettings();
-  const edition = await getActiveEdition();
-  const [committees, announcements, sponsors, collaborators] = edition
-    ? await Promise.all([
-        getPublicCommittees(edition.id),
-        getAnnouncements(edition.id),
-        getSponsors(),
-        getCollaborators(),
-      ])
-    : [[], [], await getSponsors(), await getCollaborators()];
+  const [settings, edition] = await Promise.all([getSiteSettings(), getActiveEdition()]);
+  const [committees, announcements, sponsors, collaborators] = await Promise.all([
+    edition ? getPublicCommittees(edition.id) : Promise.resolve([]),
+    edition ? getAnnouncements(edition.id) : Promise.resolve([]),
+    getSponsors(),
+    getCollaborators(),
+  ]);
 
   return (
     <>
