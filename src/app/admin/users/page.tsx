@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
-import { DeleteUserButton } from "@/components/admin/user-forms";
+import { DeleteUserButton, ManualVerifyUserButton } from "@/components/admin/user-forms";
 import { Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminUsers } from "@/lib/data";
@@ -95,6 +95,9 @@ export default async function AdminUsersPage({
                   <Link href={`/admin/users/${row.id}`} className="text-gold-700 hover:underline">
                     Open
                   </Link>
+                  {canEdit && !row.email_verified_at ? (
+                    <ManualVerifyUserButton userId={row.id} userName={row.full_name} variant="ghost" />
+                  ) : null}
                   {canEdit && (
                     <DeleteUserButton userId={row.id} userName={row.full_name} isPaid={row.is_paid} />
                   )}
