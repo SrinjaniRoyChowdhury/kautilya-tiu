@@ -34,6 +34,8 @@ export function AnnouncementRibbon({ announcements }: { announcements: RibbonIte
   );
 
   useEffect(() => {
+    if (pathname !== "/") return;
+
     let active = true;
 
     const syncAnnouncements = async () => {
@@ -68,7 +70,7 @@ export function AnnouncementRibbon({ announcements }: { announcements: RibbonIte
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [propFingerprint]);
+  }, [pathname, propFingerprint]);
 
   const itemsFingerprint = useMemo(() => announcementFingerprint(items), [items]);
   const titles = useMemo(

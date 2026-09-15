@@ -54,6 +54,28 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
+  const hasSessionHint = request.cookies
+    .getAll()
+    .some((cookie) => cookie.name.includes("auth-token"));
+
+  const csvExport = /^\/admin\/reports\/[^/]+$/.test(path);
+  const gated =
+    path.startsWith("/dashboard") ||
+    (path.startsWith("/admin") && !csvExport) ||
+    path === "/scan" ||
+    path.startsWith("/scan/");
+
+  // Anonymous public routes: skip Auth round-trip when no session cookies exist.
+  if (!hasSessionHint) {
+    if (gated) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("next", path);
+      return NextResponse.redirect(redirectUrl);
+    }
+    return supabaseResponse;
+  }
+
   const supabase = createServerClient(url, anon, {
     cookies: {
       getAll() {
@@ -76,13 +98,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const csvExport = /^\/admin\/reports\/[^/]+$/.test(path);
-  const gated =
-    path.startsWith("/dashboard") ||
-    (path.startsWith("/admin") && !csvExport) ||
-    path === "/scan" ||
-    path.startsWith("/scan/");
 
   if (gated && !user) {
     const redirectUrl = request.nextUrl.clone();

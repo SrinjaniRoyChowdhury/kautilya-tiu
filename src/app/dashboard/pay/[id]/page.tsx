@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import {
   PaymentInstructionsCard,
   PaymentParticipants,
   PaymentProofForm,
 } from "@/components/dashboard/payment-forms";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { Card, PageHeader } from "@/components/ui/card";
 import {
   getPaymentById,
   getPaymentInstructions,
@@ -20,20 +19,19 @@ export const metadata: Metadata = { title: "Payment details" };
 
 export default async function PaymentDetailPage({ params }: Props) {
   const { id } = await params;
-  const [payment, { showTeam }] = await Promise.all([getPaymentById(id), dashboardNavProps()]);
+  const payment = await getPaymentById(id);
   if (!payment) notFound();
   const instructions = await getPaymentInstructions(payment.edition_id);
   const proofHref = paymentProofHref(payment.id, payment.proof_image_key);
   const editable = paymentEditable(payment.status);
 
   return (
-    <Container className="py-12">
+    <>
       <PageHeader
         eyebrow="Participant"
         title="Upload proof"
         description="Scan the secretariat QR, transfer the expected total, then attach the screenshot. Staff review is manual."
       />
-      <DashboardNav current="/dashboard/pay" showTeam={showTeam} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <PaymentInstructionsCard
@@ -62,6 +60,6 @@ export default async function PaymentDetailPage({ params }: Props) {
           />
         </Card>
       </div>
-    </Container>
+    </>
   );
 }
