@@ -22,7 +22,7 @@ export type PaymentState = {
 
 const RPC_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: "Sign in to continue.",
-  EMAIL_UNVERIFIED: "Verify your email before paying. Locally the link lands in Inbucket on port 54324.",
+  EMAIL_UNVERIFIED: "Verify your email before paying. Check your inbox (and spam) for the link.",
   NOT_FOUND: "Payment not found.",
   FORBIDDEN: "You do not have permission to do that.",
   EMAIL_REQUIRED: "Enter a valid email.",

@@ -56,7 +56,7 @@ export default async function DashboardPage() {
           <p className="font-serif text-xl text-gold-700">Verify your email</p>
           <p className="mt-2 text-sm text-ink-muted">
             You can browse, but you cannot submit a registration or payment until the address is
-            verified. Locally the link lands in Inbucket on port 54324.
+            verified. Check your inbox and spam folder for the link, or resend below.
           </p>
           <ResendVerification />
         </Card>
