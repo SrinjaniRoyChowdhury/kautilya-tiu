@@ -2,7 +2,12 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
-import { deleteSignedUpUserAction, updateSignedUpUserAction, type UserAdminState } from "@/app/actions/users";
+import {
+  deleteSignedUpUserAction,
+  manualVerifyUserAction,
+  updateSignedUpUserAction,
+  type UserAdminState,
+} from "@/app/actions/users";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
@@ -37,6 +42,42 @@ export function UserCredentialsForm({ user }: { user: AdminUser }) {
         {pending ? "Saving…" : "Save credentials"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
+    </form>
+  );
+}
+
+export function ManualVerifyUserButton({
+  userId,
+  userName,
+  variant = "secondary",
+  size = "sm",
+}: {
+  userId: string;
+  userName: string;
+  variant?: "primary" | "secondary" | "ghost";
+  size?: "md" | "sm";
+}) {
+  const action = manualVerifyUserAction.bind(null, userId);
+  const [state, formAction, pending] = useActionState(action, {} as UserAdminState);
+
+  return (
+    <form
+      action={formAction}
+      className="inline-block"
+      onSubmit={(event) => {
+        if (
+          !window.confirm(
+            `Manually verify email for "${userName}"? They will be marked verified and sent a notice email (so they know they can sign in without the Brevo link).`,
+          )
+        ) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <Button type="submit" variant={variant} size={size} disabled={pending}>
+        {pending ? "Verifying…" : "Verify email"}
+      </Button>
+      <ActionFeedback error={state.error} success={state.success} className="text-xs mt-1" />
     </form>
   );
 }
