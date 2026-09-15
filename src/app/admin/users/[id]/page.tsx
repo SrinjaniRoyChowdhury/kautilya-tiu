@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DeleteUserButton, UserCredentialsForm } from "@/components/admin/user-forms";
+import { DeleteUserButton, ManualVerifyUserButton, UserCredentialsForm } from "@/components/admin/user-forms";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminUser } from "@/lib/data";
@@ -56,6 +56,14 @@ export default async function AdminUserPage({
             {user.email_verified_at ? "Email verified" : "Email not verified"}
             {user.registration_status ? ` · registration ${user.registration_status.toLowerCase()}` : " · no registration yet"}
           </p>
+          {canEdit && !user.email_verified_at ? (
+            <div className="mb-4">
+              <ManualVerifyUserButton userId={user.id} userName={user.full_name} />
+              <p className="mt-2 text-xs text-ink-muted">
+                Use this when the Brevo verification email never arrived. Marks the account verified and sends them a notice so they know they can sign in and register.
+              </p>
+            </div>
+          ) : null}
           {canEdit && (
             <div className="pt-4 border-t border-gold-700/10">
               <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted mb-2">Danger Zone</p>
