@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PortfolioMatrixUrlForm } from "@/components/admin/portfolio-matrix-url-form";
 import { Card, Container, PageHeader } from "@/components/ui/card";
 import { hasPermission, getRoleNames } from "@/lib/auth";
 import { isContentEditorOnly, isReadOnlyStaff } from "@/lib/staff-access";
 import { formatInrFromMinor } from "@/lib/format";
-import { getAllEditionsAdmin, getCommitteesForEdition } from "@/lib/data";
+import { getActiveEdition, getAllEditionsAdmin, getCommitteesForEdition } from "@/lib/data";
 import { canDownloadCommitteeAllocations } from "@/lib/reports";
 
 export const metadata: Metadata = { title: "Committees" };
 
 export default async function AdminCommitteesPage() {
-  const [editions, canCreate, canDownload, roles] = await Promise.all([
+  const [editions, activeEdition, canCreate, canDownload, roles] = await Promise.all([
     getAllEditionsAdmin(),
+    getActiveEdition(),
     hasPermission("committee.manage"),
     canDownloadCommitteeAllocations(),
     getRoleNames(),
@@ -26,6 +28,20 @@ export default async function AdminCommitteesPage() {
   return (
     <Container className="py-12">
       <PageHeader eyebrow="Admin" title="Committees" />
+      {canCreate && activeEdition ? (
+        <Card className="mb-6">
+          <p className="mb-4 font-serif text-2xl text-gold-700">Portfolio Matrix</p>
+          <p className="mb-4 text-sm text-ink-muted">
+            Google Sheet link for the current public edition ({activeEdition.name}). Delegates see
+            this as a button on the registration form.
+          </p>
+          <PortfolioMatrixUrlForm
+            editionId={activeEdition.id}
+            editionName={activeEdition.name}
+            currentUrl={activeEdition.portfolio_matrix_url}
+          />
+        </Card>
+      ) : null}
       <div className="mb-6 flex flex-wrap gap-3">
         {canCreate ? (
           <Link
