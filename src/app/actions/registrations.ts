@@ -7,7 +7,7 @@ import { getAppOrigin } from "@/lib/origin";
 import { getEditionById, getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
-import { buildRegistrationSchema, isRegistrationOpen, parsePreferencesFromForm, preferencesPayload, visibleRegistrationFields } from "@/lib/registration";
+import { buildRegistrationSchema, isRegistrationOpen, parsePreferencesFromForm, preferencesPayloadForCommittees, visibleRegistrationFields } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
 export type RegistrationState = {
@@ -155,12 +155,27 @@ async function runSave(
 
   const fields = visibleRegistrationFields(await getFieldDefinitions(editionId));
   const raw = parseFormPayload(formData, fields);
+  const prefItems = parsePreferencesFromForm(formData);
+  const prefCommitteeIds = prefItems.map((pref) => pref.committee_id).filter(isUuid);
+
+  const supabase = await createClient();
+  const specialCrisisIds = new Set<string>();
+  if (prefCommitteeIds.length) {
+    const { data: committeeRows } = await supabase
+      .from("committees")
+      .select("id, is_special_crisis")
+      .in("id", prefCommitteeIds);
+    for (const row of committeeRows ?? []) {
+      if ((row as { is_special_crisis?: boolean }).is_special_crisis) {
+        specialCrisisIds.add((row as { id: string }).id);
+      }
+    }
+  }
 
   if (intent === "submit") {
     const readRulebook = formData.get("read_rulebook") === "on";
     const readGuidelines = formData.get("read_guidelines") === "on";
-    const supabaseGate = await createClient();
-    const { data: row } = await supabaseGate
+    const { data: row } = await supabase
       .from("registrations")
       .select("accepted_rules_at, is_pair_lead")
       .eq("id", registrationId)
@@ -171,13 +186,16 @@ async function runSave(
       return { error: "Confirm that you have read both the rulebook and guidelines before submitting." };
     }
     if (!alreadyAccepted) {
-      await supabaseGate
+      await supabase
         .from("registrations")
         .update({ accepted_rules_at: new Date().toISOString() })
         .eq("id", registrationId);
     }
     const isPairLead = (row as { is_pair_lead?: boolean } | null)?.is_pair_lead !== false;
-    const schema = buildRegistrationSchema(fields, { requirePreferences: isPairLead });
+    const schema = buildRegistrationSchema(fields, {
+      requirePreferences: isPairLead,
+      specialCrisisCommitteeIds: specialCrisisIds,
+    });
     const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
@@ -191,8 +209,7 @@ async function runSave(
       };
     }
   } else {
-    const prefs = parsePreferencesFromForm(formData);
-    if (prefs.some((pref) => pref.committee_id && !isUuid(pref.committee_id))) {
+    if (prefItems.some((pref) => pref.committee_id && !isUuid(pref.committee_id))) {
       return { error: "Select valid committees", fieldErrors: { preferences: "Select committees" } };
     }
   }
@@ -201,9 +218,8 @@ async function runSave(
   const foodPref =
     food === "VEG" || food === "NON_VEG" ? (food as FoodPreference) : null;
   const payload = valuesPayload(fields, raw);
-  const prefs = preferencesPayload(parsePreferencesFromForm(formData));
+  const prefs = preferencesPayloadForCommittees(prefItems, specialCrisisIds);
 
-  const supabase = await createClient();
   const rpc = intent === "submit" ? "submit_registration" : "save_registration_draft";
   const { error } = await supabase.rpc(rpc, {
     p_registration_id: registrationId,

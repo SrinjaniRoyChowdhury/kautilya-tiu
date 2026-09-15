@@ -137,7 +137,7 @@ function fieldSchema(def: RegistrationFieldDefinition): ZodType {
 
 export const preferenceItemSchema = z.object({
   committee_id: hexId,
-  portfolio_1: z.string().trim().min(1, "Select at least one portfolio for this committee"),
+  portfolio_1: z.union([z.string(), z.literal("")]).optional(),
   portfolio_2: z.union([z.string(), z.literal("")]).optional(),
 });
 
@@ -152,9 +152,13 @@ export function visibleRegistrationFields(
 
 export function buildRegistrationSchema(
   fields: RegistrationFieldDefinition[],
-  options: { requirePreferences?: boolean } = {},
+  options: {
+    requirePreferences?: boolean;
+    specialCrisisCommitteeIds?: Iterable<string>;
+  } = {},
 ) {
   const requirePreferences = options.requirePreferences !== false;
+  const specialCrisis = new Set(options.specialCrisisCommitteeIds ?? []);
   const visible = visibleRegistrationFields(fields);
   const shape: Record<string, ZodType> = {
     food_preference: z.enum(["VEG", "NON_VEG"], { error: "Select a food preference" }),
@@ -201,24 +205,33 @@ export function buildRegistrationSchema(
     if (requirePreferences) {
       const seen = new Set<string>();
       prefs.forEach((pref, index) => {
-      const id = String(pref.committee_id ?? "");
-      if (seen.has(id)) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["preferences", index, "committee_id"],
-          message: "Each committee can only be selected once.",
-        });
-      }
-      seen.add(id);
-      const p1 = String(pref.portfolio_1 ?? "").trim().toLowerCase();
-      const p2 = String(pref.portfolio_2 ?? "").trim().toLowerCase();
-      if (p2 && p1 && p1 === p2) {
-        ctx.addIssue({
-          code: "custom",
-          path: ["preferences", index, "portfolio_2"],
-          message: "Use a different portfolio in the second field.",
-        });
-      }
+        const id = String(pref.committee_id ?? "");
+        if (seen.has(id)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["preferences", index, "committee_id"],
+            message: "Each committee can only be selected once.",
+          });
+        }
+        seen.add(id);
+
+        const isSpecial = specialCrisis.has(id);
+        const p1 = String(pref.portfolio_1 ?? "").trim();
+        const p2 = String(pref.portfolio_2 ?? "").trim();
+        if (!isSpecial && !p1) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["preferences", index, "portfolio_1"],
+            message: "Select at least one portfolio for this committee",
+          });
+        }
+        if (!isSpecial && p2 && p1 && p1.toLowerCase() === p2.toLowerCase()) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["preferences", index, "portfolio_2"],
+            message: "Use a different portfolio in the second field.",
+          });
+        }
       });
     }
 
@@ -287,4 +300,17 @@ export function preferencesPayload(prefs: PreferenceFormItem[]) {
       portfolio_1: String(pref.portfolio_1 ?? "").trim(),
       portfolio_2: String(pref.portfolio_2 ?? "").trim() || null,
     }));
+}
+
+/** Clear stored portfolio text for special crisis committees before save. */
+export function preferencesPayloadForCommittees(
+  prefs: PreferenceFormItem[],
+  specialCrisisCommitteeIds: Iterable<string>,
+) {
+  const special = new Set(specialCrisisCommitteeIds);
+  return preferencesPayload(prefs).map((pref) =>
+    special.has(pref.committee_id)
+      ? { ...pref, portfolio_1: "", portfolio_2: null }
+      : pref,
+  );
 }
