@@ -46,6 +46,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const pathname = (await headers()).get("x-pathname") ?? "";
   const isStaffShell = pathname.startsWith("/admin") || pathname.startsWith("/scan");
+  const isHome = pathname === "/" || pathname === "";
 
   const [settings, user, profile, roles, canScan] = await Promise.all([
     getSiteSettings(),
@@ -55,13 +56,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     hasScanAccess(),
   ]);
 
-  // Public chrome only — admin/scan skip edition + announcements round-trips.
-  const announcements = isStaffShell
-    ? []
-    : await (async () => {
-        const edition = await getActiveEdition();
-        return edition ? getAnnouncements(edition.id) : [];
-      })();
+  // Ribbon is home-only — skip edition/announcements round-trips on other public routes.
+  const announcements =
+    !isStaffShell && isHome
+      ? await (async () => {
+          const edition = await getActiveEdition();
+          return edition ? getAnnouncements(edition.id) : [];
+        })()
+      : [];
 
   const scannerOnly = isOperatorOnly(roles);
 
@@ -80,7 +82,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           adminHref={staffHomePath(roles)}
           canScan={canScan}
         />
-        {isStaffShell ? null : <AnnouncementRibbon announcements={announcements} />}
+        {!isStaffShell && isHome ? <AnnouncementRibbon announcements={announcements} /> : null}
         <main className="flex-1">{children}</main>
         {scannerOnly || isStaffShell ? null : <Footer settings={settings} />}
       </body>

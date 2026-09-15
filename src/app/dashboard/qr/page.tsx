@@ -1,40 +1,43 @@
 import type { Metadata } from "next";
-import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { QrLightbox } from "@/components/dashboard/qr-lightbox";
 import { ResendQrEmail } from "@/components/dashboard/resend-qr-email";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { Card, PageHeader } from "@/components/ui/card";
 import { getProfile, getSessionUser } from "@/lib/auth";
-import { getActiveEdition, getActiveQrForRegistration, getCommitteesForEdition, getMyRegistration } from "@/lib/data";
+import {
+  getActiveEdition,
+  getActiveQrForRegistration,
+  getCommitteesForEdition,
+  getMyRegistration,
+} from "@/lib/data";
 import { formatDelegation } from "@/lib/format";
 import { getActiveQrPayload } from "@/lib/qr-mail";
 
 export const metadata: Metadata = { title: "Credential" };
 
 export default async function CredentialPage() {
-  const [user, profile, edition, { showTeam }] = await Promise.all([
+  const [user, profile, edition] = await Promise.all([
     getSessionUser(),
     getProfile(),
     getActiveEdition(),
-    dashboardNavProps(),
   ]);
   const registration = edition ? await getMyRegistration(edition.id) : null;
   const committees = edition ? await getCommitteesForEdition(edition.id) : [];
   const committee = committees.find((item) => item.id === registration?.committee_id) ?? null;
-  const qrMeta =
-    registration?.status === "CONFIRMED"
-      ? await getActiveQrForRegistration(registration.id)
-      : null;
-  const image =
-    registration?.status === "CONFIRMED" ? await getActiveQrPayload(registration.id) : null;
+  const confirmed = registration?.status === "CONFIRMED";
+  const [qrMeta, image] = await Promise.all([
+    confirmed && registration
+      ? getActiveQrForRegistration(registration.id)
+      : Promise.resolve(null),
+    confirmed && registration ? getActiveQrPayload(registration.id) : Promise.resolve(null),
+  ]);
 
   return (
-    <Container className="py-12">
+    <>
       <PageHeader
         eyebrow="Participant"
         title="Credential"
         description="Show this QR at every desk. The same code is used all three days and for meals."
       />
-      <DashboardNav current="/dashboard/qr" showTeam={showTeam} />
 
       {!registration || registration.status !== "CONFIRMED" ? (
         <Card>
@@ -61,10 +64,14 @@ export default async function CredentialPage() {
             ) : null}
             {formatDelegation(registration.allocated_slr, registration.allocated_portfolio) ? (
               <p className="mt-1 text-sm">
-                Allocated delegation: {formatDelegation(registration.allocated_slr, registration.allocated_portfolio)}
+                Allocated delegation:{" "}
+                {formatDelegation(registration.allocated_slr, registration.allocated_portfolio)}
               </p>
             ) : (
-              <p className="mt-1 text-sm text-ink-muted">Delegation will appear here after the secretariat allocates it. Your QR stays the same.</p>
+              <p className="mt-1 text-sm text-ink-muted">
+                Delegation will appear here after the secretariat allocates it. Your QR stays the
+                same.
+              </p>
             )}
             {registration.food_preference ? (
               <p className="mt-1 text-sm text-ink-muted">Food: {registration.food_preference}</p>
@@ -83,9 +90,11 @@ export default async function CredentialPage() {
         </div>
       ) : (
         <Card>
-          <p className="text-ink-muted">Confirmed, but no active QR was found. Contact the secretariat.</p>
+          <p className="text-ink-muted">
+            Confirmed, but no active QR was found. Contact the secretariat.
+          </p>
         </Card>
       )}
-    </Container>
+    </>
   );
 }

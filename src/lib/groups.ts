@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 export type GroupMember = {
@@ -31,7 +32,7 @@ export type MyTeamContext = {
   members: GroupMember[];
 };
 
-export async function getMyTeamContext(): Promise<MyTeamContext | null> {
+export const getMyTeamContext = cache(async (): Promise<MyTeamContext | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -93,7 +94,7 @@ export async function getMyTeamContext(): Promise<MyTeamContext | null> {
   }
 
   return null;
-}
+});
 
 export async function fetchGroupMembers(
   editionId: string,
