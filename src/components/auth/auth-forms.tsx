@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
@@ -11,6 +12,12 @@ import { PHONE_HINT, phoneInputProps } from "@/lib/phone";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const [state, action, pending] = useActionState(loginAction, {} as AuthState);
+
+  useEffect(() => {
+    if (state.error) {
+      toast.error("Sign in failed", { description: state.error });
+    }
+  }, [state]);
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="next" value={nextPath} />
@@ -39,6 +46,15 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
 
 export function SignupForm() {
   const [state, action, pending] = useActionState(signupAction, {} as AuthState);
+
+  useEffect(() => {
+    if (state.success) {
+      toast.info("Account Created!", { description: state.success });
+    } else if (state.error) {
+      toast.error("Sign up failed", { description: state.error });
+    }
+  }, [state]);
+
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field label="Full name" htmlFor="full_name" error={state.fieldErrors?.full_name}>

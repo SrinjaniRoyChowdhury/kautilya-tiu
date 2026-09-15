@@ -101,7 +101,24 @@ export function Footer({ settings }: { settings: SiteSettings }) {
           <p suppressHydrationWarning>
             © {new Date().getFullYear()} {settings.society_name}. All rights reserved.
           </p>          <p className="text-right">
-            Behind the digital curtain: Srinjani Roy Chowdhury and Pratik Guha Roy
+            Behind the digital curtain:{" "}
+            <a
+              href="https://portfolio-cyan-iota-79.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gold-400 transition-colors"
+            >
+              Srinjani Roy Chowdhury
+            </a>{" "}
+            and{" "}
+            <a
+              href="https://portfolio-alpha-eight-fsy5o7fnh7.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gold-400 transition-colors"
+            >
+              Pratik Guha Roy
+            </a>
           </p>
         </div>
       </div>
