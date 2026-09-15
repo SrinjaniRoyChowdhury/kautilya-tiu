@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import { Controller, useForm, useWatch, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -141,6 +142,18 @@ export function RegistrationForm({
     registrationFormAction,
     {} as RegistrationState,
   );
+
+  useEffect(() => {
+    if (state.success) {
+      toast.success("Registration Successful", {
+        description: state.success,
+      });
+    } else if (state.error) {
+      toast.error("Registration Error", {
+        description: state.error,
+      });
+    }
+  }, [state]);
   const [pending, startTransition] = useTransition();
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(schema) as unknown as Resolver<RegistrationFormValues>,

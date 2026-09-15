@@ -232,7 +232,11 @@ export async function loginAction(_prev: AuthState, formData: FormData): Promise
   }
 
   const requested = safeInternalPath(formData.get("next"), "/dashboard");
-  redirect(await postLoginPath(requested));
+  const destPath = await postLoginPath(requested);
+  const [pathname, search] = destPath.split("?");
+  const params = new URLSearchParams(search ?? "");
+  params.set("toast", "signed_in");
+  redirect(`${pathname}?${params.toString()}`);
 }
 
 async function postLoginPath(requested: string): Promise<string> {
