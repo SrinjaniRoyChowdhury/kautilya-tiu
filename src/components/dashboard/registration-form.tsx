@@ -101,6 +101,7 @@ export function RegistrationForm({
   preferredCommitteeId,
   paymentLocked = false,
   publishedDocs,
+  portfolioMatrixUrl,
 }: {
   editionId: string;
   registration: Registration;
@@ -113,6 +114,7 @@ export function RegistrationForm({
   preferredCommitteeId?: string;
   paymentLocked?: boolean;
   publishedDocs?: { rulebook?: string | null; guidelines?: string | null };
+  portfolioMatrixUrl?: string | null;
 }) {
   const visibleFields = useMemo(() => visibleRegistrationFields(fields), [fields]);
   const pairLocked = registration.is_pair_lead === false;
@@ -305,11 +307,24 @@ export function RegistrationForm({
 
       <fieldset disabled={!committeeEditable || busy || pairLocked} className="grid gap-4">
         <legend className="sr-only">Country / portfolio</legend>
-        <div>
-          <p className="font-serif text-2xl text-gold-700">Country / portfolio</p>
-          <p className="mt-1 text-sm text-ink-muted">
-            For each preference, type 1 or 2 country/portfolio names. The two fields cannot be the same.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-serif text-2xl text-gold-700">Country / portfolio</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              For each preference, type 1 or 2 country/portfolio names. The two fields cannot be the
+              same.
+            </p>
+          </div>
+          {portfolioMatrixUrl ? (
+            <a
+              href={portfolioMatrixUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm border border-gold-700/50 bg-parchment-50 px-4 text-sm font-medium text-gold-700 hover:bg-parchment-200"
+            >
+              Portfolio Matrix
+            </a>
+          ) : null}
         </div>
         {selectedPrefs.length === 0 ? (
           <p className="text-sm text-ink-muted">Select committees above to add portfolio preferences.</p>
