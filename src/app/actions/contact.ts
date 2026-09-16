@@ -5,6 +5,7 @@ import { z } from "zod";
 import { HELP_DESK_TYPES, type HelpDeskQueryType } from "@/types";
 import { TEN_DIGIT_PHONE, PHONE_ERROR } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 const querySchema = z.object({
   name: z.string().trim().min(2, "Enter your name").max(80, "Name must be under 80 characters"),
@@ -112,6 +113,11 @@ export async function updateHelpDeskQueryStatusAction(
   status: "PENDING" | "RESOLVED" | "ARCHIVED",
 ): Promise<{ success: boolean; error?: string }> {
   const admin = createAdminClient();
+  const { data: before } = await admin
+    .from("help_desk_queries")
+    .select("status, subject, type")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await admin
     .from("help_desk_queries")
     .update({ status })
@@ -119,6 +125,14 @@ export async function updateHelpDeskQueryStatusAction(
   if (error) {
     return { success: false, error: error.message };
   }
+  const supabase = await createClient();
+  await supabase.rpc("write_audit", {
+    p_action: "help_desk.status",
+    p_entity: "help_desk_queries",
+    p_entity_id: id,
+    p_old: before,
+    p_new: { status, subject: before?.subject ?? null, type: before?.type ?? null },
+  });
   revalidatePath("/admin/help-desk");
   return { success: true };
 }

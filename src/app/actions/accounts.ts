@@ -137,6 +137,20 @@ export async function createStaffAccountAction(
     updated_at: new Date().toISOString(),
   });
 
+  const supabase = await createClient();
+  await supabase.rpc("write_audit", {
+    p_action: "account.create",
+    p_entity: "users",
+    p_entity_id: userId,
+    p_old: null,
+    p_new: {
+      username: parsed.data.username,
+      kind: parsed.data.kind,
+      desk: parsed.data.desk ?? null,
+      edition_id: edition,
+    },
+  });
+
   revalidateAccounts();
   return { success: `${parsed.data.username} can sign in with that username and password.` };
 }
