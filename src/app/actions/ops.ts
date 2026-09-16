@@ -98,6 +98,13 @@ export async function addMealTypeAction(
     );
     if (schedError) return { error: schedError.message };
   }
+  await supabase.rpc("write_audit", {
+    p_action: "meal.seed",
+    p_entity: "meal_types",
+    p_entity_id: editionId,
+    p_old: null,
+    p_new: { meals: names, event_days: [1, 2, 3] },
+  });
   revalidatePath(`/admin/editions/${editionId}`);
   revalidatePath("/scan");
   revalidatePath("/admin/attendance");
