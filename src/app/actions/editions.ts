@@ -264,12 +264,27 @@ export async function archiveEditionAction(editionId: string): Promise<FormState
   const gate = await requireEditionManager();
   if (!gate.allowed) return { error: "You do not have permission to manage editions." };
 
+  const { data: before } = await gate.supabase
+    .from("mun_editions")
+    .select("name, status, is_public_active")
+    .eq("id", editionId)
+    .maybeSingle();
+
   const { error } = await gate.supabase
     .from("mun_editions")
     .update({ status: "ARCHIVED", is_public_active: false })
     .eq("id", editionId);
 
   if (error) return { error: error.message };
+
+  await gate.supabase.rpc("write_audit", {
+    p_action: "edition.archive",
+    p_entity: "mun_editions",
+    p_entity_id: editionId,
+    p_old: before,
+    p_new: { status: "ARCHIVED", is_public_active: false, name: before?.name ?? null },
+  });
+
   revalidatePath("/admin/editions");
   revalidatePath("/");
   return { success: "Edition archived." };
