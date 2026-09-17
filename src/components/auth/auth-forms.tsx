@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -46,17 +46,9 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
 
 export function SignupForm() {
   const [state, action, pending] = useActionState(signupAction, {} as AuthState);
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-
-  useEffect(() => {
-    if (state.values) {
-      if (state.values.full_name != null) setFullName(state.values.full_name);
-      if (state.values.email != null) setEmail(state.values.email);
-      if (state.values.phone != null) setPhone(state.values.phone);
-    }
-  }, [state.values]);
+  const formKey = state.values
+    ? `keep-${state.values.full_name ?? ""}|${state.values.email ?? ""}|${state.values.phone ?? ""}`
+    : "new";
 
   useEffect(() => {
     if (state.success) {
@@ -67,15 +59,14 @@ export function SignupForm() {
   }, [state]);
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form key={formKey} action={action} className="flex flex-col gap-4">
       <Field label="Full name" htmlFor="full_name" error={state.fieldErrors?.full_name}>
         <Input
           id="full_name"
           name="full_name"
           autoComplete="name"
           required
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          defaultValue={state.values?.full_name ?? ""}
         />
       </Field>
       <Field label="Email" htmlFor="email" error={state.fieldErrors?.email}>
@@ -85,8 +76,7 @@ export function SignupForm() {
           type="email"
           autoComplete="email"
           required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          defaultValue={state.values?.email ?? ""}
         />
       </Field>
       <Field label="Phone" htmlFor="phone" error={state.fieldErrors?.phone} hint={PHONE_HINT}>
@@ -94,9 +84,8 @@ export function SignupForm() {
           id="phone"
           name="phone"
           required
+          defaultValue={state.values?.phone ?? ""}
           {...phoneInputProps}
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
         />
       </Field>
       <Field

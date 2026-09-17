@@ -62,22 +62,53 @@ export function CreateAccountForm({
   lockKind?: boolean;
   onSuccess?: () => void;
 }) {
-  const [kind, setKind] = useState<AccountKind>(defaultKind ?? "scanner");
-  const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
   const [state, action, pending] = useActionState(createStaffAccountAction, {} as AccountState);
-
-  useEffect(() => {
-    if (state.values) {
-      if (state.values.full_name != null) setFullName(state.values.full_name);
-      if (state.values.username != null) setUsername(state.values.username);
-      if (state.values.kind) setKind(state.values.kind);
-    }
-  }, [state.values]);
+  const formKey = state.values
+    ? `keep-${state.values.full_name ?? ""}|${state.values.username ?? ""}|${state.values.kind ?? ""}|${state.values.desk ?? ""}|${state.values.edition_id ?? ""}`
+    : "new";
 
   useEffect(() => {
     if (state.success) onSuccess?.();
   }, [state.success, onSuccess]);
+
+  return (
+    <CreateAccountFields
+      key={formKey}
+      action={action}
+      pending={pending}
+      state={state}
+      editions={editions}
+      defaultKind={defaultKind}
+      lockKind={lockKind}
+      initialFullName={state.values?.full_name ?? ""}
+      initialUsername={state.values?.username ?? ""}
+      initialKind={state.values?.kind ?? defaultKind ?? "scanner"}
+    />
+  );
+}
+
+function CreateAccountFields({
+  action,
+  pending,
+  state,
+  editions,
+  defaultKind,
+  lockKind,
+  initialFullName,
+  initialUsername,
+  initialKind,
+}: {
+  action: (payload: FormData) => void | Promise<void>;
+  pending: boolean;
+  state: AccountState;
+  editions: Edition[];
+  defaultKind?: AccountKind;
+  lockKind?: boolean;
+  initialFullName: string;
+  initialUsername: string;
+  initialKind: AccountKind;
+}) {
+  const [kind, setKind] = useState<AccountKind>(initialKind);
 
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
@@ -87,8 +118,7 @@ export function CreateAccountForm({
           name="full_name"
           required
           autoComplete="name"
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
+          defaultValue={initialFullName}
         />
       </Field>
       <Field label="Username" htmlFor="username" hint="They sign in with this, not an email.">
@@ -97,8 +127,7 @@ export function CreateAccountForm({
           name="username"
           required
           autoComplete="off"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
+          defaultValue={initialUsername}
         />
       </Field>
       <Field
@@ -128,7 +157,6 @@ export function CreateAccountForm({
       )}
       {(lockKind ? defaultKind : kind) === "scanner" ? (
         <ScannerFields
-          key={`scanner-${state.values?.desk ?? "both"}-${state.values?.edition_id ?? "all"}`}
           editions={editions}
           defaultDesk={state.values?.desk}
           defaultEditionId={state.values?.edition_id}

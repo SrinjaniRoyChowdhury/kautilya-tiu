@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
 import {
   Controller,
   useForm,
@@ -174,20 +174,20 @@ export function RegistrationForm({
     {} as RegistrationState,
   );
   const [clientError, setClientError] = useState<string | null>(null);
-  const feedbackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (state.success) {
-      setClientError(null);
       toast.success("Registration Successful", {
         description: state.success,
       });
     } else if (state.error) {
-      setClientError(null);
       toast.error("Registration Error", {
         description: state.error,
       });
-      feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("registration-feedback")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [state]);
   const [pending, startTransition] = useTransition();
@@ -204,7 +204,7 @@ export function RegistrationForm({
   const [readRulebook, setReadRulebook] = useState(Boolean(registration.accepted_rules_at));
   const [readGuidelines, setReadGuidelines] = useState(Boolean(registration.accepted_rules_at));
   const bothChecked = readRulebook && readGuidelines;
-  const buttonError = clientError ?? state.error ?? null;
+  const buttonError = state.success ? undefined : (clientError ?? state.error ?? undefined);
 
   function dispatch(intent: "draft" | "submit", data: RegistrationFormValues) {
     setClientError(null);
@@ -231,9 +231,13 @@ export function RegistrationForm({
   }
 
   function onInvalid(errors: FieldErrors<RegistrationFormValues>) {
-    const message = firstValidationMessage(errors);
-    setClientError(message);
-    feedbackRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setClientError(firstValidationMessage(errors));
+    queueMicrotask(() => {
+      document.getElementById("registration-feedback")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   const grouped = SECTION_ORDER.map((section) => ({
@@ -634,7 +638,7 @@ export function RegistrationForm({
             </div>
           </div>
 
-          <div ref={feedbackRef} className="space-y-3">
+          <div id="registration-feedback" className="space-y-3">
             <div className="flex flex-wrap gap-3">
               <Button
                 type="submit"
@@ -657,7 +661,7 @@ export function RegistrationForm({
                 Agree to the Rulebook and Guidelines above to enable submit.
               </p>
             ) : null}
-            <ActionFeedback error={buttonError ?? undefined} success={state.success} />
+            <ActionFeedback error={buttonError} success={state.success} />
           </div>
         </div>
       ) : editable ? (
@@ -666,13 +670,13 @@ export function RegistrationForm({
             Your committee has been allocated. Food preference and personal details can still be
             updated until payment is under review.
           </p>
-          <div ref={feedbackRef} className="space-y-3">
+          <div id="registration-feedback" className="space-y-3">
             <div className="flex flex-wrap gap-3">
               <Button type="button" variant="secondary" disabled={busy} onClick={() => dispatch("draft", form.getValues())}>
                 {busy ? "Saving…" : "Save details"}
               </Button>
             </div>
-            <ActionFeedback error={buttonError ?? undefined} success={state.success} />
+            <ActionFeedback error={buttonError} success={state.success} />
           </div>
         </div>
       ) : (
