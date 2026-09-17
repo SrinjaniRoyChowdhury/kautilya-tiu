@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { appMailConfigured, sendResendVerificationEmail } from "@/lib/auth-mail";
 import { createClient } from "@/lib/supabase/server";
 import { getAppOrigin } from "@/lib/origin";
-import { getEditionById, getFieldDefinitions } from "@/lib/data";
+import { getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
-import { buildRegistrationSchema, isRegistrationOpen, parsePreferencesFromForm, preferencesPayloadForCommittees, visibleRegistrationFields } from "@/lib/registration";
+import { buildRegistrationSchema, parsePreferencesFromForm, preferencesPayloadForCommittees, visibleRegistrationFields } from "@/lib/registration";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
 export type RegistrationState = {
@@ -144,44 +144,53 @@ async function runSave(
 ): Promise<RegistrationState> {
   const registrationId = String(formData.get("registration_id") ?? "");
   const editionId = String(formData.get("edition_id") ?? "");
-  if (!registrationId || !editionId) {
+  if (!registrationId || !editionId || !isUuid(registrationId) || !isUuid(editionId)) {
     return { error: "Missing registration. Reload the page." };
   }
 
-  const edition = await getEditionById(editionId);
-  if (!edition || isRegistrationOpen(edition) !== "open") {
-    return { error: "Registration is currently closed for this edition." };
-  }
+  const supabase = await createClient();
+  const fieldsPromise = getFieldDefinitions(editionId);
+  const rulesRowPromise =
+    intent === "submit"
+      ? supabase
+          .from("registrations")
+          .select("accepted_rules_at, is_pair_lead")
+          .eq("id", registrationId)
+          .maybeSingle()
+      : Promise.resolve({ data: null as { accepted_rules_at?: string | null; is_pair_lead?: boolean } | null });
 
-  const fields = visibleRegistrationFields(await getFieldDefinitions(editionId));
+  const [fieldsAll, rulesRowResult] = await Promise.all([fieldsPromise, rulesRowPromise]);
+  const fields = visibleRegistrationFields(fieldsAll);
   const raw = parseFormPayload(formData, fields);
   const prefItems = parsePreferencesFromForm(formData);
-  const prefCommitteeIds = prefItems.map((pref) => pref.committee_id).filter(isUuid);
 
-  const supabase = await createClient();
-  const specialCrisisIds = new Set<string>();
-  if (prefCommitteeIds.length) {
-    const { data: committeeRows } = await supabase
-      .from("committees")
-      .select("id, is_special_crisis")
-      .in("id", prefCommitteeIds);
-    for (const row of committeeRows ?? []) {
-      if ((row as { is_special_crisis?: boolean }).is_special_crisis) {
-        specialCrisisIds.add((row as { id: string }).id);
+  const specialCrisisIds = new Set(
+    String(formData.get("special_crisis_ids") ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(isUuid),
+  );
+  // Fallback if the client omitted flags (older tabs / drafts).
+  if (!specialCrisisIds.size) {
+    const prefCommitteeIds = prefItems.map((pref) => pref.committee_id).filter(isUuid);
+    if (prefCommitteeIds.length) {
+      const { data: committeeRows } = await supabase
+        .from("committees")
+        .select("id, is_special_crisis")
+        .in("id", prefCommitteeIds);
+      for (const row of committeeRows ?? []) {
+        if ((row as { is_special_crisis?: boolean }).is_special_crisis) {
+          specialCrisisIds.add((row as { id: string }).id);
+        }
       }
     }
   }
 
   if (intent === "submit") {
+    const row = rulesRowResult.data;
     const readRulebook = formData.get("read_rulebook") === "on";
     const readGuidelines = formData.get("read_guidelines") === "on";
-    const { data: row } = await supabase
-      .from("registrations")
-      .select("accepted_rules_at, is_pair_lead")
-      .eq("id", registrationId)
-      .maybeSingle();
-
-    const alreadyAccepted = Boolean((row as { accepted_rules_at?: string | null } | null)?.accepted_rules_at);
+    const alreadyAccepted = Boolean(row?.accepted_rules_at);
     if (!alreadyAccepted && (!readRulebook || !readGuidelines)) {
       return { error: "Confirm that you have read both the rulebook and guidelines before submitting." };
     }
@@ -191,7 +200,7 @@ async function runSave(
         .update({ accepted_rules_at: new Date().toISOString() })
         .eq("id", registrationId);
     }
-    const isPairLead = (row as { is_pair_lead?: boolean } | null)?.is_pair_lead !== false;
+    const isPairLead = row?.is_pair_lead !== false;
     const schema = buildRegistrationSchema(fields, {
       requirePreferences: isPairLead,
       specialCrisisCommitteeIds: specialCrisisIds,
@@ -208,10 +217,8 @@ async function runSave(
         fieldErrors,
       };
     }
-  } else {
-    if (prefItems.some((pref) => pref.committee_id && !isUuid(pref.committee_id))) {
-      return { error: "Select valid committees", fieldErrors: { preferences: "Select committees" } };
-    }
+  } else if (prefItems.some((pref) => pref.committee_id && !isUuid(pref.committee_id))) {
+    return { error: "Select valid committees", fieldErrors: { preferences: "Select committees" } };
   }
 
   const food = (raw.food_preference as string) || null;
@@ -219,6 +226,8 @@ async function runSave(
     food === "VEG" || food === "NON_VEG" ? (food as FoodPreference) : null;
   const payload = valuesPayload(fields, raw);
   const prefs = preferencesPayloadForCommittees(prefItems, specialCrisisIds);
+  const collectiveRaw = String(raw.collective_id ?? "").trim();
+  const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
 
   const rpc = intent === "submit" ? "submit_registration" : "save_registration_draft";
   const { error } = await supabase.rpc(rpc, {
@@ -232,17 +241,15 @@ async function runSave(
 
   if (error) return { error: rpcMessage(error) };
 
-  const collectiveRaw = String(raw.collective_id ?? "").trim();
-  const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
   const { error: collectiveError } = await supabase
     .from("registrations")
     .update({ collective_id: collectiveId })
     .eq("id", registrationId);
   if (collectiveError) return { error: collectiveError.message };
 
-  revalidatePath("/dashboard");
+  // Keep revalidation narrow so the form remount stays fast.
   revalidatePath("/dashboard/register");
-  revalidatePath("/committees");
+  revalidatePath("/dashboard");
   return {
     success:
       intent === "submit"

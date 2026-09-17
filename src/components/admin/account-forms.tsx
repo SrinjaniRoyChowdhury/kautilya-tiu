@@ -63,7 +63,17 @@ export function CreateAccountForm({
   onSuccess?: () => void;
 }) {
   const [kind, setKind] = useState<AccountKind>(defaultKind ?? "scanner");
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [state, action, pending] = useActionState(createStaffAccountAction, {} as AccountState);
+
+  useEffect(() => {
+    if (state.values) {
+      if (state.values.full_name != null) setFullName(state.values.full_name);
+      if (state.values.username != null) setUsername(state.values.username);
+      if (state.values.kind) setKind(state.values.kind);
+    }
+  }, [state.values]);
 
   useEffect(() => {
     if (state.success) onSuccess?.();
@@ -72,10 +82,24 @@ export function CreateAccountForm({
   return (
     <form action={action} className="grid gap-3 sm:grid-cols-2">
       <Field label="Full name" htmlFor="full_name">
-        <Input id="full_name" name="full_name" required autoComplete="name" />
+        <Input
+          id="full_name"
+          name="full_name"
+          required
+          autoComplete="name"
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+        />
       </Field>
       <Field label="Username" htmlFor="username" hint="They sign in with this, not an email.">
-        <Input id="username" name="username" required autoComplete="off" />
+        <Input
+          id="username"
+          name="username"
+          required
+          autoComplete="off"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+        />
       </Field>
       <Field
         label="Password"
@@ -102,7 +126,14 @@ export function CreateAccountForm({
           </Select>
         </Field>
       )}
-      {(lockKind ? defaultKind : kind) === "scanner" ? <ScannerFields editions={editions} /> : null}
+      {(lockKind ? defaultKind : kind) === "scanner" ? (
+        <ScannerFields
+          key={`scanner-${state.values?.desk ?? "both"}-${state.values?.edition_id ?? "all"}`}
+          editions={editions}
+          defaultDesk={state.values?.desk}
+          defaultEditionId={state.values?.edition_id}
+        />
+      ) : null}
       <div className="sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create account"}
