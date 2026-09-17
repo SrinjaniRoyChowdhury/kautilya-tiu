@@ -74,11 +74,51 @@ async function RegistrationBody({
   let startError: string | null = null;
   let registration = await getMyRegistration(edition.id);
 
-  const covering = registration ? await getCoveringPaymentForRegistration(registration.id) : null;
+  if (!registration && windowState === "open") {
+    try {
+      registration = await startRegistrationAction(edition.id);
+    } catch (error) {
+      startError = error instanceof Error ? error.message : "Could not start registration.";
+    }
+  }
+
+  if (!registration) {
+    if (windowState !== "open") {
+      return (
+        <Card>
+          <p className="text-ink-muted">
+            {windowState === "not_open"
+              ? "Registration has not opened yet."
+              : "Registration is currently closed for this edition."}
+          </p>
+        </Card>
+      );
+    }
+    return (
+      <Card>
+        <p className="text-sm text-red-800" role="alert">
+          {startError ?? "Could not start registration."}
+        </p>
+      </Card>
+    );
+  }
+
+  const [covering, publishedDocs, fields, committees, values, collectives, institutions, preferences] =
+    await Promise.all([
+      getCoveringPaymentForRegistration(registration.id),
+      getConferenceDocLinks(),
+      getFieldDefinitions(edition.id),
+      getPublicCommittees(edition.id),
+      getRegistrationValues(registration.id),
+      getCollectives(),
+      getInstitutions(),
+      getRegistrationPreferences(registration.id),
+    ]);
+
   const paymentConfirmed =
     covering?.status === "VERIFIED" ||
-    registration?.status === "CONFIRMED" ||
-    registration?.status === "PAYMENT_VERIFIED";
+    registration.status === "CONFIRMED" ||
+    registration.status === "PAYMENT_VERIFIED";
 
   if (windowState !== "open" && !paymentConfirmed) {
     return (
@@ -92,36 +132,8 @@ async function RegistrationBody({
     );
   }
 
-  if (!registration) {
-    try {
-      registration = await startRegistrationAction(edition.id);
-    } catch (error) {
-      startError = error instanceof Error ? error.message : "Could not start registration.";
-    }
-  }
-
-  if (!registration) {
-    return (
-      <Card>
-        <p className="text-sm text-red-800" role="alert">
-          {startError ?? "Could not start registration."}
-        </p>
-      </Card>
-    );
-  }
-
-  const [publishedDocs, fields, committees, values, collectives, institutions, preferences] =
-    await Promise.all([
-      getConferenceDocLinks(),
-      getFieldDefinitions(edition.id),
-      getPublicCommittees(edition.id),
-      getRegistrationValues(registration.id),
-      getCollectives(),
-      getInstitutions(),
-      getRegistrationPreferences(registration.id),
-    ]);
   const preferred = committees.find((item) => item.slug === committeeSlug);
-  const preferredIds = new Set(preferences.map((item) => item.committee_id));
+  const preferredIds = setOfPreferenceIds(preferences);
   const visible = committees.filter(
     (item) =>
       item.status === "OPEN" ||
@@ -147,4 +159,8 @@ async function RegistrationBody({
       />
     </Card>
   );
+}
+
+function setOfPreferenceIds(preferences: { committee_id: string }[]) {
+  return new Set(preferences.map((item) => item.committee_id));
 }

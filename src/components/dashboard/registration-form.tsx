@@ -1,7 +1,15 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
-import { Controller, useForm, useWatch, type Control, type Resolver, type UseFormRegister } from "react-hook-form";
+import {
+  Controller,
+  useForm,
+  useWatch,
+  type Control,
+  type FieldErrors,
+  type Resolver,
+  type UseFormRegister,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,6 +40,29 @@ import type {
   RegistrationFieldValue,
   RegistrationPreference,
 } from "@/types";
+
+function firstValidationMessage(errors: FieldErrors<RegistrationFormValues>): string {
+  const prefs = errors.preferences;
+  if (prefs) {
+    if (typeof prefs.message === "string" && prefs.message) return prefs.message;
+    if (Array.isArray(prefs)) {
+      for (const item of prefs) {
+        if (!item || typeof item !== "object") continue;
+        for (const key of ["portfolio_1", "portfolio_2", "committee_id"] as const) {
+          const msg = item[key]?.message;
+          if (typeof msg === "string" && msg) return msg;
+        }
+      }
+    }
+  }
+  for (const [key, value] of Object.entries(errors)) {
+    if (key === "preferences" || !value) continue;
+    if (typeof value === "object" && "message" in value && typeof value.message === "string") {
+      return value.message;
+    }
+  }
+  return "Please complete the required fields above, then try again.";
+}
 
 const SECTION_ORDER: FieldSection[] = ["PERSONAL", "MUN_INFO", "FOOD", "ADDITIONAL"];
 
@@ -142,6 +173,7 @@ export function RegistrationForm({
     registrationFormAction,
     {} as RegistrationState,
   );
+  const [clientError, setClientError] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.success) {
@@ -152,12 +184,17 @@ export function RegistrationForm({
       toast.error("Registration Error", {
         description: state.error,
       });
+      document.getElementById("registration-feedback")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
     }
   }, [state]);
   const [pending, startTransition] = useTransition();
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(schema) as unknown as Resolver<RegistrationFormValues>,
     defaultValues: defaultValues(visibleFields, values, registration, preferences, preferredCommitteeId),
+    shouldFocusError: true,
   });
 
   const busy = pending || actionPending;
@@ -167,8 +204,10 @@ export function RegistrationForm({
   const [readRulebook, setReadRulebook] = useState(Boolean(registration.accepted_rules_at));
   const [readGuidelines, setReadGuidelines] = useState(Boolean(registration.accepted_rules_at));
   const bothChecked = readRulebook && readGuidelines;
+  const buttonError = state.success ? undefined : (clientError ?? state.error ?? undefined);
 
   function dispatch(intent: "draft" | "submit", data: RegistrationFormValues) {
+    setClientError(null);
     const prefs = Array.isArray(data.preferences) ? data.preferences : [];
     const selected = prefs
       .map((pref) => committees.find((item) => item.id === pref.committee_id))
@@ -185,8 +224,20 @@ export function RegistrationForm({
       fd.set("read_rulebook", readRulebook ? "on" : "off");
       fd.set("read_guidelines", readGuidelines ? "on" : "off");
     }
+    const crisisIds = selected.filter((item) => item.is_special_crisis).map((item) => item.id);
+    if (crisisIds.length) fd.set("special_crisis_ids", crisisIds.join(","));
     appendValues(fd, data, visibleFields);
     startTransition(() => formAction(fd));
+  }
+
+  function onInvalid(errors: FieldErrors<RegistrationFormValues>) {
+    setClientError(firstValidationMessage(errors));
+    queueMicrotask(() => {
+      document.getElementById("registration-feedback")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
   }
 
   const grouped = SECTION_ORDER.map((section) => ({
@@ -229,7 +280,7 @@ export function RegistrationForm({
   return (
     <form
       className="flex flex-col gap-8"
-      onSubmit={form.handleSubmit((data) => dispatch("submit", data))}
+      onSubmit={form.handleSubmit((data) => dispatch("submit", data), onInvalid)}
     >
       {pairLocked ? (
         <p className="rounded-sm bg-parchment-200 px-3 py-2 text-sm">
@@ -330,7 +381,14 @@ export function RegistrationForm({
           );
         })}
         {selectedPrefs.length < 2 ? (
-          <p className="text-xs text-ink-muted">Select at least two committees.</p>
+          <p className={`text-xs ${clientError || form.formState.errors.preferences ? "text-red-800" : "text-ink-muted"}`} role={clientError ? "alert" : undefined}>
+            Select at least two committees in order of preference.
+          </p>
+        ) : null}
+        {typeof form.formState.errors.preferences?.message === "string" ? (
+          <p className="text-xs text-red-800" role="alert">
+            {form.formState.errors.preferences.message}
+          </p>
         ) : null}
       </fieldset>
 
@@ -580,24 +638,31 @@ export function RegistrationForm({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="submit"
-              disabled={busy || !bothChecked}
-              title={!bothChecked ? "Please agree to both the Rulebook and Guidelines to submit" : undefined}
-            >
-              {busy ? "Working…" : registration.status === "DRAFT" ? "Submit registration" : "Update submission"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => dispatch("draft", form.getValues())}
-            >
-              Save draft
-            </Button>
+          <div id="registration-feedback" className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="submit"
+                disabled={busy || !bothChecked}
+                title={!bothChecked ? "Please agree to both the Rulebook and Guidelines to submit" : undefined}
+              >
+                {busy ? "Saving…" : registration.status === "DRAFT" ? "Submit registration" : "Update submission"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => dispatch("draft", form.getValues())}
+              >
+                Save draft
+              </Button>
+            </div>
+            {!bothChecked ? (
+              <p className="text-xs text-ink-muted">
+                Agree to the Rulebook and Guidelines above to enable submit.
+              </p>
+            ) : null}
+            <ActionFeedback error={buttonError} success={state.success} />
           </div>
-          <ActionFeedback error={state.error} success={state.success} />
         </div>
       ) : editable ? (
         <div className="space-y-4">
@@ -605,12 +670,14 @@ export function RegistrationForm({
             Your committee has been allocated. Food preference and personal details can still be
             updated until payment is under review.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => dispatch("draft", form.getValues())}>
-              {busy ? "Working…" : "Save details"}
-            </Button>
+          <div id="registration-feedback" className="space-y-3">
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" variant="secondary" disabled={busy} onClick={() => dispatch("draft", form.getValues())}>
+                {busy ? "Saving…" : "Save details"}
+              </Button>
+            </div>
+            <ActionFeedback error={buttonError} success={state.success} />
           </div>
-          <ActionFeedback error={state.error} success={state.success} />
         </div>
       ) : (
         <p className="text-sm text-ink-muted">
