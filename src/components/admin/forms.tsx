@@ -600,7 +600,7 @@ export function CommitteeForm({
       <Field
         label="Capacity"
         htmlFor="capacity"
-        hint="Maximum delegations. Portfolios are typed manually when allotting participants."
+        hint="Maximum portfolios. Portfolios are typed manually when allotting participants."
       >
         <Input
           id="capacity"

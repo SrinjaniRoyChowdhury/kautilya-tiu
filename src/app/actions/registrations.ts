@@ -27,7 +27,7 @@ const RPC_MESSAGES: Record<string, string> = {
   REGISTRATION_LOCKED: "This registration can no longer be edited. Contact the secretariat.",
   COMMITTEE_NOT_FOUND: "That committee is not available.",
   COMMITTEE_CLOSED: "That committee is closed.",
-  COMMITTEE_FULL: "That committee has no delegations remaining. Choose another committee.",
+  COMMITTEE_FULL: "That committee has no portfolios remaining. Choose another committee.",
   COMMITTEE_REQUIRED: "Select a committee.",
   PREFERENCES_REQUIRED: "Select 2 or 3 committees in order of preference, with at least one portfolio each.",
   PREFERENCE_DUPLICATE: "Each committee can only be selected once.",
