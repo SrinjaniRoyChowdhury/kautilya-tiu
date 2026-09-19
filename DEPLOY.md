@@ -19,15 +19,27 @@
 
 If you deploy app code to production without the new migrations, registration/payment RPCs will fail.
 
+### Staging → main (safe order)
+
+1. **PR / `staging` preview** — CI only. Frontend may show new UI (e.g. Add participant). That button talks to production Supabase; if the matching migration is not on prod yet, only that action returns a clear error. Existing registration/payment/admin flows are unchanged.
+2. **Merge to `main`** — GitHub Action **migrate / apply** runs `supabase db push` against production (`PRODUCTION_DATABASE_URL`). This only applies **pending** files; already-applied versions are skipped.
+3. **Vercel Production** — must wait for Deployment Checks: `ci / check` **and** `migrate / apply` (do not require migrate for Preview/`staging`).
+4. Never run `supabase/seed.sql`, `db reset`, or `supabase stop --no-backup` against hosted Supabase.
+
 ### New migrations in this release (must reach production Supabase)
 
-| File | Purpose |
-|------|---------|
-| `20260914230000_registration_preferences_allocation.sql` | Prefer 2–3 committees, allocate-before-pay, portfolio matrix URL |
-| `20260915001500_fix_phase_activation.sql` | Fix phase switch unique-index error |
-| `20260915010000_preserve_submitted_with_fee.sql` | Keep existing SUBMITTED+fee delegates payable after cutover |
-| `20260915020000_conference_doc_links.sql` | Rulebook/guidelines stored as CMS links instead of PDF uploads |
-| `20260915030000_manual_portfolio_allotment.sql` | Free-text allotments only; stop using portfolio_config matrix |
+| File | Purpose | Risk |
+|------|---------|------|
+| `20260914230000_registration_preferences_allocation.sql` | Prefer 2–3 committees, allocate-before-pay, portfolio matrix URL | RPC/table changes for registration |
+| `20260915001500_fix_phase_activation.sql` | Fix phase switch unique-index error | Function replace only |
+| `20260915010000_preserve_submitted_with_fee.sql` | Keep existing SUBMITTED+fee delegates payable after cutover | Function replace only |
+| `20260915020000_conference_doc_links.sql` | Rulebook/guidelines as CMS links | Additive |
+| `20260915030000_manual_portfolio_allotment.sql` | Free-text allotments; stop portfolio_config matrix | Function replace |
+| `20260915040000_special_crisis_committee.sql` | Special crisis flag + preference rules | Additive column + function replace |
+| `20260915050000_special_crisis_allocate_without_portfolio.sql` | Allocate special crisis without portfolio | Function replace |
+| `20260919060000_admin_create_registration.sql` | Staff “Add participant” RPC | **Additive only** (new function + grants; no table/data changes) |
+
+`20260919060000` is safe to re-apply: `create or replace function`, idempotent revoke/grant. It does not alter tables or rewrite existing rows.
 
 ---
 
@@ -243,7 +255,7 @@ Confirm with:
 npx supabase migration list --db-url "$PRODUCTION_DATABASE_URL"
 ```
 
-Remote must list every migration file, including `20260914230000`, `20260915001500`, and `20260915010000`.
+Remote must list every migration file through `20260919060000` (preferences, phase fix, special crisis, admin create participant, etc.).
 
 ---
 
@@ -267,8 +279,11 @@ Remote must list every migration file, including `20260914230000`, `202609150015
 docker compose up -d --build
 
 # Release:
-# 1. PR → CI green (preview on Vercel is fine; no DB migrate)
+# 1. PR → CI green (preview/staging on Vercel is fine; no DB migrate)
 # 2. Merge to main → migrate production Supabase → Vercel Production
+# 3. Confirm: Actions → migrate / apply green; then
+#    npx supabase migration list --db-url "$PRODUCTION_DATABASE_URL"
+#    (remote column should include 20260919060000 and earlier pending files)
 ```
 
 Images (logos, team photos, payment proofs) are compressed with Sharp to WebP before Storage upload. Previews still use the public URL at full display size — quality stays high; storage stays small enough for Supabase Free at ~400 registrations.

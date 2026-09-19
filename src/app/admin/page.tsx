@@ -213,7 +213,7 @@ export default async function AdminHomePage({
                   <div className="flex justify-between text-sm">
                     <span>{committee.short_name}</span>
                     <span className="text-ink-muted">
-                      {committee.occupied} / {committee.capacity} delegations
+                      {committee.occupied} / {committee.capacity} portfolios
                     </span>
                   </div>
                   <div className="mt-1 h-1.5 bg-parchment-200">

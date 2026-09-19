@@ -372,8 +372,8 @@ export function RegistrationForm({
                   {closed
                     ? "Closed"
                     : full
-                      ? "No delegations remaining"
-                      : `${remaining} of ${committee.capacity} delegations remaining`}
+                      ? "No portfolios remaining"
+                      : `${remaining} of ${committee.capacity} portfolios remaining`}
                   {phaseLabel ? ` · ${phaseLabel}` : ""}
                 </span>
               </span>

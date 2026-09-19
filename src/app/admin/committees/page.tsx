@@ -73,7 +73,7 @@ export default async function AdminCommitteesPage() {
                   <>
                     {" "}
                     · {formatInrFromMinor(committee.fee_minor)} · {committee.confirmed_count}/
-                    {committee.capacity} delegations · {committee.status}
+                    {committee.capacity} portfolios · {committee.status}
                   </>
                 )}
               </p>

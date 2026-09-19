@@ -76,7 +76,7 @@ export default async function CommitteeDetailPage({ params }: Props) {
           <CommitteeFeeBlock committee={committee} size="lg" />
           <CommitteePrizeBlock committee={committee} size="lg" />
           <p className="text-sm text-ink-muted">
-            {remaining} of {committee.capacity} delegations remaining
+            {remaining} of {committee.capacity} portfolios remaining
           </p>
           <p className="text-sm text-ink-muted">
             Status: {isCommitteeRegistrationLive(edition, committee) ? committee.status : "Registration closed"}
