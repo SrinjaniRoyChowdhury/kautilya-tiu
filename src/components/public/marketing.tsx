@@ -118,7 +118,7 @@ function committeeAvailability(committee: Committee) {
   const availabilityLabel =
     committee.status === "CLOSED" || full
       ? "Waitlist / closed"
-      : `${remaining} of ${committee.capacity} delegations remaining`;
+      : `${remaining} of ${committee.capacity} portfolios remaining`;
   return { remaining, full, availabilityLabel };
 }
 
