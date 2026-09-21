@@ -29,6 +29,14 @@ export async function resendQrEmailAction(
   void _formData;
   const result = await deliverQrEmail(registrationId);
   if (result.delivered) {
+    const supabase = await createClient();
+    await supabase.rpc("write_audit", {
+      p_action: "qr.resend_email",
+      p_entity: "registrations",
+      p_entity_id: registrationId,
+      p_old: null,
+      p_new: { delivered: true },
+    });
     return { success: "Credential email sent. Locally it lands in Mailpit on port 54324." };
   }
   return {

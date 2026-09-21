@@ -46,6 +46,9 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
 
 export function SignupForm() {
   const [state, action, pending] = useActionState(signupAction, {} as AuthState);
+  const formKey = state.values
+    ? `keep-${state.values.full_name ?? ""}|${state.values.email ?? ""}|${state.values.phone ?? ""}`
+    : "new";
 
   useEffect(() => {
     if (state.success) {
@@ -56,15 +59,34 @@ export function SignupForm() {
   }, [state]);
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form key={formKey} action={action} className="flex flex-col gap-4">
       <Field label="Full name" htmlFor="full_name" error={state.fieldErrors?.full_name}>
-        <Input id="full_name" name="full_name" autoComplete="name" required />
+        <Input
+          id="full_name"
+          name="full_name"
+          autoComplete="name"
+          required
+          defaultValue={state.values?.full_name ?? ""}
+        />
       </Field>
       <Field label="Email" htmlFor="email" error={state.fieldErrors?.email}>
-        <Input id="email" name="email" type="email" autoComplete="email" required />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          defaultValue={state.values?.email ?? ""}
+        />
       </Field>
       <Field label="Phone" htmlFor="phone" error={state.fieldErrors?.phone} hint={PHONE_HINT}>
-        <Input id="phone" name="phone" required {...phoneInputProps} />
+        <Input
+          id="phone"
+          name="phone"
+          required
+          defaultValue={state.values?.phone ?? ""}
+          {...phoneInputProps}
+        />
       </Field>
       <Field
         label="Password"

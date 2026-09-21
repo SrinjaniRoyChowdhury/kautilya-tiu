@@ -83,6 +83,11 @@ export async function updateExpenseAction(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the expense form." };
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("edition_expenses")
+    .select("title, category, amount_minor, incurred_on, notes")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase
     .from("edition_expenses")
     .update({
@@ -94,6 +99,18 @@ export async function updateExpenseAction(
     })
     .eq("id", id);
   if (error) return { error: error.message };
+  await supabase.rpc("write_audit", {
+    p_action: "expense.update",
+    p_entity: "edition_expenses",
+    p_entity_id: id,
+    p_old: before,
+    p_new: {
+      title: parsed.data.title,
+      category: parsed.data.category || null,
+      amount_rupees: parsed.data.amount_rupees,
+      incurred_on: parsed.data.incurred_on,
+    },
+  });
   revalidate(parsed.data.edition_id);
   return { success: "Expense updated." };
 }
@@ -102,8 +119,20 @@ export async function deleteExpenseAction(id: string, editionId: string): Promis
   if (!(await hasPermission("edition.manage"))) return { error: "Only an admin can delete expenses." };
   if (!isUuid(id)) return { error: "Missing expense." };
   const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("edition_expenses")
+    .select("title, category, amount_minor, incurred_on")
+    .eq("id", id)
+    .maybeSingle();
   const { error } = await supabase.from("edition_expenses").delete().eq("id", id);
   if (error) return { error: error.message };
+  await supabase.rpc("write_audit", {
+    p_action: "expense.delete",
+    p_entity: "edition_expenses",
+    p_entity_id: id,
+    p_old: before,
+    p_new: null,
+  });
   revalidate(editionId);
   return { success: "Expense removed." };
 }

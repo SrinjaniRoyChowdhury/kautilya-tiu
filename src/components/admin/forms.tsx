@@ -513,6 +513,26 @@ export function CommitteeForm({
           </label>
         </div>
       </fieldset>
+      <div className="sm:col-span-2 rounded-sm border border-gold-700/20 bg-parchment-100/60 p-4">
+        <label className="flex items-start gap-2.5 text-sm font-medium">
+          <input
+            id="is_special_crisis"
+            type="checkbox"
+            name="is_special_crisis"
+            defaultChecked={draft?.is_special_crisis ?? committee?.is_special_crisis ?? false}
+            disabled={readOnly}
+            className="mt-0.5 h-4 w-4 rounded border-gold-700/30 text-gold-700 focus:ring-gold-600"
+          />
+          <div>
+            <span>Special crisis committee</span>
+            <span className="block text-xs font-normal text-ink-muted">
+              When checked, delegates choose this committee but do not enter portfolio preferences.
+              The secretariat assigns the portfolio during allocation. Leave unchecked for a normal
+              committee.
+            </span>
+          </div>
+        </label>
+      </div>
       <div className="sm:col-span-2 overflow-x-auto">
         <p className="mb-2 text-sm font-medium">Fees by registration phase (₹)</p>
         <table className="w-full min-w-[28rem] border-collapse text-left text-sm">
@@ -580,7 +600,7 @@ export function CommitteeForm({
       <Field
         label="Capacity"
         htmlFor="capacity"
-        hint="Maximum delegations. Portfolios are typed manually when allotting participants."
+        hint="Maximum portfolios. Portfolios are typed manually when allotting participants."
       >
         <Input
           id="capacity"

@@ -18,6 +18,13 @@ import {
 export type AccountState = {
   error?: string;
   success?: string;
+  values?: {
+    full_name?: string;
+    username?: string;
+    kind?: AccountKind;
+    desk?: string;
+    edition_id?: string;
+  };
 };
 
 const createSchema = z.object({
@@ -38,8 +45,18 @@ const updateSchema = z.object({
   edition_id: z.string().trim().optional(),
 });
 
-function firstIssue(error: z.ZodError): AccountState {
-  return { error: error.issues[0]?.message ?? "Please check the form" };
+function firstIssue(error: z.ZodError, values?: AccountState["values"]): AccountState {
+  return { error: error.issues[0]?.message ?? "Please check the form", values };
+}
+
+function accountFormValues(formData: FormData): AccountState["values"] {
+  return {
+    full_name: String(formData.get("full_name") ?? ""),
+    username: String(formData.get("username") ?? ""),
+    kind: (String(formData.get("kind") ?? "") || undefined) as AccountKind | undefined,
+    desk: String(formData.get("desk") ?? "") || undefined,
+    edition_id: String(formData.get("edition_id") ?? "") || undefined,
+  };
 }
 
 function revalidateAccounts() {
@@ -69,8 +86,9 @@ export async function createStaffAccountAction(
   _prev: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
+  const values = accountFormValues(formData);
   const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to create accounts." };
+  if (!allowed) return { error: "You need users.manage to create accounts.", values };
 
   const parsed = createSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -80,18 +98,18 @@ export async function createStaffAccountAction(
     desk: formData.get("desk") || undefined,
     edition_id: formData.get("edition_id") || undefined,
   });
-  if (!parsed.success) return firstIssue(parsed.error);
+  if (!parsed.success) return firstIssue(parsed.error, values);
 
   const adminKindGate = await assertCanManageAdminKind(parsed.data.kind);
   if (adminKindGate) return adminKindGate;
 
   const edition = scopedEdition(parsed.data.kind, parsed.data.edition_id);
-  if (edition === "invalid") return { error: "Select an edition." };
+  if (edition === "invalid") return { error: "Select an edition.", values };
 
   const roleNames = rolesForAccountKind(parsed.data.kind, parsed.data.desk ?? "both");
   const roles = await roleRowsByName(roleNames);
   if (roles.length !== roleNames.length) {
-    return { error: "That account type is missing from the database." };
+    return { error: "That account type is missing from the database.", values };
   }
 
   const admin = createAdminClient();
@@ -100,7 +118,7 @@ export async function createStaffAccountAction(
     .select("id")
     .eq("username", parsed.data.username)
     .maybeSingle();
-  if (taken) return { error: "That username is already in use." };
+  if (taken) return { error: "That username is already in use.", values };
 
   const email = staffEmailFromUsername(parsed.data.username);
   const created = await admin.auth.admin.createUser({
@@ -112,9 +130,9 @@ export async function createStaffAccountAction(
   if (created.error || !created.data.user) {
     const message = created.error?.message.toLowerCase() ?? "";
     if (message.includes("already") || message.includes("registered")) {
-      return { error: "That username is already in use." };
+      return { error: "That username is already in use.", values };
     }
-    return { error: created.error?.message ?? "Could not create the account." };
+    return { error: created.error?.message ?? "Could not create the account.", values };
   }
 
   const userId = created.data.user.id;
@@ -137,13 +155,27 @@ export async function createStaffAccountAction(
   if (assigned.error) {
     await admin.from("users").delete().eq("id", userId);
     await admin.auth.admin.deleteUser(userId);
-    return { error: assigned.error.message };
+    return { error: assigned.error.message, values };
   }
 
   await admin.from("scanner_secrets").upsert({
     user_id: userId,
     password_plain: parsed.data.password,
     updated_at: new Date().toISOString(),
+  });
+
+  const supabase = await createClient();
+  await supabase.rpc("write_audit", {
+    p_action: "account.create",
+    p_entity: "users",
+    p_entity_id: userId,
+    p_old: null,
+    p_new: {
+      username: parsed.data.username,
+      kind: parsed.data.kind,
+      desk: parsed.data.desk ?? null,
+      edition_id: edition,
+    },
   });
 
   revalidateAccounts();

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddParticipantModalButton } from "@/components/admin/add-participant-modal";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
@@ -25,8 +26,9 @@ export default async function AdminParticipantsPage({
   searchParams: Promise<{ q?: string; edition?: string; page?: string }>;
 }) {
   const { q = "", edition: editionId, page: pageRaw } = await searchParams;
-  const [allowed, editions, rows] = await Promise.all([
+  const [allowed, canEdit, editions, rows] = await Promise.all([
     hasPermission("registration.view"),
+    hasPermission("registration.edit"),
     getAllEditionsAdmin(),
     getAdminParticipants(editionId || null),
   ]);
@@ -61,10 +63,21 @@ export default async function AdminParticipantsPage({
   );
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, edition: editionId };
+  const defaultEditionId =
+    editionId || editions.find((item) => item.is_public_active)?.id || editions[0]?.id || null;
 
   return (
     <AdminListShell
-      header={<h1 className="font-serif text-xl text-gold-700">Participants</h1>}
+      header={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-serif text-xl text-gold-700">Participants</h1>
+          <AddParticipantModalButton
+            editions={editions}
+            defaultEditionId={defaultEditionId}
+            canEdit={canEdit}
+          />
+        </div>
+      }
       footer={
         <AdminPagination
           page={paged.page}

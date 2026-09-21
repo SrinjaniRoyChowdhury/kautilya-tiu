@@ -139,7 +139,7 @@ async function selectEdition(
   return hydrateEdition(fallback.data);
 }
 
-export async function getPublicEditions(): Promise<Edition[]> {
+export const getPublicEditions = cache(async (): Promise<Edition[]> => {
   try {
     const supabase = await createClient();
     return await selectEditions(async (select) =>
@@ -153,7 +153,7 @@ export async function getPublicEditions(): Promise<Edition[]> {
   } catch {
     return [];
   }
-}
+});
 
 export const getActiveEdition = cache(async (): Promise<Edition | null> => {
   try {
@@ -204,7 +204,7 @@ export async function getEditionById(id: string): Promise<Edition | null> {
 }
 
 const COMMITTEE_SELECT =
-  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del";
+  "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del, is_special_crisis";
 
 const REGISTRATION_SELECT =
   "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
@@ -229,10 +229,11 @@ function hydrateCommittee(committee: Committee): Committee {
     capacity: Number(committee.capacity) || 0,
     prize_money_json: normalizePrizeMoney(committee.prize_money_json),
     show_prize_money: Boolean(committee.show_prize_money),
+    is_special_crisis: Boolean(committee.is_special_crisis),
   };
 }
 
-export async function getCommitteesForEdition(editionId: string): Promise<Committee[]> {
+export const getCommitteesForEdition = cache(async (editionId: string): Promise<Committee[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("committees")
@@ -243,12 +244,12 @@ export async function getCommitteesForEdition(editionId: string): Promise<Commit
   return attachCurrentFees(
     await attachOccupancy(editionId, ((data as Committee[]) ?? []).map(hydrateCommittee)),
   );
-}
+});
 
-export async function getPublicCommittees(editionId: string): Promise<Committee[]> {
+export const getPublicCommittees = cache(async (editionId: string): Promise<Committee[]> => {
   const all = await getCommitteesForEdition(editionId);
   return all.filter((c) => c.status === "OPEN" || c.status === "CLOSED");
-}
+});
 
 export async function getCommitteeBySlug(
   editionId: string,
@@ -269,8 +270,7 @@ export async function getCommitteeBySlug(
   return committee ?? null;
 }
 
-export async function getAnnouncements(editionId?: string | null): Promise<Announcement[]> {
-  noStore();
+export const getAnnouncements = cache(async (editionId?: string | null): Promise<Announcement[]> => {
   const supabase = await createClient();
   let query = supabase
     .from("announcements")
@@ -280,9 +280,9 @@ export async function getAnnouncements(editionId?: string | null): Promise<Annou
   if (editionId) query = query.or(`edition_id.eq.${editionId},edition_id.is.null`);
   const { data } = await query;
   return (data as Announcement[]) ?? [];
-}
+});
 
-export async function getTeamMembers(): Promise<TeamMember[]> {
+export const getTeamMembers = cache(async (): Promise<TeamMember[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("cms_team_members")
@@ -290,9 +290,9 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     .eq("published", true)
     .order("display_order", { ascending: true });
   return (data as TeamMember[]) ?? [];
-}
+});
 
-export async function getSponsors(): Promise<CmsSponsor[]> {
+export const getSponsors = cache(async (): Promise<CmsSponsor[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("cms_sponsors")
@@ -300,9 +300,9 @@ export async function getSponsors(): Promise<CmsSponsor[]> {
     .eq("published", true)
     .order("display_order", { ascending: true });
   return (data as CmsSponsor[]) ?? [];
-}
+});
 
-export async function getCollaborators(): Promise<CmsCollaborator[]> {
+export const getCollaborators = cache(async (): Promise<CmsCollaborator[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("cms_collaborators")
@@ -310,7 +310,7 @@ export async function getCollaborators(): Promise<CmsCollaborator[]> {
     .eq("published", true)
     .order("display_order", { ascending: true });
   return (data as CmsCollaborator[]) ?? [];
-}
+});
 
 export async function getCommitteeById(id: string): Promise<Committee | null> {
   const supabase = await createClient();
@@ -523,9 +523,9 @@ async function attachCurrentFees(committees: Committee[]): Promise<Committee[]> 
   });
 }
 
-export async function getFieldDefinitions(
+export const getFieldDefinitions = cache(async (
   editionId: string,
-): Promise<RegistrationFieldDefinition[]> {
+): Promise<RegistrationFieldDefinition[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("registration_field_definitions")
@@ -536,9 +536,9 @@ export async function getFieldDefinitions(
     .order("display_order", { ascending: true });
   const retired = new Set<string>(RETIRED_REGISTRATION_FIELD_KEYS);
   return ((data as RegistrationFieldDefinition[]) ?? []).filter((field) => !retired.has(field.field_key));
-}
+});
 
-export async function getMyRegistration(editionId: string): Promise<Registration | null> {
+export const getMyRegistration = cache(async (editionId: string): Promise<Registration | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -553,7 +553,7 @@ export async function getMyRegistration(editionId: string): Promise<Registration
     .is("deleted_at", null)
     .maybeSingle();
   return withPartnerName((data as Registration | null) ?? null);
-}
+});
 
 async function withPartnerName(row: Registration | null): Promise<Registration | null> {
   if (!row?.partner_email) return row;
@@ -566,23 +566,23 @@ async function withPartnerName(row: Registration | null): Promise<Registration |
   return { ...row, partner_name: (data as { full_name: string } | null)?.full_name ?? row.partner_email };
 }
 
-export async function getRegistrationValues(
+export const getRegistrationValues = cache(async (
   registrationId: string,
-): Promise<RegistrationFieldValue[]> {
+): Promise<RegistrationFieldValue[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("registration_field_values")
     .select("id, registration_id, field_definition_id, value_text, value_json")
     .eq("registration_id", registrationId);
   return (data as RegistrationFieldValue[]) ?? [];
-}
+});
 
-export async function getRegistrationPreferences(
+export const getRegistrationPreferences = cache(async (
   registrationId: string,
-): Promise<RegistrationPreference[]> {
+): Promise<RegistrationPreference[]> => {
   const map = await getRegistrationPreferencesByIds([registrationId]);
   return map.get(registrationId) ?? [];
-}
+});
 
 export async function getRegistrationPreferencesByIds(
   registrationIds: string[],
@@ -642,9 +642,9 @@ const PARTICIPANT_SELECT = `
   )
 `;
 
-export async function getPaymentInstructions(
+export const getPaymentInstructions = cache(async (
   editionId: string,
-): Promise<PaymentInstructions | null> {
+): Promise<PaymentInstructions | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("payment_instructions")
@@ -654,7 +654,7 @@ export async function getPaymentInstructions(
     .eq("edition_id", editionId)
     .maybeSingle();
   return (data as PaymentInstructions | null) ?? null;
-}
+});
 
 function asPayments(data: unknown): PaymentWithParticipants[] {
   const rows = (data as PaymentWithParticipants[] | null) ?? [];
@@ -670,7 +670,7 @@ function asPayment(data: unknown): PaymentWithParticipants | null {
   return { ...row, payment_participants: row.payment_participants ?? [] };
 }
 
-export async function getMyPayments(editionId: string): Promise<PaymentWithParticipants[]> {
+export const getMyPayments = cache(async (editionId: string): Promise<PaymentWithParticipants[]> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -683,7 +683,7 @@ export async function getMyPayments(editionId: string): Promise<PaymentWithParti
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   return asPayments(data);
-}
+});
 
 export async function getPaymentById(id: string): Promise<PaymentWithParticipants | null> {
   const supabase = await createClient();
@@ -698,9 +698,9 @@ export async function getPaymentById(id: string): Promise<PaymentWithParticipant
   return asPayment(data);
 }
 
-export async function getCoveringPaymentForRegistration(
+export const getCoveringPaymentForRegistration = cache(async (
   registrationId: string,
-): Promise<Payment | null> {
+): Promise<Payment | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("payment_participants")
@@ -718,7 +718,7 @@ export async function getCoveringPaymentForRegistration(
     payments[0] ??
     null
   );
-}
+});
 
 export async function getConfirmedCredentials(
   editionId?: string | null,
@@ -777,7 +777,9 @@ export async function getConfirmedCredentials(
   });
 }
 
-export async function getActiveQrForRegistration(registrationId: string): Promise<QrToken | null> {
+export const getActiveQrForRegistration = cache(async (
+  registrationId: string,
+): Promise<QrToken | null> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("qr_tokens")
@@ -786,7 +788,7 @@ export async function getActiveQrForRegistration(registrationId: string): Promis
     .eq("status", "ACTIVE")
     .maybeSingle();
   return (data as QrToken | null) ?? null;
-}
+});
 
 export function paymentProofHref(
   paymentId: string,
@@ -1670,13 +1672,13 @@ export async function getFoodCollections(
     );
 }
 
-export async function getConferenceDocuments(): Promise<ConferenceDocument[]> {
+export const getConferenceDocuments = cache(async (): Promise<ConferenceDocument[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("conference_documents")
     .select("kind, file_name, storage_key, external_url, uploaded_by, created_at, updated_at");
   return (data as ConferenceDocument[]) ?? [];
-}
+});
 
 export async function getConferenceDocument(
   kind: ConferenceDocument["kind"],
@@ -1690,7 +1692,9 @@ export async function getConferenceDocument(
   return (data as ConferenceDocument | null) ?? null;
 }
 
-export async function getConferenceDocLinks(): Promise<Record<"rulebook" | "guidelines", string | null>> {
+export const getConferenceDocLinks = cache(async (): Promise<
+  Record<"rulebook" | "guidelines", string | null>
+> => {
   const docs = await getConferenceDocuments();
   const links: Record<"rulebook" | "guidelines", string | null> = {
     rulebook: null,
@@ -1705,25 +1709,25 @@ export async function getConferenceDocLinks(): Promise<Record<"rulebook" | "guid
     }
   }
   return links;
-}
+});
 
-export async function getCollectives(): Promise<Collective[]> {
+export const getCollectives = cache(async (): Promise<Collective[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("collectives")
     .select("id, name, created_at, updated_at")
     .order("name", { ascending: true });
   return (data as Collective[]) ?? [];
-}
+});
 
-export async function getInstitutions(): Promise<Institution[]> {
+export const getInstitutions = cache(async (): Promise<Institution[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("institutions")
     .select("id, name, created_at, updated_at")
     .order("name", { ascending: true });
   return (data as Institution[]) ?? [];
-}
+});
 
 export async function getRegistrationPhases(editionId: string): Promise<RegistrationPhase[]> {
   const supabase = await createClient();

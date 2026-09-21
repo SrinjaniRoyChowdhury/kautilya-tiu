@@ -49,15 +49,28 @@ export type AuthState = {
   error?: string;
   fieldErrors?: Record<string, string>;
   success?: string;
+  values?: {
+    full_name?: string;
+    email?: string;
+    phone?: string;
+  };
 };
 
-function firstIssue(error: z.ZodError): AuthState {
+function firstIssue(error: z.ZodError, values?: AuthState["values"]): AuthState {
   const fieldErrors: Record<string, string> = {};
   for (const issue of error.issues) {
     const key = String(issue.path[0] ?? "form");
     if (!fieldErrors[key]) fieldErrors[key] = issue.message;
   }
-  return { error: error.issues[0]?.message ?? "Please check the form", fieldErrors };
+  return { error: error.issues[0]?.message ?? "Please check the form", fieldErrors, values };
+}
+
+function signupValues(formData: FormData): AuthState["values"] {
+  return {
+    full_name: String(formData.get("full_name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+  };
 }
 
 async function authClientKey(): Promise<string> {
@@ -65,9 +78,10 @@ async function authClientKey(): Promise<string> {
 }
 
 export async function signupAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const values = signupValues(formData);
   const ip = await authClientKey();
   if (!rateLimit(`signup:${ip}`, SIGNUP_LIMIT, AUTH_WINDOW_MS)) {
-    return { error: "Too many sign-up attempts. Try again in 15 minutes." };
+    return { error: "Too many sign-up attempts. Try again in 15 minutes.", values };
   }
   const parsed = signupSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -76,7 +90,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     password: formData.get("password"),
     confirm_password: formData.get("confirm_password"),
   });
-  if (!parsed.success) return firstIssue(parsed.error);
+  if (!parsed.success) return firstIssue(parsed.error, values);
 
   const emailLower = parsed.data.email.toLowerCase().trim();
   const admin = createAdminClient();
@@ -92,6 +106,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     return {
       error: "That email is already registered. Sign in instead.",
       fieldErrors: { email: "That email is already registered. Sign in instead." },
+      values,
     };
   }
 
@@ -122,6 +137,7 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
         return {
           error: "That email is already registered. Sign in instead.",
           fieldErrors: { email: "That email is already registered. Sign in instead." },
+          values,
         };
       }
 
@@ -152,13 +168,15 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
         return {
           error: sent.error,
           fieldErrors: { email: sent.error },
+          values,
         };
       }
-      return { error: sent.error };
+      return { error: sent.error, values };
     }
     return {
       success:
         "Check your inbox for a verification link. Until you verify, you can browse but cannot register or pay.",
+      values,
     };
   }
 
@@ -180,9 +198,10 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
       return {
         error: "That email is already registered. Sign in instead.",
         fieldErrors: { email: "That email is already registered. Sign in instead." },
+        values,
       };
     }
-    return { error: "Could not create the account. Try again." };
+    return { error: "Could not create the account. Try again.", values };
   }
 
   // Supabase returns identities: [] when user enumeration protection is on and the email is already registered
@@ -190,12 +209,14 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
     return {
       error: "That email is already registered. Sign in instead.",
       fieldErrors: { email: "That email is already registered. Sign in instead." },
+      values,
     };
   }
 
   return {
     success:
       "Check your inbox for a verification link. Until you verify, you can browse but cannot register or pay.",
+    values,
   };
 }
 

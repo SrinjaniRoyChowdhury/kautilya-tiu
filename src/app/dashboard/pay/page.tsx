@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { StartPaymentForm } from "@/components/dashboard/start-payment-form";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { Card, PageHeader } from "@/components/ui/card";
 import { getProfile, getSessionUser } from "@/lib/auth";
 import { getActiveEdition, getMyPayments, getMyRegistration } from "@/lib/data";
 import { formatInrFromMinor } from "@/lib/format";
@@ -12,11 +11,10 @@ import { isPayableRegistration } from "@/lib/registration";
 export const metadata: Metadata = { title: "Payment" };
 
 export default async function PayIndexPage() {
-  const [user, profile, edition, { showTeam }] = await Promise.all([
+  const [user, profile, edition] = await Promise.all([
     getSessionUser(),
     getProfile(),
     getActiveEdition(),
-    dashboardNavProps(),
   ]);
   const verified = Boolean(profile?.email_verified_at || user?.email_confirmed_at);
   const registration = edition ? await getMyRegistration(edition.id) : null;
@@ -24,13 +22,12 @@ export default async function PayIndexPage() {
   const canIncludeSelf = isPayableRegistration(registration?.status);
 
   return (
-    <Container className="py-12">
+    <>
       <PageHeader
         eyebrow="Participant"
         title="Payment"
         description="Pay after your committee is allocated. Someone else may still pay for you in one UPI transfer."
       />
-      <DashboardNav current="/dashboard/pay" showTeam={showTeam} />
 
       {!verified ? (
         <Card>
@@ -61,6 +58,7 @@ export default async function PayIndexPage() {
                     <li key={payment.id}>
                       <Link
                         href={`/dashboard/pay/${payment.id}`}
+                        prefetch
                         className="block rounded-sm border border-gold-700/20 px-3 py-3 hover:bg-parchment-100"
                       >
                         <p className="font-medium">{copy.label}</p>
@@ -80,6 +78,6 @@ export default async function PayIndexPage() {
           </Card>
         </div>
       )}
-    </Container>
+    </>
   );
 }

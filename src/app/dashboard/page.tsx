@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { DashboardNav, dashboardNavProps } from "@/components/dashboard/dashboard-nav";
 import { RegistrationStatusCard } from "@/components/dashboard/status-card";
 import { ResendVerification } from "@/components/dashboard/resend-verification";
-import { Card, Container, PageHeader } from "@/components/ui/card";
+import { Card, PageHeader } from "@/components/ui/card";
 import { getProfile, getRoleNames, getSessionUser, hasScanAccess } from "@/lib/auth";
 import {
   getActiveEdition,
@@ -30,26 +29,25 @@ export default async function DashboardPage() {
 
   const verified = Boolean(profile?.email_verified_at || user?.email_confirmed_at);
   const registration = edition ? await getMyRegistration(edition.id) : null;
-  const committees = edition ? await getCommitteesForEdition(edition.id) : [];
+  const [committees, covering] = await Promise.all([
+    edition ? getCommitteesForEdition(edition.id) : Promise.resolve([]),
+    registration ? getCoveringPaymentForRegistration(registration.id) : Promise.resolve(null),
+  ]);
   const committee = committees.find((item) => item.id === registration?.committee_id) ?? null;
   const windowState = edition ? isRegistrationOpen(edition) : "closed";
-  const covering = registration ? await getCoveringPaymentForRegistration(registration.id) : null;
-  const eventStatus =
-    registration?.status === "CONFIRMED" ? await getMyEventStatus(registration.id) : null;
-  const qr =
-    registration?.status === "CONFIRMED"
-      ? await getActiveQrForRegistration(registration.id)
-      : null;
-  const { showTeam } = await dashboardNavProps();
+  const confirmed = registration?.status === "CONFIRMED";
+  const [eventStatus, qr] = await Promise.all([
+    confirmed && registration ? getMyEventStatus(registration.id) : Promise.resolve(null),
+    confirmed && registration ? getActiveQrForRegistration(registration.id) : Promise.resolve(null),
+  ]);
 
   return (
-    <Container className="py-12">
+    <>
       <PageHeader
         eyebrow="Participant"
         title={`Hello, ${profile?.full_name ?? "delegate"}`}
         description={edition?.name ?? "No edition is open for registration."}
       />
-      <DashboardNav current="/dashboard" showTeam={showTeam} />
 
       {!verified ? (
         <Card className="mb-6">
@@ -166,6 +164,6 @@ export default async function DashboardPage() {
           </Card>
         ) : null}
       </div>
-    </Container>
+    </>
   );
 }

@@ -1,10 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { hasPermission, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
+import {
+  getCollectives,
+  getFieldDefinitions,
+  getInstitutions,
+  getPublicCommittees,
+} from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { passwordSchema } from "@/lib/password";
+import {
+  buildRegistrationSchema,
+  parsePreferencesFromForm,
+  preferencesPayloadForCommittees,
+  visibleRegistrationFields,
+} from "@/lib/registration";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -208,7 +221,7 @@ const ALLOCATE_MESSAGES: Record<string, string> = {
   COMMITTEE_REQUIRED: "Select a committee.",
   COMMITTEE_NOT_FOUND: "That committee is not available.",
   COMMITTEE_CLOSED: "That committee is closed.",
-  COMMITTEE_FULL: "That committee has no remaining delegations.",
+  COMMITTEE_FULL: "That committee has no remaining portfolios.",
   PORTFOLIO_REQUIRED: "Enter a portfolio.",
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
 };
@@ -226,13 +239,22 @@ export async function allocateRegistrationAction(
   const committeeId = String(formData.get("committee_id") ?? "").trim();
   const portfolio = String(formData.get("portfolio") ?? "").trim();
   if (!isUuid(committeeId)) return { error: "Select a committee." };
-  if (!portfolio) return { error: "Enter a portfolio." };
 
   const supabase = await createClient();
+  const { data: committeeRow } = await supabase
+    .from("committees")
+    .select("is_special_crisis")
+    .eq("id", committeeId)
+    .maybeSingle();
+  const isSpecialCrisis = Boolean(
+    (committeeRow as { is_special_crisis?: boolean } | null)?.is_special_crisis,
+  );
+  if (!portfolio && !isSpecialCrisis) return { error: "Enter a portfolio." };
+
   const { error } = await supabase.rpc("allocate_registration", {
     p_registration_id: registrationId,
     p_committee_id: committeeId,
-    p_portfolio: portfolio,
+    p_portfolio: portfolio || null,
   });
   if (error) {
     const raw = (error.message ?? "").toUpperCase();
@@ -249,5 +271,217 @@ export async function allocateRegistrationAction(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/pay");
   revalidatePath("/dashboard/register");
-  return { success: "Committee and portfolio allocated. Payment is now unlocked for this delegate." };
+  return {
+    success: isSpecialCrisis && !portfolio
+      ? "Special crisis committee allocated. Payment is unlocked; portfolio can be set later if needed."
+      : "Committee and portfolio allocated. Payment is now unlocked for this delegate.",
+  };
+}
+
+const CREATE_MESSAGES: Record<string, string> = {
+  UNAUTHENTICATED: "Sign in to continue.",
+  FORBIDDEN: "You need registration.edit to add a participant.",
+  EMAIL_REQUIRED: "Enter the signed-up email.",
+  USER_NOT_FOUND: "No signed-up account with that email.",
+  USER_INACTIVE: "That account is not active.",
+  EMAIL_UNVERIFIED: "That account has not verified their email yet. Verify it under Users first.",
+  ALREADY_REGISTERED: "That person already has a registration for this edition.",
+  EDITION_NOT_FOUND: "Edition not found.",
+  FOOD_REQUIRED: "Select a food preference.",
+  PREFERENCES_REQUIRED: "Select 2 or 3 committees with portfolios.",
+  COMMITTEE_NOT_FOUND: "One of the preferred committees is not available.",
+  COMMITTEE_CLOSED: "One of the preferred committees is closed.",
+  PORTFOLIO_REQUIRED: "Enter at least one portfolio for each preferred committee.",
+  PORTFOLIO_DUPLICATE: "Do not enter the same portfolio twice for one committee.",
+  PREFERENCE_DUPLICATE: "Each committee can only be selected once.",
+  PARTNER_REQUIRED: "Enter the partner's signed-up email for a double delegation.",
+  PARTNER_SELF: "Partner email cannot be the same as the participant.",
+  PARTNER_NOT_SIGNED_UP: "Partner must already have a signed-up account.",
+  PARTNER_BUSY: "That partner already has a registration that cannot be paired.",
+  PARTNER_ALREADY_PAIRED: "That partner is already in another double delegation.",
+  DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
+};
+
+export type CreateParticipantState = {
+  error?: string;
+  fieldErrors?: Record<string, string>;
+  success?: string;
+  registrationId?: string;
+};
+
+export async function loadAddParticipantMetaAction(editionId: string): Promise<{
+  error?: string;
+  fields?: Awaited<ReturnType<typeof getFieldDefinitions>>;
+  committees?: Awaited<ReturnType<typeof getPublicCommittees>>;
+  collectives?: Awaited<ReturnType<typeof getCollectives>>;
+  institutions?: Awaited<ReturnType<typeof getInstitutions>>;
+}> {
+  if (!isUuid(editionId)) return { error: "Select an edition." };
+  const allowed = await hasPermission("registration.edit");
+  if (!allowed) return { error: "You need registration.edit to add a participant." };
+  const [fields, committees, collectives, institutions] = await Promise.all([
+    getFieldDefinitions(editionId),
+    getPublicCommittees(editionId),
+    getCollectives(),
+    getInstitutions(),
+  ]);
+  return {
+    fields: visibleRegistrationFields(fields),
+    committees: committees.filter((item) => item.status === "OPEN"),
+    collectives,
+    institutions,
+  };
+}
+
+export async function createParticipantRegistrationAction(
+  _prev: CreateParticipantState,
+  formData: FormData,
+): Promise<CreateParticipantState> {
+  const allowed = await hasPermission("registration.edit");
+  if (!allowed) return { error: "You need registration.edit to add a participant." };
+
+  const editionId = String(formData.get("edition_id") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!isUuid(editionId)) return { error: "Select an edition." };
+  if (!email) return { error: "Enter the participant's signed-up email." };
+
+  const fields = visibleRegistrationFields(await getFieldDefinitions(editionId));
+  const raw: Record<string, unknown> = {
+    food_preference: String(formData.get("food_preference") ?? ""),
+    collective_id: String(formData.get("collective_id") ?? ""),
+    delegation_type: String(formData.get("delegation_type") ?? "SINGLE"),
+    partner_email: String(formData.get("partner_email") ?? ""),
+    preferences: parsePreferencesFromForm(formData),
+  };
+  for (const field of fields) {
+    if (field.field_type === "multiselect") {
+      raw[field.field_key] = formData.getAll(`${field.field_key}[]`).map(String);
+    } else if (field.field_type === "boolean") {
+      raw[field.field_key] = formData.get(field.field_key) === "on" || formData.get(field.field_key) === "true";
+    } else {
+      raw[field.field_key] = String(formData.get(field.field_key) ?? "");
+    }
+  }
+
+  const prefItems = parsePreferencesFromForm(formData);
+  const specialCrisisIds = new Set(
+    String(formData.get("special_crisis_ids") ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(isUuid),
+  );
+  if (!specialCrisisIds.size) {
+    const ids = prefItems.map((pref) => pref.committee_id).filter(isUuid);
+    if (ids.length) {
+      const admin = createAdminClient();
+      const { data: rows } = await admin
+        .from("committees")
+        .select("id, is_special_crisis")
+        .in("id", ids);
+      for (const row of rows ?? []) {
+        if ((row as { is_special_crisis?: boolean }).is_special_crisis) {
+          specialCrisisIds.add((row as { id: string }).id);
+        }
+      }
+    }
+  }
+
+  const schema = buildRegistrationSchema(fields, {
+    requirePreferences: true,
+    specialCrisisCommitteeIds: specialCrisisIds,
+  });
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = String(issue.path[0] ?? "form");
+      if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return {
+      error: parsed.error.issues[0]?.message ?? "Please check the form",
+      fieldErrors,
+    };
+  }
+
+  const food = raw.food_preference as string;
+  const foodPref = food === "VEG" || food === "NON_VEG" ? food : null;
+  const values = fields.map((field) => {
+    const value = raw[field.field_key];
+    if (field.field_type === "multiselect") {
+      return {
+        field_definition_id: field.id,
+        value_text: null,
+        value_json: Array.isArray(value) ? value : [],
+      };
+    }
+    if (field.field_type === "boolean") {
+      return {
+        field_definition_id: field.id,
+        value_text: value ? "true" : "false",
+        value_json: Boolean(value),
+      };
+    }
+    if (field.field_type === "number") {
+      const asText = value === "" || value == null || Number.isNaN(value) ? null : String(value);
+      return {
+        field_definition_id: field.id,
+        value_text: asText,
+        value_json: asText == null ? null : Number(value),
+      };
+    }
+    return {
+      field_definition_id: field.id,
+      value_text: value == null ? null : String(value),
+      value_json: null,
+    };
+  });
+  const prefs = preferencesPayloadForCommittees(prefItems, specialCrisisIds);
+  const collectiveRaw = String(raw.collective_id ?? "").trim();
+  const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_create_submitted_registration", {
+    p_edition_id: editionId,
+    p_email: email,
+    p_food_preference: foodPref,
+    p_values: values,
+    p_delegation_type: String(raw.delegation_type ?? "SINGLE") === "DOUBLE" ? "DOUBLE" : "SINGLE",
+    p_partner_email: String(raw.partner_email ?? "").trim() || null,
+    p_preferences: prefs,
+    p_collective_id: collectiveId,
+  });
+
+  if (error) {
+    const rawMsg = (error.message ?? "").toUpperCase();
+    if (
+      rawMsg.includes("COULD NOT FIND THE FUNCTION") ||
+      rawMsg.includes("FUNCTION PUBLIC.ADMIN_CREATE_SUBMITTED_REGISTRATION") ||
+      rawMsg.includes("PGRST202") ||
+      rawMsg.includes("42883")
+    ) {
+      return {
+        error:
+          "Database migration for Add participant is not applied yet. Merge to main so migrate/apply can run, then retry.",
+      };
+    }
+    for (const [code, text] of Object.entries(CREATE_MESSAGES)) {
+      if (rawMsg.includes(code)) return { error: text };
+    }
+    return { error: error.message || "Could not create registration." };
+  }
+
+  const registrationId =
+    data && typeof data === "object" && "id" in data ? String((data as { id: string }).id) : null;
+
+  revalidatePath("/admin/participants");
+  revalidatePath("/admin");
+  revalidatePath("/dashboard/register");
+  if (registrationId) {
+    revalidatePath(`/admin/participants/${registrationId}`);
+    redirect(`/admin/participants/${registrationId}`);
+  }
+
+  return {
+    success: "Participant registration created. Allocate a committee next.",
+  };
 }
