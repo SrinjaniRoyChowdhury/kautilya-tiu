@@ -2,10 +2,11 @@ import { z } from "zod";
 
 export const STAFF_EMAIL_DOMAIN = "staff.kautilya.local";
 
-export const ACCOUNT_KINDS = ["scanner", "editor", "delegate_affairs", "viewer"] as const;
+export const ACCOUNT_KINDS = ["admin", "scanner", "editor", "delegate_affairs", "viewer"] as const;
 export type AccountKind = (typeof ACCOUNT_KINDS)[number];
 
 export const ACCOUNT_KIND_LABELS: Record<AccountKind, string> = {
+  admin: "Admin",
   scanner: "Scanner",
   editor: "Editor",
   delegate_affairs: "Delegate Affairs",
@@ -31,6 +32,8 @@ export function staffEmailFromUsername(username: string) {
 }
 
 export function kindFromRoleNames(names: string[]): AccountKind | null {
+  if (names.includes("SUPER_ADMIN")) return null;
+  if (names.includes("ADMIN")) return "admin";
   if (names.includes("ATTENDANCE_OPERATOR") || names.includes("FOOD_OPERATOR")) return "scanner";
   if (names.includes("CONTENT_EDITOR")) return "editor";
   if (names.includes("DELEGATE_AFFAIRS")) return "delegate_affairs";
@@ -56,6 +59,7 @@ export function rolesForAccountKind(
     if (desk === "attendance") return ["ATTENDANCE_OPERATOR"];
     return ["ATTENDANCE_OPERATOR", "FOOD_OPERATOR"];
   }
+  if (kind === "admin") return ["ADMIN"];
   if (kind === "editor") return ["CONTENT_EDITOR"];
   if (kind === "delegate_affairs") return ["DELEGATE_AFFAIRS"];
   return ["VIEWER"];

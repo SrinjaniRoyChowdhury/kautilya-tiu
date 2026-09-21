@@ -1,3 +1,5 @@
+import type { AccountKind } from "@/lib/username";
+
 export type EditionStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type CommitteeStatus = "OPEN" | "CLOSED" | "HIDDEN";
 
@@ -424,7 +426,7 @@ export type StaffAccount = {
   username: string | null;
   email: string;
   password_plain: string | null;
-  kind: "scanner" | "editor" | "delegate_affairs" | "viewer";
+  kind: AccountKind;
   role_names: string[];
   desk: "attendance" | "food" | "both" | null;
   edition_id: string | null;

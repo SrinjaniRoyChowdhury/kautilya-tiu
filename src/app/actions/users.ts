@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount, verifyAdminCredentials } from "@/lib/auth";
+import { hasPermission, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
 import { APP_NAME } from "@/lib/constants";
 import { isUuid } from "@/lib/ids";
 import { deliverEmail } from "@/lib/mail";
@@ -300,25 +300,27 @@ export async function deleteSignedUpUserAction(
   let authorizedByEmail: string | null = null;
   let deletionReason: string | null = null;
 
-  if (paid) {
-    const adminUsername = String(formData?.get("admin_username") ?? "").trim();
-    const adminPassword = String(formData?.get("admin_password") ?? "");
-    const reason = String(formData?.get("reason") ?? "").trim();
+  const adminUsername = String(formData?.get("admin_username") ?? "").trim();
+  const adminPassword = String(formData?.get("admin_password") ?? "");
+  const reason = String(formData?.get("reason") ?? "").trim();
 
-    if (!adminUsername || !adminPassword) {
-      return { error: "Admin username and password are required to delete a user with paid registrations." };
-    }
-    if (!reason || reason.length < 3) {
-      return { error: "A valid reason (at least 3 characters) is required to delete a user with paid registrations." };
-    }
-
-    const authRes = await verifyAdminCredentials(adminUsername, adminPassword);
-    if (!authRes.success) {
-      return { error: authRes.error };
-    }
-    authorizedByEmail = authRes.user.email ?? adminUsername;
-    deletionReason = reason;
+  if (!adminUsername || !adminPassword) {
+    return {
+      error: "Super Admin username and password are required to delete a user.",
+    };
   }
+  if (paid && (!reason || reason.length < 3)) {
+    return {
+      error: "A valid reason (at least 3 characters) is required to delete a user with paid registrations.",
+    };
+  }
+
+  const authRes = await verifySuperAdminCredentials(adminUsername, adminPassword);
+  if (!authRes.success) {
+    return { error: authRes.error };
+  }
+  authorizedByEmail = authRes.user.email ?? adminUsername;
+  deletionReason = paid ? reason : null;
 
   const now = new Date().toISOString();
   const freedEmail = `deleted_${userId}_${existing.email}`;
