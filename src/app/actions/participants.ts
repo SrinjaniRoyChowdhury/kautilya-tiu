@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount, verifyAdminCredentials } from "@/lib/auth";
+import { hasPermission, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { passwordSchema } from "@/lib/password";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -110,13 +110,13 @@ export async function deleteParticipantAction(
     const reason = String(formData?.get("reason") ?? "").trim();
 
     if (!adminUsername || !adminPassword) {
-      return { error: "Admin username and password are required to delete a paid participant." };
+      return { error: "Super Admin username and password are required to delete a paid participant." };
     }
     if (!reason || reason.length < 3) {
       return { error: "A valid reason (at least 3 characters) is required to delete a paid participant." };
     }
 
-    const authRes = await verifyAdminCredentials(adminUsername, adminPassword);
+    const authRes = await verifySuperAdminCredentials(adminUsername, adminPassword);
     if (!authRes.success) {
       return { error: authRes.error };
     }

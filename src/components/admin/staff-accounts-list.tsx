@@ -3,7 +3,7 @@ import { AccountRowActions } from "@/components/admin/account-forms";
 import { CreateAccountModalButton } from "@/components/admin/account-modal";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { hasPermission, isCurrentUserSuperAdmin } from "@/lib/auth";
 import { getAllEditionsAdmin, getManagedStaffAccounts } from "@/lib/data";
 import { cn } from "@/lib/format";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
@@ -34,13 +34,17 @@ export async function StaffAccountsList({
         <PageHeader
           eyebrow="Staff"
           title="Accounts"
-          description="You need users.manage to create scanner, editor, delegate affairs, and viewer logins."
+          description="You need users.manage to create admin, scanner, editor, delegate affairs, and viewer logins."
         />
       </Container>
     );
   }
 
-  const [editions, rows] = await Promise.all([getAllEditionsAdmin(), getManagedStaffAccounts()]);
+  const [editions, rows, canCreateAdmin] = await Promise.all([
+    getAllEditionsAdmin(),
+    getManagedStaffAccounts(),
+    isCurrentUserSuperAdmin(),
+  ]);
   const visible = rows.filter((row) => {
     if (kind && row.kind !== kind) return false;
     return matchesQuery(q, row.full_name, row.username, row.email, ACCOUNT_KIND_LABELS[row.kind]);
@@ -48,6 +52,12 @@ export async function StaffAccountsList({
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, kind };
   const addLabel = kind ? `Add ${ACCOUNT_KIND_LABELS[kind].toLowerCase()}` : "Add account";
+  const createKinds = canCreateAdmin
+    ? ACCOUNT_KINDS
+    : ACCOUNT_KINDS.filter((item) => item !== "admin");
+  // Non–Super Admins cannot open the Admin filter create flow with that default.
+  const createDefaultKind =
+    kind && createKinds.includes(kind) ? kind : undefined;
 
   return (
     <AdminListShell
@@ -68,7 +78,12 @@ export async function StaffAccountsList({
       }
       toolbar={
         <>
-          <CreateAccountModalButton editions={editions} defaultKind={kind} label={addLabel} />
+          <CreateAccountModalButton
+            editions={editions}
+            defaultKind={createDefaultKind}
+            label={addLabel}
+            allowedKinds={createKinds}
+          />
           <div className="flex flex-wrap gap-2">
             <Link
               href={adminListHref("/admin/accounts", { q }, 1)}
@@ -105,7 +120,7 @@ export async function StaffAccountsList({
               <td className="px-2 py-1.5 text-ink-muted">{ACCOUNT_KIND_LABELS[row.kind]}</td>
               <td className="px-2 py-1.5 text-ink-muted">{detailsFor(row)}</td>
               <td className="px-2 py-1.5 text-right">
-                <AccountRowActions account={row} editions={editions} />
+                <AccountRowActions account={row} editions={editions} canManageAdmin={canCreateAdmin} />
               </td>
             </tr>
           ))}
