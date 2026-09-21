@@ -56,8 +56,8 @@ export async function StaffAccountsList({
     ? ACCOUNT_KINDS
     : ACCOUNT_KINDS.filter((item) => item !== "admin");
   // Non–Super Admins cannot open the Admin filter create flow with that default.
-  const createDefaultKind =
-    kind && createKinds.includes(kind) ? kind : undefined;
+  const createDefaultKind: AccountKind | undefined =
+    kind && (createKinds as readonly AccountKind[]).includes(kind) ? kind : undefined;
 
   return (
     <AdminListShell
