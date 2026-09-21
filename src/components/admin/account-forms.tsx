@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { PasswordInput } from "@/components/ui/password-input";
 import {
   createStaffAccountAction,
@@ -55,13 +56,18 @@ export function CreateAccountForm({
   editions,
   defaultKind,
   lockKind = false,
+  allowedKinds,
   onSuccess,
 }: {
   editions: Edition[];
   defaultKind?: AccountKind;
   lockKind?: boolean;
+  allowedKinds?: readonly AccountKind[];
   onSuccess?: () => void;
 }) {
+  const kinds = allowedKinds?.length ? allowedKinds : (Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]);
+  const fallbackKind =
+    defaultKind && kinds.includes(defaultKind) ? defaultKind : (kinds[0] ?? "scanner");
   const [state, action, pending] = useActionState(createStaffAccountAction, {} as AccountState);
   const formKey = state.values
     ? `keep-${state.values.full_name ?? ""}|${state.values.username ?? ""}|${state.values.kind ?? ""}|${state.values.desk ?? ""}|${state.values.edition_id ?? ""}`
@@ -70,6 +76,10 @@ export function CreateAccountForm({
   useEffect(() => {
     if (state.success) onSuccess?.();
   }, [state.success, onSuccess]);
+
+  const retainedKind = state.values?.kind;
+  const initialKind =
+    retainedKind && kinds.includes(retainedKind) ? retainedKind : fallbackKind;
 
   return (
     <CreateAccountFields
@@ -80,9 +90,10 @@ export function CreateAccountForm({
       editions={editions}
       defaultKind={defaultKind}
       lockKind={lockKind}
+      kinds={kinds}
       initialFullName={state.values?.full_name ?? ""}
       initialUsername={state.values?.username ?? ""}
-      initialKind={state.values?.kind ?? defaultKind ?? "scanner"}
+      initialKind={initialKind}
     />
   );
 }
@@ -94,6 +105,7 @@ function CreateAccountFields({
   editions,
   defaultKind,
   lockKind,
+  kinds,
   initialFullName,
   initialUsername,
   initialKind,
@@ -104,6 +116,7 @@ function CreateAccountFields({
   editions: Edition[];
   defaultKind?: AccountKind;
   lockKind?: boolean;
+  kinds: readonly AccountKind[];
   initialFullName: string;
   initialUsername: string;
   initialKind: AccountKind;
@@ -121,7 +134,7 @@ function CreateAccountFields({
           defaultValue={initialFullName}
         />
       </Field>
-      <Field label="Username" htmlFor="username" hint="They sign in with this, not an email.">
+      <Field label="Username" htmlFor="username" hint="They sign in with this, not an email. e.g. admin1">
         <Input
           id="username"
           name="username"
@@ -147,7 +160,7 @@ function CreateAccountFields({
             value={kind}
             onChange={(event) => setKind(event.target.value as AccountKind)}
           >
-            {(Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).map((item) => (
+            {kinds.map((item) => (
               <option key={item} value={item}>
                 {ACCOUNT_KIND_LABELS[item]}
               </option>
@@ -175,9 +188,11 @@ function CreateAccountFields({
 export function AccountRowActions({
   account,
   editions,
+  canManageAdmin = false,
 }: {
   account: StaffAccount;
   editions: Edition[];
+  canManageAdmin?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   return (
@@ -187,7 +202,12 @@ export function AccountRowActions({
       </Button>
       <DeleteAccountButton userId={account.user_id} name={account.username ?? account.full_name} />
       {editing ? (
-        <EditAccountModal account={account} editions={editions} onClose={() => setEditing(false)} />
+        <EditAccountModal
+          account={account}
+          editions={editions}
+          canManageAdmin={canManageAdmin}
+          onClose={() => setEditing(false)}
+        />
       ) : null}
     </div>
   );
@@ -196,13 +216,20 @@ export function AccountRowActions({
 function EditAccountModal({
   account,
   editions,
+  canManageAdmin,
   onClose,
 }: {
   account: StaffAccount;
   editions: Edition[];
+  canManageAdmin: boolean;
   onClose: () => void;
 }) {
-  const [kind, setKind] = useState<AccountKind>(account.kind);
+  const kinds = canManageAdmin
+    ? (Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[])
+    : (Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).filter((item) => item !== "admin");
+  const [kind, setKind] = useState<AccountKind>(
+    kinds.includes(account.kind) ? account.kind : (kinds[0] ?? "viewer"),
+  );
   const action = updateStaffAccountAction.bind(null, account.user_id);
   const [state, formAction, pending] = useActionState(action, {} as AccountState);
 
@@ -259,7 +286,7 @@ function EditAccountModal({
               value={kind}
               onChange={(event) => setKind(event.target.value as AccountKind)}
             >
-              {(Object.keys(ACCOUNT_KIND_LABELS) as AccountKind[]).map((item) => (
+              {kinds.map((item) => (
                 <option key={item} value={item}>
                   {ACCOUNT_KIND_LABELS[item]}
                 </option>
@@ -290,21 +317,64 @@ function EditAccountModal({
 }
 
 function DeleteAccountButton({ userId, name }: { userId: string; name: string }) {
+  const [modalOpen, setModalOpen] = useState(false);
   const action = deleteStaffAccountAction.bind(null, userId);
-  const [state, formAction, pending] = useActionState(action, {} as AccountState);
+  const [state, formAction, pending] = useActionState(async (prev: AccountState, formData: FormData) => {
+    const res = await action(prev, formData);
+    if (res.success) setModalOpen(false);
+    return res;
+  }, {} as AccountState);
+
   return (
-    <form
-      action={formAction}
-      onSubmit={(event) => {
-        if (!window.confirm(`Delete ${name}? They will no longer be able to sign in.`)) {
-          event.preventDefault();
-        }
-      }}
-    >
-      <Button type="submit" variant="ghost" size="sm" disabled={pending}>
-        {pending ? "Deleting…" : "Delete"}
+    <div className="inline-block">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => setModalOpen(true)}
+        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+      >
+        Delete
       </Button>
-      <ActionFeedback error={state.error} className="text-xs" />
-    </form>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={`Delete account: ${name}`}>
+        <form action={formAction} className="grid gap-4">
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <strong>Super Admin verification required.</strong> They will no longer be able to sign in.
+          </div>
+          <Field label="Super Admin username / email" htmlFor={`sa-user-${userId}`}>
+            <Input
+              id={`sa-user-${userId}`}
+              name="admin_username"
+              required
+              autoComplete="username"
+              placeholder="e.g. admin or admin@kautilya.local"
+            />
+          </Field>
+          <Field label="Super Admin password" htmlFor={`sa-pass-${userId}`}>
+            <PasswordInput
+              id={`sa-pass-${userId}`}
+              name="admin_password"
+              required
+              autoComplete="current-password"
+            />
+          </Field>
+          <div className="mt-2 flex items-center justify-end gap-3">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              className="text-red-700 border-red-300 hover:bg-red-50"
+            >
+              {pending ? "Deleting…" : "Authorize & Delete"}
+            </Button>
+          </div>
+          <ActionFeedback error={state.error} success={state.success} className="text-xs mt-1" />
+        </form>
+      </Modal>
+    </div>
   );
 }

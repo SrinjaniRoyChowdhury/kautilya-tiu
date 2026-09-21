@@ -204,3 +204,44 @@ export async function verifyAdminCredentials(
 
   return { success: true, user: { id: data.user.id, email: data.user.email } };
 }
+
+/** Like verifyAdminCredentials, but only SUPER_ADMIN credentials are accepted. */
+export async function verifySuperAdminCredentials(
+  identifier: string,
+  password: string,
+): Promise<{ success: true; user: { id: string; email?: string } } | { success: false; error: string }> {
+  const result = await verifyAdminCredentials(identifier, password);
+  if (!result.success) {
+    if (result.error === "The provided account is not an authorized staff/admin account.") {
+      return { success: false, error: "Enter a Super Admin username/email and password." };
+    }
+    return result;
+  }
+
+  const adminDb = createAdminClient();
+  const { data: roles } = await adminDb
+    .from("user_roles")
+    .select("roles(name)")
+    .eq("user_id", result.user.id);
+
+  const roleRows = (roles ?? []) as UserRoleRow[];
+  const roleNames = roleRows.flatMap((row) => {
+    const r = row.roles;
+    if (!r) return [];
+    return Array.isArray(r) ? r.map((item) => item.name) : [r.name];
+  });
+
+  if (!roleNames.includes("SUPER_ADMIN")) {
+    return {
+      success: false,
+      error: "Super Admin verification is required. Enter a Super Admin username and password.",
+    };
+  }
+
+  return result;
+}
+
+export async function isCurrentUserSuperAdmin(): Promise<boolean> {
+  const roles = await getRoleNames();
+  return roles.includes("SUPER_ADMIN");
+}

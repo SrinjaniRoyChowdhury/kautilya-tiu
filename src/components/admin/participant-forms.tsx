@@ -40,9 +40,9 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
     return (
       <form action={formAction} className="grid gap-2.5">
         <div className="rounded-sm border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-          Paid/confirmed delete needs admin re-auth and a reason for the audit trail.
+          Paid/confirmed delete needs Super Admin re-auth and a reason for the audit trail.
         </div>
-        <Field label="Admin username / email" htmlFor="admin_username">
+        <Field label="Super Admin username / email" htmlFor="admin_username">
           <Input
             id="admin_username"
             name="admin_username"
@@ -51,7 +51,7 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
             placeholder="admin or admin@…"
           />
         </Field>
-        <Field label="Admin password" htmlFor="admin_password">
+        <Field label="Super Admin password" htmlFor="admin_password">
           <PasswordInput id="admin_password" name="admin_password" required autoComplete="current-password" />
         </Field>
         <Field label="Reason" htmlFor="reason" hint="Stored permanently in audit log.">

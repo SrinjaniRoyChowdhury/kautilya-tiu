@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
+import { hasPermission, isCurrentUserSuperAdmin, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { optionalPasswordSchema, passwordSchema } from "@/lib/password";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -76,6 +76,12 @@ function scopedEdition(kind: AccountKind, editionId: string | undefined) {
   return editionId;
 }
 
+async function assertCanManageAdminKind(kind: AccountKind): Promise<AccountState | null> {
+  if (kind !== "admin") return null;
+  if (await isCurrentUserSuperAdmin()) return null;
+  return { error: "Only a Super Admin can create or edit Admin accounts." };
+}
+
 export async function createStaffAccountAction(
   _prev: AccountState,
   formData: FormData,
@@ -93,6 +99,9 @@ export async function createStaffAccountAction(
     edition_id: formData.get("edition_id") || undefined,
   });
   if (!parsed.success) return firstIssue(parsed.error, values);
+
+  const adminKindGate = await assertCanManageAdminKind(parsed.data.kind);
+  if (adminKindGate) return adminKindGate;
 
   const edition = scopedEdition(parsed.data.kind, parsed.data.edition_id);
   if (edition === "invalid") return { error: "Select an edition.", values };
@@ -195,6 +204,9 @@ export async function updateStaffAccountAction(
   });
   if (!parsed.success) return firstIssue(parsed.error);
 
+  const adminKindGate = await assertCanManageAdminKind(parsed.data.kind);
+  if (adminKindGate) return adminKindGate;
+
   const edition = scopedEdition(parsed.data.kind, parsed.data.edition_id);
   if (edition === "invalid") return { error: "Select an edition." };
 
@@ -212,6 +224,22 @@ export async function updateStaffAccountAction(
     .neq("id", userId)
     .maybeSingle();
   if (clash) return { error: "That username is already in use." };
+
+  // Prevent demoting/promoting through an existing Admin account without Super Admin.
+  const { data: existingRoles } = await admin
+    .from("user_roles")
+    .select("roles(name)")
+    .eq("user_id", userId);
+  const existingNames = ((existingRoles ?? []) as Array<{ roles: { name: string } | { name: string }[] | null }>).flatMap(
+    (row) => {
+      const role = row.roles;
+      if (!role) return [];
+      return Array.isArray(role) ? role.map((item) => item.name) : [role.name];
+    },
+  );
+  if (existingNames.includes("ADMIN") && !(await isCurrentUserSuperAdmin())) {
+    return { error: "Only a Super Admin can edit Admin accounts." };
+  }
 
   const email = staffEmailFromUsername(parsed.data.username);
   const authPatch: {
@@ -273,16 +301,23 @@ export async function updateStaffAccountAction(
 export async function deleteStaffAccountAction(
   userId: string,
   _prev: AccountState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<AccountState> {
   void _prev;
-  void _formData;
   const allowed = await hasPermission("users.manage");
   if (!allowed) return { error: "You need users.manage to delete accounts." };
   if (!isUuid(userId)) return { error: "Missing account." };
   if (await isProtectedAdminAccount(userId)) {
     return { error: "The admin account cannot be deleted." };
   }
+
+  const adminUsername = String(formData.get("admin_username") ?? "").trim();
+  const adminPassword = String(formData.get("admin_password") ?? "");
+  if (!adminUsername || !adminPassword) {
+    return { error: "Super Admin username and password are required to delete an account." };
+  }
+  const authRes = await verifySuperAdminCredentials(adminUsername, adminPassword);
+  if (!authRes.success) return { error: authRes.error };
 
   const admin = createAdminClient();
   await admin.from("user_roles").delete().eq("user_id", userId);
@@ -308,7 +343,7 @@ export async function deleteStaffAccountAction(
     p_entity: "users",
     p_entity_id: userId,
     p_old: null,
-    p_new: { status: "SUSPENDED" },
+    p_new: { status: "SUSPENDED", authorized_by: authRes.user.email ?? adminUsername },
   });
   revalidateAccounts();
   return { success: "Account deleted." };
