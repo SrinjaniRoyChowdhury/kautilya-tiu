@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isCurrentUserSuperAdmin, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
+import { isCurrentUserSuperAdmin, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { optionalPasswordSchema, passwordSchema } from "@/lib/password";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -76,10 +76,9 @@ function scopedEdition(kind: AccountKind, editionId: string | undefined) {
   return editionId;
 }
 
-async function assertCanManageAdminKind(kind: AccountKind): Promise<AccountState | null> {
-  if (kind !== "admin") return null;
+async function assertSuperAdminAccountsAccess(values?: AccountState["values"]): Promise<AccountState | null> {
   if (await isCurrentUserSuperAdmin()) return null;
-  return { error: "Only a Super Admin can create or edit Admin accounts." };
+  return { error: "Only a Super Admin can manage staff accounts.", values };
 }
 
 export async function createStaffAccountAction(
@@ -87,8 +86,8 @@ export async function createStaffAccountAction(
   formData: FormData,
 ): Promise<AccountState> {
   const values = accountFormValues(formData);
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to create accounts.", values };
+  const superGate = await assertSuperAdminAccountsAccess(values);
+  if (superGate) return superGate;
 
   const parsed = createSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -99,9 +98,6 @@ export async function createStaffAccountAction(
     edition_id: formData.get("edition_id") || undefined,
   });
   if (!parsed.success) return firstIssue(parsed.error, values);
-
-  const adminKindGate = await assertCanManageAdminKind(parsed.data.kind);
-  if (adminKindGate) return adminKindGate;
 
   const edition = scopedEdition(parsed.data.kind, parsed.data.edition_id);
   if (edition === "invalid") return { error: "Select an edition.", values };
@@ -187,8 +183,8 @@ export async function updateStaffAccountAction(
   _prev: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to edit accounts." };
+  const superGate = await assertSuperAdminAccountsAccess();
+  if (superGate) return superGate;
   if (!isUuid(userId)) return { error: "Missing account." };
   if (await isProtectedAdminAccount(userId)) {
     return { error: "The admin account cannot be edited here." };
@@ -203,9 +199,6 @@ export async function updateStaffAccountAction(
     edition_id: formData.get("edition_id") || undefined,
   });
   if (!parsed.success) return firstIssue(parsed.error);
-
-  const adminKindGate = await assertCanManageAdminKind(parsed.data.kind);
-  if (adminKindGate) return adminKindGate;
 
   const edition = scopedEdition(parsed.data.kind, parsed.data.edition_id);
   if (edition === "invalid") return { error: "Select an edition." };
@@ -224,22 +217,6 @@ export async function updateStaffAccountAction(
     .neq("id", userId)
     .maybeSingle();
   if (clash) return { error: "That username is already in use." };
-
-  // Prevent demoting/promoting through an existing Admin account without Super Admin.
-  const { data: existingRoles } = await admin
-    .from("user_roles")
-    .select("roles(name)")
-    .eq("user_id", userId);
-  const existingNames = ((existingRoles ?? []) as Array<{ roles: { name: string } | { name: string }[] | null }>).flatMap(
-    (row) => {
-      const role = row.roles;
-      if (!role) return [];
-      return Array.isArray(role) ? role.map((item) => item.name) : [role.name];
-    },
-  );
-  if (existingNames.includes("ADMIN") && !(await isCurrentUserSuperAdmin())) {
-    return { error: "Only a Super Admin can edit Admin accounts." };
-  }
 
   const email = staffEmailFromUsername(parsed.data.username);
   const authPatch: {
@@ -304,8 +281,8 @@ export async function deleteStaffAccountAction(
   formData: FormData,
 ): Promise<AccountState> {
   void _prev;
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to delete accounts." };
+  const superGate = await assertSuperAdminAccountsAccess();
+  if (superGate) return superGate;
   if (!isUuid(userId)) return { error: "Missing account." };
   if (await isProtectedAdminAccount(userId)) {
     return { error: "The admin account cannot be deleted." };

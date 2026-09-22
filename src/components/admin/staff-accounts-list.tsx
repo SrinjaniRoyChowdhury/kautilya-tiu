@@ -3,7 +3,7 @@ import { AccountRowActions } from "@/components/admin/account-forms";
 import { CreateAccountModalButton } from "@/components/admin/account-modal";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
-import { hasPermission, isCurrentUserSuperAdmin } from "@/lib/auth";
+import { isCurrentUserSuperAdmin } from "@/lib/auth";
 import { getAllEditionsAdmin, getManagedStaffAccounts } from "@/lib/data";
 import { cn } from "@/lib/format";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
@@ -27,24 +27,20 @@ export async function StaffAccountsList({
 }) {
   const { q = "", kind: kindRaw, page: pageRaw } = await searchParams;
   const kind = isAccountKind(kindRaw) ? kindRaw : undefined;
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) {
+  const isSuperAdminUser = await isCurrentUserSuperAdmin();
+  if (!isSuperAdminUser) {
     return (
       <Container className="py-12">
         <PageHeader
           eyebrow="Staff"
           title="Accounts"
-          description="You need users.manage to create admin, scanner, editor, delegate affairs, and viewer logins."
+          description="Only a Super Admin can manage staff accounts."
         />
       </Container>
     );
   }
 
-  const [editions, rows, canCreateAdmin] = await Promise.all([
-    getAllEditionsAdmin(),
-    getManagedStaffAccounts(),
-    isCurrentUserSuperAdmin(),
-  ]);
+  const [editions, rows] = await Promise.all([getAllEditionsAdmin(), getManagedStaffAccounts()]);
   const visible = rows.filter((row) => {
     if (kind && row.kind !== kind) return false;
     return matchesQuery(q, row.full_name, row.username, row.email, ACCOUNT_KIND_LABELS[row.kind]);
@@ -52,10 +48,7 @@ export async function StaffAccountsList({
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, kind };
   const addLabel = kind ? `Add ${ACCOUNT_KIND_LABELS[kind].toLowerCase()}` : "Add account";
-  const createKinds = canCreateAdmin
-    ? ACCOUNT_KINDS
-    : ACCOUNT_KINDS.filter((item) => item !== "admin");
-  // Non–Super Admins cannot open the Admin filter create flow with that default.
+  const createKinds = ACCOUNT_KINDS;
   const createDefaultKind: AccountKind | undefined =
     kind && (createKinds as readonly AccountKind[]).includes(kind) ? kind : undefined;
 
@@ -120,7 +113,7 @@ export async function StaffAccountsList({
               <td className="px-2 py-1.5 text-ink-muted">{ACCOUNT_KIND_LABELS[row.kind]}</td>
               <td className="px-2 py-1.5 text-ink-muted">{detailsFor(row)}</td>
               <td className="px-2 py-1.5 text-right">
-                <AccountRowActions account={row} editions={editions} canManageAdmin={canCreateAdmin} />
+                <AccountRowActions account={row} editions={editions} />
               </td>
             </tr>
           ))}
