@@ -10,10 +10,12 @@ export function CreateAccountModalButton({
   editions,
   defaultKind,
   label = "Add account",
+  allowedKinds,
 }: {
   editions: Edition[];
   defaultKind?: AccountKind;
   label?: string;
+  allowedKinds?: readonly AccountKind[];
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -24,6 +26,7 @@ export function CreateAccountModalButton({
           editions={editions}
           defaultKind={defaultKind}
           lockKind={Boolean(defaultKind)}
+          allowedKinds={allowedKinds}
           onSuccess={() => setOpen(false)}
         />
       </Modal>

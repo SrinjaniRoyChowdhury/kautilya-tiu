@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
+import { isCurrentUserSuperAdmin, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
 import { isUuid } from "@/lib/ids";
 import { optionalPasswordSchema, passwordSchema } from "@/lib/password";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -76,13 +76,18 @@ function scopedEdition(kind: AccountKind, editionId: string | undefined) {
   return editionId;
 }
 
+async function assertSuperAdminAccountsAccess(values?: AccountState["values"]): Promise<AccountState | null> {
+  if (await isCurrentUserSuperAdmin()) return null;
+  return { error: "Only a Super Admin can manage staff accounts.", values };
+}
+
 export async function createStaffAccountAction(
   _prev: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
   const values = accountFormValues(formData);
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to create accounts.", values };
+  const superGate = await assertSuperAdminAccountsAccess(values);
+  if (superGate) return superGate;
 
   const parsed = createSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -178,8 +183,8 @@ export async function updateStaffAccountAction(
   _prev: AccountState,
   formData: FormData,
 ): Promise<AccountState> {
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to edit accounts." };
+  const superGate = await assertSuperAdminAccountsAccess();
+  if (superGate) return superGate;
   if (!isUuid(userId)) return { error: "Missing account." };
   if (await isProtectedAdminAccount(userId)) {
     return { error: "The admin account cannot be edited here." };
@@ -273,16 +278,23 @@ export async function updateStaffAccountAction(
 export async function deleteStaffAccountAction(
   userId: string,
   _prev: AccountState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<AccountState> {
   void _prev;
-  void _formData;
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) return { error: "You need users.manage to delete accounts." };
+  const superGate = await assertSuperAdminAccountsAccess();
+  if (superGate) return superGate;
   if (!isUuid(userId)) return { error: "Missing account." };
   if (await isProtectedAdminAccount(userId)) {
     return { error: "The admin account cannot be deleted." };
   }
+
+  const adminUsername = String(formData.get("admin_username") ?? "").trim();
+  const adminPassword = String(formData.get("admin_password") ?? "");
+  if (!adminUsername || !adminPassword) {
+    return { error: "Super Admin username and password are required to delete an account." };
+  }
+  const authRes = await verifySuperAdminCredentials(adminUsername, adminPassword);
+  if (!authRes.success) return { error: authRes.error };
 
   const admin = createAdminClient();
   await admin.from("user_roles").delete().eq("user_id", userId);
@@ -308,7 +320,7 @@ export async function deleteStaffAccountAction(
     p_entity: "users",
     p_entity_id: userId,
     p_old: null,
-    p_new: { status: "SUSPENDED" },
+    p_new: { status: "SUSPENDED", authorized_by: authRes.user.email ?? adminUsername },
   });
   revalidateAccounts();
   return { success: "Account deleted." };

@@ -3,6 +3,7 @@ import {
   isContentEditorOnly,
   isDelegateAffairsOnly,
   isOperatorOnly,
+  isSuperAdmin,
   isViewerOnly,
 } from "@/lib/roles";
 
@@ -27,7 +28,7 @@ export const ADMIN_NAV_ITEMS = [
 
 export type AdminNavItem = (typeof ADMIN_NAV_ITEMS)[number];
 
-export { hasFullAdminRole, isContentEditorOnly } from "@/lib/roles";
+export { hasFullAdminRole, isContentEditorOnly, isSuperAdmin } from "@/lib/roles";
 
 const STAFF_READ_HREFS = new Set<AdminNavItem["href"]>(
   ADMIN_NAV_ITEMS.filter((item) => item.href !== "/admin/accounts").map((item) => item.href),
@@ -44,13 +45,23 @@ export function staffHomePath(roles: string[]): string {
   return "/admin";
 }
 
+function withoutAccountsUnlessSuperAdmin(roles: string[], items: AdminNavItem[]): AdminNavItem[] {
+  if (isSuperAdmin(roles)) return items;
+  return items.filter((item) => item.href !== "/admin/accounts");
+}
+
 export function staffNavItems(roles: string[]): AdminNavItem[] {
   if (isOperatorOnly(roles)) return [];
-  if (hasFullAdminRole(roles)) return [...ADMIN_NAV_ITEMS];
-  if (isViewerOnly(roles) || isDelegateAffairsOnly(roles) || isContentEditorOnly(roles)) {
-    return ADMIN_NAV_ITEMS.filter((item) => STAFF_READ_HREFS.has(item.href));
+  if (hasFullAdminRole(roles)) {
+    return withoutAccountsUnlessSuperAdmin(roles, [...ADMIN_NAV_ITEMS]);
   }
-  return [...ADMIN_NAV_ITEMS];
+  if (isViewerOnly(roles) || isDelegateAffairsOnly(roles) || isContentEditorOnly(roles)) {
+    return withoutAccountsUnlessSuperAdmin(
+      roles,
+      ADMIN_NAV_ITEMS.filter((item) => STAFF_READ_HREFS.has(item.href)),
+    );
+  }
+  return withoutAccountsUnlessSuperAdmin(roles, [...ADMIN_NAV_ITEMS]);
 }
 
 export function isAdminPathAllowed(pathname: string, roles: string[]): boolean {

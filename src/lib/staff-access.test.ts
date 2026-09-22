@@ -8,6 +8,18 @@ describe("staffNavItems", () => {
     expect(isAdminPathAllowed("/admin/payments", ["ATTENDANCE_OPERATOR"])).toBe(false);
   });
 
+  it("hides Accounts from Admin; only Super Admin sees it", () => {
+    const adminHrefs = staffNavItems(["ADMIN"]).map((item) => item.href);
+    expect(adminHrefs).not.toContain("/admin/accounts");
+    expect(adminHrefs).toContain("/admin/payments");
+    expect(isAdminPathAllowed("/admin/accounts", ["ADMIN"])).toBe(false);
+    expect(isAdminPathAllowed("/admin/users", ["ADMIN"])).toBe(true);
+
+    const superHrefs = staffNavItems(["SUPER_ADMIN"]).map((item) => item.href);
+    expect(superHrefs).toContain("/admin/accounts");
+    expect(isAdminPathAllowed("/admin/accounts", ["SUPER_ADMIN"])).toBe(true);
+  });
+
   it("gives delegate affairs full read nav except accounts, and keeps operational paths", () => {
     const hrefs = staffNavItems(["DELEGATE_AFFAIRS"]).map((item) => item.href);
     expect(hrefs).not.toContain("/admin/accounts");

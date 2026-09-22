@@ -111,44 +111,47 @@ export function DeleteUserButton({
     return res;
   }, {} as UserAdminState);
 
-  if (isPaid) {
-    return (
-      <div className="inline-block">
-        <Button
-          type="button"
-          variant={variant}
-          size={size}
-          onClick={() => setModalOpen(true)}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          Delete
-        </Button>
-        <Modal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          title={`Delete Paid User: ${userName}`}
-        >
-          <form action={formAction} className="grid gap-4">
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
-              <strong>Caution:</strong> This user has paid registration records. Deleting them will cancel their registrations, delete their login credentials, and requires admin re-authentication and a mandatory reason for the audit trail.
-            </div>
-            <Field label="Admin Username / Email" htmlFor={`admin_user_${userId}`}>
-              <Input
-                id={`admin_user_${userId}`}
-                name="admin_username"
-                required
-                autoComplete="username"
-                placeholder="e.g. admin or admin@kautilya.local"
-              />
-            </Field>
-            <Field label="Admin Password" htmlFor={`admin_pass_${userId}`}>
-              <PasswordInput
-                id={`admin_pass_${userId}`}
-                name="admin_password"
-                required
-                autoComplete="current-password"
-              />
-            </Field>
+  return (
+    <div className="inline-block">
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        onClick={() => setModalOpen(true)}
+        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+      >
+        Delete
+      </Button>
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={`Delete user: ${userName}`}
+      >
+        <form action={formAction} className="grid gap-4">
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            <strong>Super Admin verification required.</strong>{" "}
+            {isPaid
+              ? "This user has paid registration records. Deleting them cancels registrations and removes login access."
+              : "Deleting removes their login and cancels any registrations."}
+          </div>
+          <Field label="Super Admin username / email" htmlFor={`admin_user_${userId}`}>
+            <Input
+              id={`admin_user_${userId}`}
+              name="admin_username"
+              required
+              autoComplete="username"
+              placeholder="e.g. admin or admin@kautilya.local"
+            />
+          </Field>
+          <Field label="Super Admin password" htmlFor={`admin_pass_${userId}`}>
+            <PasswordInput
+              id={`admin_pass_${userId}`}
+              name="admin_password"
+              required
+              autoComplete="current-password"
+            />
+          </Field>
+          {isPaid ? (
             <Field
               label="Reason for deletion"
               htmlFor={`reason_${userId}`}
@@ -161,42 +164,24 @@ export function DeleteUserButton({
                 placeholder="e.g. Requested account closure / refunded"
               />
             </Field>
-            <div className="mt-2 flex items-center justify-end gap-3">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="secondary"
-                size="sm"
-                disabled={pending}
-                className="text-red-700 border-red-300 hover:bg-red-50"
-              >
-                {pending ? "Deleting…" : "Authorize & Delete"}
-              </Button>
-            </div>
-            <ActionFeedback error={state.error} success={state.success} className="text-xs mt-1" />
-          </form>
-        </Modal>
-      </div>
-    );
-  }
-
-  return (
-    <form
-      action={formAction}
-      className="inline-block"
-      onSubmit={(event) => {
-        if (!window.confirm(`Delete user "${userName}"? This action cannot be undone.`)) {
-          event.preventDefault();
-        }
-      }}
-    >
-      <Button type="submit" variant={variant} size={size} disabled={pending} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-        {pending ? "Deleting…" : "Delete"}
-      </Button>
-      <ActionFeedback error={state.error} success={state.success} className="text-xs mt-1" />
-    </form>
+          ) : null}
+          <div className="mt-2 flex items-center justify-end gap-3">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              disabled={pending}
+              className="text-red-700 border-red-300 hover:bg-red-50"
+            >
+              {pending ? "Deleting…" : "Authorize & Delete"}
+            </Button>
+          </div>
+          <ActionFeedback error={state.error} success={state.success} className="text-xs mt-1" />
+        </form>
+      </Modal>
+    </div>
   );
 }
-

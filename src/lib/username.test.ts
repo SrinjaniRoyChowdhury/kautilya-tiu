@@ -22,12 +22,16 @@ describe("usernameSchema", () => {
 
 describe("account kinds", () => {
   it("maps roles to kinds and desks", () => {
+    expect(kindFromRoleNames(["ADMIN"])).toBe("admin");
+    expect(kindFromRoleNames(["SUPER_ADMIN"])).toBeNull();
     expect(kindFromRoleNames(["ATTENDANCE_OPERATOR", "FOOD_OPERATOR"])).toBe("scanner");
     expect(kindFromRoleNames(["CONTENT_EDITOR"])).toBe("editor");
     expect(kindFromRoleNames(["DELEGATE_AFFAIRS"])).toBe("delegate_affairs");
     expect(kindFromRoleNames(["VIEWER"])).toBe("viewer");
     expect(deskFromRoleNames(["ATTENDANCE_OPERATOR"])).toBe("attendance");
+    expect(rolesForAccountKind("admin")).toEqual(["ADMIN"]);
     expect(rolesForAccountKind("scanner", "both")).toEqual(["ATTENDANCE_OPERATOR", "FOOD_OPERATOR"]);
     expect(staffEmailFromUsername("Desk1")).toBe("desk1@staff.kautilya.local");
+    expect(usernameSchema.parse("admin1")).toBe("admin1");
   });
 });

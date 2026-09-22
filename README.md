@@ -1,147 +1,220 @@
-# Kautilya
+<div align="center">
 
-Multi-edition Model United Nations platform. Phases 1–7 are live: conference ops plus hardening (headers, rate limits, tests, backups, health checks).
+# 🏛️ Kautilya (Niti Sabha)
 
-**Budget: ₹0.** Supabase Free (or local CLI) + this Next.js app. No Redis, no paid email, no payment gateway, no Sentry.
+**Enterprise-Grade, Zero-Cost Multi-Edition Model United Nations Platform**
 
-## What is built
+[![Next.js](https://img.shields.io/badge/Next.js-16.3.2-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.2.8-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
-- Email/password auth with verification and password reset (Supabase Auth)
-- Full SRS schema (payments, QR, attendance, food, CMS, audit)
-- Public pages: home, about, team, committees, editions, contact
-- Admin CRUD: editions, committees, payment instructions, meal types, CMS copy
-- Participant dashboard, dynamic registration form, committee seat locking
-- Payments: UPI/bank instructions, screenshot upload, group pay by email, admin verify/reject
-- Credentials: opaque QR on confirmation, dashboard credential page, Mailpit delivery, regenerate
-- Venue: attendance scan (unique per day), optional check-out, food collect after confirm, offline queue, manual correction
-- Admin analytics (edition-scoped KPIs), CSV exports, audit log
-- Public CMS: homepage, about, team, contact, announcements, gallery (image URLs)
-- Hardening: security headers, auth/scanner/payment rate limits, image magic-byte checks, HTML sanitization, unit tests, GitHub Actions, DB dump script
-- Docker Compose for the full local stack (Supabase + Next.js hot reload)
+---
 
-## Run locally (Windows / macOS / Linux)
+[Key Features](#-key-features) • [Tech Stack](#-tech-stack) • [Quick Start](#-quick-start) • [Environment Setup](#-environment-variables) • [Deployment](#-production-deployment) • [Testing & Security](#-testing--security)
 
-1. Install Docker Desktop and Node 20.9+.
-2. Copy environment (local only):
+</div>
 
-```bash
-cp .env.example .env
-# optional personal overrides:
-cp .env.example .env.local
+---
+
+## 📌 Executive Overview
+
+**Kautilya** (powering [technokautilya.in](https://technokautilya.in)) is an all-in-one, multi-edition Model United Nations (MUN) platform engineered for high-concurrency delegate management, payment verification, automated QR ticketing, and real-time on-site event logistics.
+
+Designed around a **₹0 operational budget model**, Kautilya leverages a zero-cost stack (Vercel Free + Supabase Free + Brevo Free + Mailpit) while delivering high availability, multi-tier security hardening, and production-grade performance.
+
+---
+
+## ✨ Key Features
+
+### 👤 Delegate Portal
+- **Secure Authentication**: Email/password authentication, email verification links, and password reset flows powered by Supabase Auth & custom SMTP routing.
+- **Dynamic Multi-Preference Registration**: Committee and portfolio preference selection with real-time seat locking and capacity guards.
+- **Flexible Payments**: UPI/Bank transfer instructions, proof-of-payment image uploads (auto-compressed to WebP), group payment handling via email, and status tracking.
+- **Opaque QR Pass Generation**: Unique digital credentials sent via email and accessible through the delegate dashboard for seamless venue entry.
+
+### 🛡️ Secretariat & Admin Suite
+- **Multi-Edition & Committee CRUD**: Manage conference phases (Early Bird, Phase 1, Phase 2), committees, pricing tiers, payment instructions, and meal schedules.
+- **Manual & Automated Portfolio Allocation**: Free-text allotment engine with delegate notification triggers.
+- **Payment Verification Queue**: Admin interface for auditing uploaded payment proofs, approving/rejecting payments, and triggering ticket generation.
+- **Analytics & Reporting**: Edition-scoped live KPIs, real-time registration counts, revenue metrics, CSV exports, and immutable audit logs.
+- **Headless CMS Engine**: Full administrative control over homepage banners, announcements, team profiles, gallery media, and official rulebook links.
+
+### 📱 On-Site Event Logistics (Scanner App)
+- **Multi-Day Attendance Scanner**: High-speed camera scanner for daily delegate check-in/check-out verification.
+- **Catering & Meal Redemption**: Dedicated food scanner preventing double-redemption of meal passes per day/meal slot.
+- **Offline Reliability**: Local queueing with background auto-sync for intermittent venue connectivity, accompanied by manual correction workflows.
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+| --- | --- |
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router, Server Actions, React 19) |
+| **Styling & UI** | [Tailwind CSS v4](https://tailwindcss.com/), [Framer Motion](https://www.framer.com/motion/), [Base UI](https://base-ui.com/), [Shadcn UI](https://ui.shadcn.com/), Lucide Icons, Sonner |
+| **State & Data Fetching** | [TanStack React Query v5](https://tanstack.com/query), React Hook Form, Zod Schema Validation |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL with RLS Policies, Supabase Auth, Storage Buckets) |
+| **Media Processing** | [Sharp](https://sharp.pixelplumbing.com/) (Server-side WebP image optimization & compression) |
+| **Local Dev & Testing** | Docker & Docker Compose, Mailpit (SMTP Sandbox), Vitest |
+| **Deployment & Mail** | Vercel (App Hosting), Brevo (Transactional Email), GitHub Actions (CI/CD & DB Migrations) |
+
+---
+
+## 📂 Repository Structure
+
+```gss
+kautilya/
+├── .github/
+│   └── workflows/          # GitHub Actions CI/CD & Migration pipelines
+├── backups/                # Local database SQL dumps (gitignored)
+├── docker-compose.yml      # Full-stack local dev environment (Next.js + Supabase + Mailpit)
+├── scripts/                # Database backup, admin bootstrap, env verification, smoke scripts
+├── src/
+│   ├── app/                # Next.js App Router (Public routes, /admin, /dashboard, /scan, /api)
+│   ├── components/         # Atomic UI components, forms, scanner, & admin controls
+│   ├── lib/                # Supabase clients, utilities, validation schemas, email helpers
+│   ├── styles/             # Global CSS and custom styles
+│   └── types/              # TypeScript declarations and database interfaces
+└── supabase/
+    ├── migrations/         # Production-ready PostgreSQL migration scripts
+    └── config.toml         # Local Supabase configuration
 ```
 
-On PowerShell: `Copy-Item .env.example .env`
+---
 
-Production env vars live in **Vercel** (and optionally a local `.env.production` for verify/bootstrap) — see `.env.production.example` and [DEPLOY.md](./DEPLOY.md).
+## 🚀 Quick Start (Local Development)
 
-Verify before deploy: `npm run env:verify` (local) or `npm run env:verify:prod` (production values).
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+- [Node.js](https://nodejs.org/) v20.9+ installed
 
-3. Start the full stack (Supabase + Next.js; pulls images on first run):
+### 1. Clone & Configure Environment
+```bash
+git clone https://github.com/SrinjaniRoyChowdhury/kautilya-tiu.git
+cd kautilya
 
+# Copy local environment template
+cp .env.example .env
+
+# PowerShell (Windows):
+# Copy-Item .env.example .env
+```
+
+### 2. Start Full Stack with Docker Compose
+Run the containerized stack (includes Next.js hot reload, Supabase local instance, PostgreSQL, and Mailpit):
 ```bash
 docker compose up --build
 ```
 
-Open http://localhost:3000  
-Studio: http://127.0.0.1:54323  
-Mailpit (local emails): http://127.0.0.1:54324  
-API: http://127.0.0.1:54321
+Access the local services once initialization completes:
+- 🌐 **Web App**: [http://localhost:3000](http://localhost:3000)
+- 🗄️ **Supabase Studio**: [http://127.0.0.1:54323](http://127.0.0.1:54323)
+- ✉️ **Mailpit (Local Inbox)**: [http://127.0.0.1:54324](http://127.0.0.1:54324)
+- 🔌 **Supabase API Gateway**: [http://127.0.0.1:54321](http://127.0.0.1:54321)
 
-Stop everything (database data is preserved in Supabase Docker volumes):
-
+To stop services while preserving local database volumes:
 ```bash
 docker compose down
 ```
 
-To wipe local database data intentionally: `npx supabase stop --no-backup` (destroys volumes), then `docker compose up --build`.
+### 3. Seed Accounts (Local Development)
 
-### App on the host (optional)
+| Role | Email | Password | Access Level |
+| --- | --- | --- | --- |
+| **Super Admin** | `admin@kautilya.local` | `KautilyaAdmin!26` | Full Secretariat & CMS Control |
+| **Delegate** | `delegate@kautilya.local` | `Delegate!26` | Participant Dashboard & Payment Flow |
 
-If you prefer `npm run dev` on the host, start only Supabase with `npm run db:start`, apply schema with `npm run db:reset` (first time or after SQL changes), then `npm run dev`.
+> 💡 **Desk Scanners**: Created dynamically in **Admin → Scanners**. Scanners log in at `/login` and are automatically routed to `/scan`.
 
-### Seed logins (local only)
+---
 
-| Role | Email | Password |
+## ⚙️ Environment Variables
+
+| Variable | Scope | Description |
 | --- | --- | --- |
-| SUPER_ADMIN | admin@kautilya.local | KautilyaAdmin!26 |
-| Participant | delegate@kautilya.local | Delegate!26 |
+| `NEXT_PUBLIC_APP_URL` | Client/Server | Canonical base URL (e.g., `http://localhost:3000` or `https://technokautilya.in`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Client | Supabase endpoint URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client | Supabase anonymous API key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server | Supabase privileged service role key (Never expose to client) |
+| `SUPABASE_INTERNAL_URL` | Server (Docker) | Internal Docker network bridge URL (`http://host.docker.internal:54321`) |
+| `BREVO_API_KEY` | Server | Brevo API key for transactional emails & credential delivery |
+| `MAIL_FROM` | Server | Verified email address for outgoing messages |
+| `MAIL_FROM_NAME` | Server | Sender display name (e.g., `Niti Sabha`) |
+| `MAILPIT_URL` | Server (Local) | Local Mailpit capture endpoint (Leave empty in production) |
 
-Desk scanners are created in Admin → Scanners (name, email, password). They sign in at `/login` and are sent to `/scan`. Delegates cannot open the scanner.
-
-New signups must click the verification link in Mailpit before they can register or pay (Phases 2–3).
-
-## Docker Compose
-
-`docker compose up --build` starts Supabase and the Next.js dev server. `docker compose down` stops both and **keeps your local database** (uses `supabase stop`, not `--no-backup`).
-
-Optional — run a production-style Docker build locally (hosted Supabase; not used when live on Vercel):
-
+Run environment verification at any time:
 ```bash
-cp .env.production.example .env.production
-npm run env:verify:prod
-npm run compose:prod:detached
+npm run env:verify        # Verify local environment variables
+npm run env:verify:prod   # Verify production environment variables
 ```
 
-When Next.js runs in Docker locally, `.env.example` already sets:
+---
 
-```
-SUPABASE_INTERNAL_URL=http://host.docker.internal:54321
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-MAILPIT_URL=http://host.docker.internal:54324
-```
+## 📦 Production Deployment
 
-The browser still talks to `127.0.0.1:54321`; the container uses the internal URL. Credential emails use Mailpit locally (no paid SMTP).
+The production infrastructure runs on **Vercel** connected to a hosted **Supabase Free** project and **Brevo** for mail dispatch.
 
-### Environment files
+For a step-by-step go-live walkthrough, consult **[DEPLOY.md](./DEPLOY.md)**.
 
-| File | Where | Purpose |
-| --- | --- | --- |
-| `.env.example` | git | Local template → copy to `.env` |
-| `.env.local` | gitignored | Optional local overrides |
-| `.env.production.example` | git | Production template → Vercel env + local `.env.production` |
-| `.env.production` | gitignored | Local copy for verify, bootstrap, `db push` |
+### Release Architecture Pipeline
+1. **GitHub Actions CI (`ci.yml`)**: Executes liveness checks, ESLint, Vitest unit tests, and production build verification on every Pull Request.
+2. **Automated Migrations (`migrate.yml`)**: Applies pending SQL migrations from `supabase/migrations/` to the hosted production database on push to `main`.
+3. **Vercel Production Deployment**: Gated by GitHub Deployment Checks (`ci / check` and `migrate / apply`) to guarantee database compatibility before traffic cutover.
 
-Production secrets are set in Vercel; keep a local `.env.production` only if you run bootstrap or migrations from your machine.
-
-## Hosted production (Vercel + Supabase Free)
-
-See **[DEPLOY.md](./DEPLOY.md)** for the full go-live guide (Supabase Free, Brevo, Vercel, DNS, CI gate, superadmin bootstrap).
-
-Quick production shape:
-
-- App: **Vercel** (auto-deploy from `main`)  
-- DB/Auth: hosted Supabase Free  
-- Mail: Brevo (Supabase SMTP for auth + `BREVO_API_KEY` for QR emails)  
-- CI gates PRs; Vercel ships `main` after merge  
-
-Create a project at [supabase.com](https://supabase.com) (Free plan). Copy `.env.production.example` → `.env.production` locally, fill hosted Supabase + Brevo values, paste the same vars into Vercel, run `npm run env:verify:prod`.
-
-**Schema:** pending files in `supabase/migrations/` are applied by GitHub Action **migrate** on push to `main` only (secret `PRODUCTION_DATABASE_URL` → hosted Supabase). You can also run `npm run db:push:prod` from your machine. `staging` is Vercel preview only and does not run DB migrations. Do **not** run local seed passwords in production — use `npm run bootstrap:admin:prod` once from your machine.
-
-See [DEPLOY.md](./DEPLOY.md) for the release order (migrate gated before Vercel Production serves new code).
-
-## Tests, health, backups
-
+### Bootstrapping Production Admin
+Execute once from a local machine with production credentials configured in `.env.production`:
 ```bash
+export BOOTSTRAP_ADMIN_EMAIL='admin@yourdomain.com'
+export BOOTSTRAP_ADMIN_PASSWORD='YourSecurePassword123!'
+export BOOTSTRAP_ADMIN_NAME='Secretariat'
+npm run bootstrap:admin:prod
+```
+
+---
+
+## 🔒 Security, Hardening & Quality Assurance
+
+- **Zero-Trust Auth & RLS**: All database tables enforce Row Level Security (RLS) policies.
+- **Security Headers & Sanitization**: Strict Content Security Policy (CSP), OWASP-compliant security headers, HTML input sanitization, and rate-limiting on sensitive endpoints (Auth, Payments, Scanners).
+- **Media Validation**: Server-side image magic-byte inspection before processing uploads with Sharp to prevent arbitrary file execution.
+- **Health & Readiness Monitoring**:
+  - `GET /api/health` — Container process liveness probe
+  - `GET /api/ready` — Database reachability probe
+
+### Running Tests & Utility Scripts
+```bash
+# Run unit test suite
 npm test
+
+# Run linter
 npm run lint
-npm run smoke          # needs the app running on :3000
-npm run db:backup      # writes backups/kautilya-*.sql (gitignored)
+
+# Execute load & smoke test (App must be running on :3000)
+npm run smoke
+
+# Generate local database backup
+npm run db:backup
 ```
 
-- `GET /api/health` — process liveness (Docker healthcheck)
-- `GET /api/ready` — database reachability
-- Hosted Supabase Free already takes daily backups. A restore drill is: dump with `npm run db:backup`, then `npx supabase db reset` (destroys local data) or `psql $DATABASE_URL -f backups/<file>.sql` on a throwaway database.
-- GitHub Actions runs lint, unit tests, and `next build` on push/PR. Passwords stay in bcrypt/argon via Supabase Auth (NFR-SEC-002); this app never logs them.
+---
 
-## Phase map (SRS §54)
+## 🗺️ Project Roadmap & Phase Status
 
-| Phase | Status |
-| --- | --- |
-| 1 Foundation — auth, schema, editions, committees, public site | Done |
-| 2 Registration — dynamic forms, dashboard, capacity locking | Done |
-| 3 Payments — UPI proof, group pay, admin verify | Done |
-| 4 QR — generate, email, validate, regenerate | Done |
-| 5 Attendance + food scanners | Done |
-| 6 Admin analytics, CMS, reports | Done |
-| 7 Hardening | This checkout |
+| Phase | Module / Target | Status |
+| :---: | --- | :---: |
+| **Phase 1** | Foundation (Auth, RLS Schema, Editions, Committees, Public Site) | ✅ Complete |
+| **Phase 2** | Registration (Dynamic Forms, Dashboard, Capacity Locking) | ✅ Complete |
+| **Phase 3** | Payments (UPI Proof, Group Payments, Admin Verification) | ✅ Complete |
+| **Phase 4** | QR Logistics (Pass Generation, Mail Dispatch, Regeneration) | ✅ Complete |
+| **Phase 5** | On-Site Operations (Attendance & Food Scanners, Offline Queue) | ✅ Complete |
+| **Phase 6** | Secretariat Hub (Analytics, CMS Management, CSV Exports) | ✅ Complete |
+| **Phase 7** | System Hardening (Rate Limits, Security Headers, CI/CD Pipeline) | ✅ Complete |
+
+---
+
+## 📄 License
+
+This project is open-source software under the MIT License.

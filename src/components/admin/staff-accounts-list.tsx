@@ -3,7 +3,7 @@ import { AccountRowActions } from "@/components/admin/account-forms";
 import { CreateAccountModalButton } from "@/components/admin/account-modal";
 import { AdminFilters, AdminListShell, AdminPagination, AdminTable } from "@/components/admin/admin-filters";
 import { Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { isCurrentUserSuperAdmin } from "@/lib/auth";
 import { getAllEditionsAdmin, getManagedStaffAccounts } from "@/lib/data";
 import { cn } from "@/lib/format";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
@@ -27,14 +27,14 @@ export async function StaffAccountsList({
 }) {
   const { q = "", kind: kindRaw, page: pageRaw } = await searchParams;
   const kind = isAccountKind(kindRaw) ? kindRaw : undefined;
-  const allowed = await hasPermission("users.manage");
-  if (!allowed) {
+  const isSuperAdminUser = await isCurrentUserSuperAdmin();
+  if (!isSuperAdminUser) {
     return (
       <Container className="py-12">
         <PageHeader
           eyebrow="Staff"
           title="Accounts"
-          description="You need users.manage to create scanner, editor, delegate affairs, and viewer logins."
+          description="Only a Super Admin can manage staff accounts."
         />
       </Container>
     );
@@ -48,6 +48,9 @@ export async function StaffAccountsList({
   const paged = paginate(visible, parsePage(pageRaw));
   const query = { q, kind };
   const addLabel = kind ? `Add ${ACCOUNT_KIND_LABELS[kind].toLowerCase()}` : "Add account";
+  const createKinds = ACCOUNT_KINDS;
+  const createDefaultKind: AccountKind | undefined =
+    kind && (createKinds as readonly AccountKind[]).includes(kind) ? kind : undefined;
 
   return (
     <AdminListShell
@@ -68,7 +71,12 @@ export async function StaffAccountsList({
       }
       toolbar={
         <>
-          <CreateAccountModalButton editions={editions} defaultKind={kind} label={addLabel} />
+          <CreateAccountModalButton
+            editions={editions}
+            defaultKind={createDefaultKind}
+            label={addLabel}
+            allowedKinds={createKinds}
+          />
           <div className="flex flex-wrap gap-2">
             <Link
               href={adminListHref("/admin/accounts", { q }, 1)}
