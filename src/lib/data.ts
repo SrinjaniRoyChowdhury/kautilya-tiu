@@ -1080,6 +1080,7 @@ export async function getGalleryAlbums(publishedOnly = true): Promise<GalleryAlb
 
 export async function getAuditLogs(opts?: {
   action?: string;
+  actorUserId?: string;
   from?: string;
   to?: string;
   limit?: number;
@@ -1093,6 +1094,7 @@ export async function getAuditLogs(opts?: {
     .order("created_at", { ascending: false })
     .limit(opts?.limit ?? 400);
   if (opts?.action) query = query.eq("action", opts.action);
+  if (opts?.actorUserId) query = query.eq("actor_user_id", opts.actorUserId);
   if (opts?.from) query = query.gte("created_at", opts.from);
   if (opts?.to) query = query.lte("created_at", opts.to);
   const { data } = await query;

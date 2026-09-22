@@ -20,3 +20,7 @@ export function hasFullAdminRole(roleNames: string[]): boolean {
     role === "SUPER_ADMIN" || role === "ADMIN" || role === "PAYMENT_ADMIN" || role === "REGISTRATION_ADMIN",
   );
 }
+
+export function isSuperAdmin(roleNames: string[]): boolean {
+  return roleNames.includes("SUPER_ADMIN");
+}

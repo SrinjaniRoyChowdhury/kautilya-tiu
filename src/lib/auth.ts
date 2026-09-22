@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { isSuperAdmin } from "@/lib/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile, UserRoleRow } from "@/types";
@@ -108,6 +109,7 @@ export const hasScanAccess = cache(async (): Promise<boolean> => {
 
 export const PROTECTED_ADMIN_EMAILS = [
   "admin@kautilya.local",
+  "admin@technokautilya.in",
   ...(process.env.PROTECTED_ADMIN_EMAILS ?? "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
@@ -141,6 +143,7 @@ export {
   isContentEditorOnly,
   isDelegateAffairsOnly,
   isOperatorOnly,
+  isSuperAdmin,
   isViewerOnly,
 } from "@/lib/roles";
 
@@ -231,7 +234,7 @@ export async function verifySuperAdminCredentials(
     return Array.isArray(r) ? r.map((item) => item.name) : [r.name];
   });
 
-  if (!roleNames.includes("SUPER_ADMIN")) {
+  if (!isSuperAdmin(roleNames) && !isProtectedAdminEmail(result.user.email)) {
     return {
       success: false,
       error: "Super Admin verification is required. Enter a Super Admin username and password.",
@@ -242,6 +245,7 @@ export async function verifySuperAdminCredentials(
 }
 
 export async function isCurrentUserSuperAdmin(): Promise<boolean> {
-  const roles = await getRoleNames();
-  return roles.includes("SUPER_ADMIN");
+  const [roles, profile] = await Promise.all([getRoleNames(), getProfile()]);
+  if (isSuperAdmin(roles)) return true;
+  return isProtectedAdminEmail(profile?.email);
 }

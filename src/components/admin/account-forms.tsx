@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
@@ -188,7 +189,7 @@ function CreateAccountFields({
 export function AccountRowActions({
   account,
   editions,
-  canManageAdmin = false,
+  canManageAdmin = true,
 }: {
   account: StaffAccount;
   editions: Edition[];
@@ -196,7 +197,13 @@ export function AccountRowActions({
 }) {
   const [editing, setEditing] = useState(false);
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex flex-wrap justify-end gap-2">
+      <Link
+        href={`/admin/accounts/${account.user_id}/activity`}
+        className="inline-flex h-9 items-center justify-center rounded-sm border border-gold-700/50 bg-parchment-50/70 px-3 text-sm font-medium tracking-wide text-gold-700 transition-colors hover:bg-parchment-200"
+      >
+        Activity
+      </Link>
       <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(true)}>
         Edit
       </Button>
