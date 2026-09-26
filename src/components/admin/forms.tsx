@@ -215,6 +215,21 @@ export function EditionForm({ edition }: { edition?: Edition }) {
       <Field label="Theme" htmlFor="theme">
         <Input id="theme" name="theme" defaultValue={edition?.theme ?? ""} />
       </Field>
+      <div className="sm:col-span-2">
+        <Field
+          label="Outstation prices link (Canva)"
+          htmlFor="outstation_prices_url"
+          hint="Shown on the registration form as “View outstation prices”. Opens in a new tab."
+        >
+          <Input
+            id="outstation_prices_url"
+            name="outstation_prices_url"
+            type="url"
+            defaultValue={edition?.outstation_prices_url ?? ""}
+            placeholder="https://www.canva.com/design/..."
+          />
+        </Field>
+      </div>
       <Field label="Start date" htmlFor="start_date">
         <Input id="start_date" name="start_date" type="date" defaultValue={edition?.start_date ?? ""} />
       </Field>

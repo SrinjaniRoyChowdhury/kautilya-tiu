@@ -1,4 +1,13 @@
+import { rupeesToMinor } from "@/lib/format";
 import type { OutstationCheckIn, OutstationStudentType } from "@/types";
+
+/** Fixed outstation fee schedule (rupees). Admin may still override at allotment. */
+export const OUTSTATION_FEE_RUPEES = {
+  SCHOOL: 15000,
+  COLLEGE_NO_ACCOMMODATION: 2500,
+  COLLEGE_ACCOMMODATION_NOV_26_NIGHT: 8000,
+  COLLEGE_ACCOMMODATION_NOV_27_MORNING: 7000,
+} as const;
 
 export const OUTSTATION_STUDENT_TYPES = ["SCHOOL", "COLLEGE"] as const;
 
@@ -79,4 +88,28 @@ export function outstationSummary(row: {
     }
   }
   return parts.join(" · ");
+}
+
+/** Suggested fee in paise for allotment prefill. Null when options are incomplete. */
+export function suggestedOutstationFeeMinor(row: {
+  is_outstation?: boolean | null;
+  outstation_student_type?: OutstationStudentType | null;
+  outstation_needs_accommodation?: boolean | null;
+  outstation_check_in?: OutstationCheckIn | null;
+}): number | null {
+  if (!row.is_outstation) return null;
+  if (row.outstation_student_type === "SCHOOL") {
+    return rupeesToMinor(OUTSTATION_FEE_RUPEES.SCHOOL);
+  }
+  if (row.outstation_student_type !== "COLLEGE") return null;
+  if (!row.outstation_needs_accommodation) {
+    return rupeesToMinor(OUTSTATION_FEE_RUPEES.COLLEGE_NO_ACCOMMODATION);
+  }
+  if (row.outstation_check_in === "NOV_26_NIGHT") {
+    return rupeesToMinor(OUTSTATION_FEE_RUPEES.COLLEGE_ACCOMMODATION_NOV_26_NIGHT);
+  }
+  if (row.outstation_check_in === "NOV_27_MORNING") {
+    return rupeesToMinor(OUTSTATION_FEE_RUPEES.COLLEGE_ACCOMMODATION_NOV_27_MORNING);
+  }
+  return null;
 }

@@ -148,6 +148,7 @@ export function RegistrationForm({
   paymentLocked = false,
   publishedDocs,
   portfolioMatrixUrl,
+  outstationPricesUrl,
 }: {
   editionId: string;
   registration: Registration;
@@ -161,6 +162,7 @@ export function RegistrationForm({
   paymentLocked?: boolean;
   publishedDocs?: { rulebook?: string | null; guidelines?: string | null };
   portfolioMatrixUrl?: string | null;
+  outstationPricesUrl?: string | null;
 }) {
   const visibleFields = useMemo(() => visibleRegistrationFields(fields), [fields]);
   const pairLocked = registration.is_pair_lead === false;
@@ -549,28 +551,40 @@ export function RegistrationForm({
 
       <fieldset disabled={!editable || busy} className="grid gap-3">
         <legend className="font-serif text-2xl text-gold-700">Outstation delegates</legend>
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={isOutstation}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              form.setValue("is_outstation", checked, { shouldDirty: true, shouldValidate: true });
-              if (!checked) {
-                form.setValue("outstation_student_type", "", { shouldDirty: true });
-                form.setValue("outstation_needs_accommodation", false, { shouldDirty: true });
-                form.setValue("outstation_check_in", "", { shouldDirty: true });
-              }
-            }}
-          />
-          <span>
-            I am an outstation delegate
-            <span className="mt-0.5 block text-xs text-ink-muted">
-              Travelling from outside the host city for the conference.
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={isOutstation}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                form.setValue("is_outstation", checked, { shouldDirty: true, shouldValidate: true });
+                if (!checked) {
+                  form.setValue("outstation_student_type", "", { shouldDirty: true });
+                  form.setValue("outstation_needs_accommodation", false, { shouldDirty: true });
+                  form.setValue("outstation_check_in", "", { shouldDirty: true });
+                }
+              }}
+            />
+            <span>
+              I am an outstation delegate
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                Travelling from outside the host city for the conference.
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+          {outstationPricesUrl ? (
+            <a
+              href={outstationPricesUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-sm border border-gold-700/50 bg-parchment-50 px-4 text-sm font-medium text-gold-700 hover:bg-parchment-200"
+            >
+              View outstation prices
+            </a>
+          ) : null}
+        </div>
         {isOutstation ? (
           <div className="grid gap-3 rounded-sm border border-gold-700/20 bg-parchment-50/80 p-4">
             <Field
@@ -622,7 +636,7 @@ export function RegistrationForm({
                   <span>
                     I need accommodation and meal
                     <span className="mt-0.5 block text-xs text-ink-muted">
-                      Available for college students. Fee is set by the secretariat at allotment.
+                      Available for college students. Final fee is confirmed by the secretariat at allotment.
                     </span>
                   </span>
                 </label>
