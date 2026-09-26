@@ -224,6 +224,8 @@ const ALLOCATE_MESSAGES: Record<string, string> = {
   COMMITTEE_FULL: "That committee has no remaining portfolios.",
   PORTFOLIO_REQUIRED: "Enter a portfolio.",
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
+  OUTSTATION_FEE_REQUIRED: "Enter the fee for this outstation delegate.",
+  FEE_INVALID: "Enter a valid fee amount.",
 };
 
 export async function allocateRegistrationAction(
@@ -241,6 +243,15 @@ export async function allocateRegistrationAction(
   if (!isUuid(committeeId)) return { error: "Select a committee." };
 
   const supabase = await createClient();
+  const { data: registrationRow } = await supabase
+    .from("registrations")
+    .select("is_outstation, expected_fee_minor")
+    .eq("id", registrationId)
+    .maybeSingle();
+  const isOutstation = Boolean(
+    (registrationRow as { is_outstation?: boolean } | null)?.is_outstation,
+  );
+
   const { data: committeeRow } = await supabase
     .from("committees")
     .select("is_special_crisis")
@@ -251,11 +262,28 @@ export async function allocateRegistrationAction(
   );
   if (!portfolio && !isSpecialCrisis) return { error: "Enter a portfolio." };
 
-  const { error } = await supabase.rpc("allocate_registration", {
+  const feeRaw = String(formData.get("expected_fee_rupees") ?? "").trim();
+  let expectedFeeMinor: number | null = null;
+  if (isOutstation || feeRaw) {
+    if (!feeRaw) return { error: "Enter the fee for this outstation delegate." };
+    const rupees = Number(feeRaw);
+    if (!Number.isFinite(rupees) || rupees < 0) return { error: "Enter a valid fee amount." };
+    expectedFeeMinor = Math.round(rupees * 100);
+  }
+
+  const rpcArgs: {
+    p_registration_id: string;
+    p_committee_id: string;
+    p_portfolio: string | null;
+    p_expected_fee_minor?: number;
+  } = {
     p_registration_id: registrationId,
     p_committee_id: committeeId,
     p_portfolio: portfolio || null,
-  });
+  };
+  if (expectedFeeMinor != null) rpcArgs.p_expected_fee_minor = expectedFeeMinor;
+
+  const { error } = await supabase.rpc("allocate_registration", rpcArgs);
   if (error) {
     const raw = (error.message ?? "").toUpperCase();
     for (const [code, text] of Object.entries(ALLOCATE_MESSAGES)) {

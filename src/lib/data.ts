@@ -207,7 +207,7 @@ const COMMITTEE_SELECT =
   "id, edition_id, name, short_name, slug, description, rules_url, logo_url, card_background_url, capacity, confirmed_count, fee_minor, eb_json, portfolio_config, prize_money_json, show_prize_money, status, display_order, allows_single_del, allows_double_del, is_special_crisis";
 
 const REGISTRATION_SELECT =
-  "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead";
+  "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, allocated_slr, allocated_portfolio, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead, is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in";
 
 function normalizePrizeMoney(raw: unknown): PrizeMoneyEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -1155,6 +1155,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
        confirmed_free, committee_id, expected_fee_minor,
        allocated_slr, allocated_portfolio,
+       is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in,
        users:user_id (full_name, email),
        committees:committee_id (short_name),
        collectives:collective_id (name),
@@ -1179,6 +1180,10 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     confirmed_free: boolean;
     committee_id: string | null;
     expected_fee_minor: number | null;
+    is_outstation: boolean | null;
+    outstation_student_type: AdminParticipant["outstation_student_type"];
+    outstation_needs_accommodation: boolean | null;
+    outstation_check_in: AdminParticipant["outstation_check_in"];
     users: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
     committees: { short_name: string } | { short_name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
@@ -1242,6 +1247,10 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       committee_id: row.committee_id,
       expected_fee_minor: row.expected_fee_minor,
       preferences: prefMap.get(row.id) ?? [],
+      is_outstation: Boolean(row.is_outstation),
+      outstation_student_type: row.outstation_student_type ?? null,
+      outstation_needs_accommodation: Boolean(row.outstation_needs_accommodation),
+      outstation_check_in: row.outstation_check_in ?? null,
     };
   });
 }
@@ -1257,6 +1266,7 @@ export async function getAdminParticipant(
        partner_registration_id, pair_id, is_pair_lead, confirmed_free, committee_id,
        expected_fee_minor, allocated_slr, allocated_portfolio, submitted_at, confirmed_at,
        accepted_rules_at,
+       is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in,
        users:user_id (full_name, email, phone),
        committees:committee_id (short_name, name),
        collectives:collective_id (name),
@@ -1288,6 +1298,10 @@ export async function getAdminParticipant(
     submitted_at: string | null;
     confirmed_at: string | null;
     accepted_rules_at: string | null;
+    is_outstation: boolean | null;
+    outstation_student_type: AdminParticipant["outstation_student_type"];
+    outstation_needs_accommodation: boolean | null;
+    outstation_check_in: AdminParticipant["outstation_check_in"];
     users: { full_name: string; email: string; phone: string | null } | { full_name: string; email: string; phone: string | null }[] | null;
     committees: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
@@ -1471,6 +1485,10 @@ export async function getAdminParticipant(
     preferences,
     fields,
     partner,
+    is_outstation: Boolean(row.is_outstation),
+    outstation_student_type: row.outstation_student_type ?? null,
+    outstation_needs_accommodation: Boolean(row.outstation_needs_accommodation),
+    outstation_check_in: row.outstation_check_in ?? null,
   };
 }
 

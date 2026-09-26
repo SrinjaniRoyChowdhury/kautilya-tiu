@@ -29,6 +29,12 @@ import {
   type PreferenceFormItem,
   type RegistrationFormValues,
 } from "@/lib/registration";
+import {
+  OUTSTATION_CHECK_IN_LABELS,
+  OUTSTATION_CHECK_INS,
+  OUTSTATION_STUDENT_TYPE_LABELS,
+  OUTSTATION_STUDENT_TYPES,
+} from "@/lib/outstation";
 import { formatInrFromMinor, seatsRemaining } from "@/lib/format";
 import { PHASE_LABELS } from "@/lib/phases";
 import { PHONE_HINT, isParticipantPhoneField, phoneInputProps } from "@/lib/phone";
@@ -79,6 +85,10 @@ function defaultValues(
     collective_id: registration.collective_id ?? "",
     delegation_type: registration.delegation_type ?? "SINGLE",
     partner_email: registration.partner_email ?? "",
+    is_outstation: Boolean(registration.is_outstation),
+    outstation_student_type: registration.outstation_student_type ?? "",
+    outstation_needs_accommodation: Boolean(registration.outstation_needs_accommodation),
+    outstation_check_in: registration.outstation_check_in ?? "",
     preferences: preferencesToFormItems(preferences, preferredCommitteeId),
   };
   for (const field of fields) {
@@ -101,6 +111,10 @@ function appendValues(fd: FormData, values: RegistrationFormValues, fields: Regi
   fd.set("collective_id", String(values.collective_id ?? ""));
   fd.set("delegation_type", String(values.delegation_type ?? "SINGLE"));
   fd.set("partner_email", String(values.partner_email ?? ""));
+  if (values.is_outstation) fd.set("is_outstation", "true");
+  fd.set("outstation_student_type", String(values.outstation_student_type ?? ""));
+  if (values.outstation_needs_accommodation) fd.set("outstation_needs_accommodation", "true");
+  fd.set("outstation_check_in", String(values.outstation_check_in ?? ""));
   const prefs = Array.isArray(values.preferences) ? values.preferences : [];
   fd.set("preference_count", String(prefs.length));
   prefs.forEach((pref, index) => {
@@ -247,6 +261,13 @@ export function RegistrationForm({
   const collectiveId = String(useWatch({ control: form.control, name: "collective_id" }) ?? "");
   const selectedPrefs = (useWatch({ control: form.control, name: "preferences" }) ?? []) as PreferenceFormItem[];
   const delegationType = String(useWatch({ control: form.control, name: "delegation_type" }) ?? "SINGLE");
+  const isOutstation = Boolean(useWatch({ control: form.control, name: "is_outstation" }));
+  const outstationStudentType = String(
+    useWatch({ control: form.control, name: "outstation_student_type" }) ?? "",
+  );
+  const needsAccommodation = Boolean(
+    useWatch({ control: form.control, name: "outstation_needs_accommodation" }),
+  );
   const selectedCommittees = selectedPrefs
     .map((pref) => committees.find((item) => item.id === pref.committee_id))
     .filter((item): item is Committee => Boolean(item));
@@ -523,6 +544,107 @@ export function RegistrationForm({
           >
             <Input id="partner_email" type="email" {...form.register("partner_email")} />
           </Field>
+        ) : null}
+      </fieldset>
+
+      <fieldset disabled={!editable || busy} className="grid gap-3">
+        <legend className="font-serif text-2xl text-gold-700">Outstation delegates</legend>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={isOutstation}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              form.setValue("is_outstation", checked, { shouldDirty: true, shouldValidate: true });
+              if (!checked) {
+                form.setValue("outstation_student_type", "", { shouldDirty: true });
+                form.setValue("outstation_needs_accommodation", false, { shouldDirty: true });
+                form.setValue("outstation_check_in", "", { shouldDirty: true });
+              }
+            }}
+          />
+          <span>
+            I am an outstation delegate
+            <span className="mt-0.5 block text-xs text-ink-muted">
+              Travelling from outside the host city for the conference.
+            </span>
+          </span>
+        </label>
+        {isOutstation ? (
+          <div className="grid gap-3 rounded-sm border border-gold-700/20 bg-parchment-50/80 p-4">
+            <Field
+              label="Student type"
+              htmlFor="outstation_student_type"
+              error={form.formState.errors.outstation_student_type?.message as string | undefined}
+            >
+              <div className="flex flex-wrap gap-4">
+                {OUTSTATION_STUDENT_TYPES.map((type) => (
+                  <label key={type} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      value={type}
+                      checked={outstationStudentType === type}
+                      onChange={() => {
+                        form.setValue("outstation_student_type", type, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        if (type === "SCHOOL") {
+                          form.setValue("outstation_needs_accommodation", false, { shouldDirty: true });
+                          form.setValue("outstation_check_in", "", { shouldDirty: true });
+                        }
+                      }}
+                    />
+                    {OUTSTATION_STUDENT_TYPE_LABELS[type]}
+                  </label>
+                ))}
+              </div>
+            </Field>
+            {outstationStudentType === "COLLEGE" ? (
+              <>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={needsAccommodation}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      form.setValue("outstation_needs_accommodation", checked, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                      if (!checked) {
+                        form.setValue("outstation_check_in", "", { shouldDirty: true });
+                      }
+                    }}
+                  />
+                  <span>
+                    I need accommodation and meal
+                    <span className="mt-0.5 block text-xs text-ink-muted">
+                      Available for college students. Fee is set by the secretariat at allotment.
+                    </span>
+                  </span>
+                </label>
+                {needsAccommodation ? (
+                  <Field
+                    label="Check-in"
+                    htmlFor="outstation_check_in"
+                    error={form.formState.errors.outstation_check_in?.message as string | undefined}
+                  >
+                    <div className="flex flex-col gap-2">
+                      {OUTSTATION_CHECK_INS.map((slot) => (
+                        <label key={slot} className="flex items-center gap-2 text-sm">
+                          <input type="radio" value={slot} {...form.register("outstation_check_in")} />
+                          {OUTSTATION_CHECK_IN_LABELS[slot]}
+                        </label>
+                      ))}
+                    </div>
+                  </Field>
+                ) : null}
+              </>
+            ) : null}
+          </div>
         ) : null}
       </fieldset>
 

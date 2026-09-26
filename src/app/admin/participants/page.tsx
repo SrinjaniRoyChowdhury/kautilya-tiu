@@ -6,6 +6,7 @@ import { Container, PageHeader } from "@/components/ui/card";
 import { hasPermission } from "@/lib/auth";
 import { getAdminParticipants, getAllEditionsAdmin } from "@/lib/data";
 import { formatDelegation } from "@/lib/format";
+import { outstationSummary } from "@/lib/outstation";
 import { adminListHref, matchesQuery, paginate, parsePage } from "@/lib/search";
 
 export const metadata: Metadata = { title: "Participants" };
@@ -54,6 +55,7 @@ export default async function AdminParticipantsPage({
       row.collective_name,
       row.allocated_portfolio,
       row.display_code,
+      outstationSummary(row),
       ...(row.preferences ?? []).flatMap((pref) => [
         pref.committee_short_name,
         pref.portfolio_1,
@@ -116,7 +118,12 @@ export default async function AdminParticipantsPage({
         <AdminTable columns={["Name", "Email", "Preferences", "Committee", "Allotment", "Collective", "Delegation", "Status", "QR", ""]}>
           {paged.items.map((row) => (
             <tr key={row.id} className="border-b border-gold-700/10 hover:bg-parchment-100">
-              <td className="px-2 py-1.5 font-medium">{row.full_name}</td>
+              <td className="px-2 py-1.5 font-medium">
+                {row.full_name}
+                {row.is_outstation ? (
+                  <span className="mt-0.5 block text-[11px] font-normal text-gold-800">Outstation</span>
+                ) : null}
+              </td>
               <td className="px-2 py-1.5 text-ink-muted">{row.email}</td>
               <td className="px-2 py-1.5 text-ink-muted">
                 {(row.preferences ?? [])
