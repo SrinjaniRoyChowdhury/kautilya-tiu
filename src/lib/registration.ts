@@ -1,5 +1,6 @@
 import { z, type ZodType } from "zod";
 import { hexId } from "@/lib/ids";
+import { OUTSTATION_CHECK_INS, OUTSTATION_STUDENT_TYPES } from "@/lib/outstation";
 import { isParticipantPhoneField, tenDigitPhoneSchema } from "@/lib/phone";
 import type { FieldSection, RegistrationFieldDefinition, RegistrationPreference } from "@/types";
 import { RETIRED_REGISTRATION_FIELD_KEYS } from "@/lib/constants";
@@ -165,6 +166,10 @@ export function buildRegistrationSchema(
     collective_id: z.union([hexId, z.literal("")]).optional(),
     delegation_type: z.enum(["SINGLE", "DOUBLE"]).optional(),
     partner_email: z.union([z.literal(""), z.string().trim().email("Enter a valid partner email")]).optional(),
+    is_outstation: z.boolean().optional(),
+    outstation_student_type: z.union([z.enum(OUTSTATION_STUDENT_TYPES), z.literal("")]).optional(),
+    outstation_needs_accommodation: z.boolean().optional(),
+    outstation_check_in: z.union([z.enum(OUTSTATION_CHECK_INS), z.literal("")]).optional(),
     preferences: requirePreferences
       ? z
           .array(preferenceItemSchema)
@@ -198,6 +203,27 @@ export function buildRegistrationSchema(
           path: ["partner_email"],
           message: "Enter your partner's signed-up email.",
         });
+      }
+    }
+
+    if (data.is_outstation) {
+      const studentType = String(data.outstation_student_type ?? "").trim();
+      if (studentType !== "SCHOOL" && studentType !== "COLLEGE") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["outstation_student_type"],
+          message: "Select whether you are a school or college student.",
+        });
+      }
+      if (studentType === "COLLEGE" && data.outstation_needs_accommodation) {
+        const checkIn = String(data.outstation_check_in ?? "").trim();
+        if (checkIn !== "NOV_26_NIGHT" && checkIn !== "NOV_27_MORNING") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["outstation_check_in"],
+            message: "Select a check-in option for accommodation.",
+          });
+        }
       }
     }
 
@@ -252,6 +278,10 @@ export type RegistrationFormValues = {
   collective_id?: string;
   delegation_type?: "SINGLE" | "DOUBLE";
   partner_email?: string;
+  is_outstation?: boolean;
+  outstation_student_type?: "SCHOOL" | "COLLEGE" | "";
+  outstation_needs_accommodation?: boolean;
+  outstation_check_in?: "NOV_26_NIGHT" | "NOV_27_MORNING" | "";
   preferences: PreferenceFormItem[];
   [key: string]: unknown;
 };

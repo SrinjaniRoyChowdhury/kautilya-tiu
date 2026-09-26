@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import { formatInrFromMinor } from "@/lib/format";
+import { outstationSummary } from "@/lib/outstation";
 import type { AdminParticipant, Committee } from "@/types";
 
 export function AllocateRegistrationForm({
@@ -27,18 +28,26 @@ export function AllocateRegistrationForm({
 
   const committee = committees.find((item) => item.id === committeeId);
   const isSpecialCrisis = Boolean(committee?.is_special_crisis);
+  const isOutstation = Boolean(participant.is_outstation);
   const pref = prefs.find((item) => item.committee_id === committeeId);
   const suggested = [pref?.portfolio_1, pref?.portfolio_2].filter(
     (name): name is string => Boolean(name && name.trim()),
   );
   const defaultPortfolio = participant.allocated_portfolio || suggested[0] || "";
-  const fee =
+  const committeeFeeMinor =
     committee &&
-    formatInrFromMinor(
-      participant.delegation_type === "DOUBLE"
-        ? (committee.double_fee_minor ?? committee.fee_minor)
-        : committee.fee_minor,
-    );
+    (participant.delegation_type === "DOUBLE"
+      ? (committee.double_fee_minor ?? committee.fee_minor)
+      : committee.fee_minor);
+  const feeLabel =
+    committeeFeeMinor != null
+      ? formatInrFromMinor(committeeFeeMinor)
+      : null;
+  const defaultFeeRupees =
+    participant.expected_fee_minor != null
+      ? String(Math.round(participant.expected_fee_minor / 100))
+      : "";
+  const outstationLabel = outstationSummary(participant);
 
   if (participant.status === "DRAFT" || participant.status === "CANCELLED") {
     return <p className="text-sm text-ink-muted">They must submit the form before allocation.</p>;
@@ -60,6 +69,11 @@ export function AllocateRegistrationForm({
 
   return (
     <form action={formAction} className={compact ? "grid gap-2.5" : "grid gap-4"}>
+      {outstationLabel ? (
+        <p className="rounded-sm border border-gold-700/20 bg-parchment-100/60 px-3 py-2 text-sm text-gold-800">
+          {outstationLabel}
+        </p>
+      ) : null}
       {!compact && prefs.length ? (
         <div className="rounded-sm border border-gold-700/20 bg-parchment-100/60 p-3 text-sm">
           <p className="font-medium text-gold-800">Delegate preferences</p>
@@ -129,9 +143,32 @@ export function AllocateRegistrationForm({
           Special crisis: allocating the committee alone unlocks payment.
         </p>
       ) : null}
-      {fee ? (
+      {isOutstation ? (
+        <Field
+          label="Fee (₹)"
+          htmlFor="expected_fee_rupees"
+          hint={
+            feeLabel
+              ? `Outstation fee is entered manually. Committee reference: ${feeLabel}${
+                  participant.delegation_type === "DOUBLE" ? " (double)" : ""
+                }.`
+              : "Outstation fee is entered manually at allotment."
+          }
+        >
+          <Input
+            id="expected_fee_rupees"
+            name="expected_fee_rupees"
+            type="number"
+            min={0}
+            step={1}
+            required
+            defaultValue={defaultFeeRupees}
+            placeholder="e.g. 2500"
+          />
+        </Field>
+      ) : feeLabel ? (
         <p className="text-xs text-ink-muted">
-          Fee: {fee}
+          Fee: {feeLabel}
           {participant.delegation_type === "DOUBLE" ? " (double)" : ""}
         </p>
       ) : null}

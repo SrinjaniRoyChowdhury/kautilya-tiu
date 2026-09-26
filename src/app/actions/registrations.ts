@@ -8,6 +8,7 @@ import { getFieldDefinitions } from "@/lib/data";
 import { isUuid } from "@/lib/ids";
 import { PHONE_ERROR, isTenDigitPhone } from "@/lib/phone";
 import { buildRegistrationSchema, parsePreferencesFromForm, preferencesPayloadForCommittees, visibleRegistrationFields } from "@/lib/registration";
+import { normalizeOutstationPayload } from "@/lib/outstation";
 import type { FoodPreference, Registration, RegistrationFieldDefinition } from "@/types";
 
 export type RegistrationState = {
@@ -42,6 +43,8 @@ const RPC_MESSAGES: Record<string, string> = {
   PARTNER_BUSY: "That partner already has a registration that cannot be paired.",
   PARTNER_ALREADY_PAIRED: "That partner is already in another double delegation.",
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
+  OUTSTATION_FEE_REQUIRED: "Enter the fee for this outstation delegate.",
+  FEE_INVALID: "Enter a valid fee amount.",
 };
 
 function rpcMessage(error: { message?: string } | null): string {
@@ -69,7 +72,7 @@ export async function startRegistrationAction(editionId: string): Promise<Regist
       const existing = await supabase
         .from("registrations")
         .select(
-          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead",
+          "id, edition_id, user_id, committee_id, status, food_preference, expected_fee_minor, submitted_at, confirmed_at, accepted_rules_at, collective_id, delegation_type, partner_email, partner_registration_id, pair_id, is_pair_lead, is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in",
         )
         .eq("edition_id", editionId)
         .eq("user_id", user.id)
@@ -124,6 +127,13 @@ function parseFormPayload(formData: FormData, fields: RegistrationFieldDefinitio
     collective_id: String(formData.get("collective_id") ?? ""),
     delegation_type: String(formData.get("delegation_type") ?? "SINGLE"),
     partner_email: String(formData.get("partner_email") ?? ""),
+    is_outstation:
+      formData.get("is_outstation") === "on" || formData.get("is_outstation") === "true",
+    outstation_student_type: String(formData.get("outstation_student_type") ?? ""),
+    outstation_needs_accommodation:
+      formData.get("outstation_needs_accommodation") === "on" ||
+      formData.get("outstation_needs_accommodation") === "true",
+    outstation_check_in: String(formData.get("outstation_check_in") ?? ""),
     preferences: parsePreferencesFromForm(formData),
   };
   for (const field of fields) {
@@ -228,6 +238,30 @@ async function runSave(
   const prefs = preferencesPayloadForCommittees(prefItems, specialCrisisIds);
   const collectiveRaw = String(raw.collective_id ?? "").trim();
   const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
+  const outstation = normalizeOutstationPayload({
+    is_outstation: Boolean(raw.is_outstation),
+    outstation_student_type: String(raw.outstation_student_type ?? ""),
+    outstation_needs_accommodation: Boolean(raw.outstation_needs_accommodation),
+    outstation_check_in: String(raw.outstation_check_in ?? ""),
+  });
+  if (intent === "submit") {
+    if (outstation.is_outstation && !outstation.outstation_student_type) {
+      return {
+        error: "Select whether you are a school or college student.",
+        fieldErrors: { outstation_student_type: "Select school or college." },
+      };
+    }
+    if (outstation.is_outstation && outstation.outstation_needs_accommodation && !outstation.outstation_check_in) {
+      return {
+        error: "Select a check-in option for accommodation.",
+        fieldErrors: { outstation_check_in: "Select a check-in option." },
+      };
+    }
+  } else if (outstation.is_outstation && outstation.outstation_needs_accommodation && !outstation.outstation_check_in) {
+    // Draft may tick accommodation before choosing check-in; keep the tick without violating DB.
+    outstation.outstation_needs_accommodation = true;
+    outstation.outstation_check_in = null;
+  }
 
   const rpc = intent === "submit" ? "submit_registration" : "save_registration_draft";
   const { error } = await supabase.rpc(rpc, {
@@ -241,11 +275,14 @@ async function runSave(
 
   if (error) return { error: rpcMessage(error) };
 
-  const { error: collectiveError } = await supabase
+  const { error: metaError } = await supabase
     .from("registrations")
-    .update({ collective_id: collectiveId })
+    .update({
+      collective_id: collectiveId,
+      ...outstation,
+    })
     .eq("id", registrationId);
-  if (collectiveError) return { error: collectiveError.message };
+  if (metaError) return { error: metaError.message };
 
   // Keep revalidation narrow so the form remount stays fast.
   revalidatePath("/dashboard/register");

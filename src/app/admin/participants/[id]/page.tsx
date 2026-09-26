@@ -13,6 +13,7 @@ import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
 import { getAdminParticipant, getCommitteesForEdition } from "@/lib/data";
 import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
+import { outstationSummary } from "@/lib/outstation";
 import { SECTION_LABELS } from "@/lib/registration";
 import type { AdminParticipantDetail, AdminParticipantPartner, FieldSection } from "@/types";
 
@@ -206,6 +207,7 @@ export default async function AdminParticipantPage({
               <DetailRow label="Collective" value={participant.collective_name} />
               <DetailRow label="Institution" value={participant.institution_name} />
               <DetailRow label="Food" value={participant.food_preference} />
+              <DetailRow label="Outstation" value={outstationSummary(participant)} />
               <DetailRow label="Delegation" value={participant.delegation_type === "DOUBLE" ? "Double" : "Single"} />
               {participant.delegation_type === "DOUBLE" ? (
                 <>
