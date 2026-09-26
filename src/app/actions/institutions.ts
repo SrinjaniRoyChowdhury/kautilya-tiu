@@ -20,12 +20,16 @@ function revalidate() {
   revalidatePath("/dashboard/register");
 }
 
+async function canManageGroups(): Promise<boolean> {
+  return (await hasPermission("edition.manage")) || (await hasPermission("groups.manage"));
+}
+
 export async function createInstitutionAction(
   _prev: InstitutionState,
   formData: FormData,
 ): Promise<InstitutionState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit institutions." };
+  if (!(await canManageGroups())) return { error: "You cannot edit institutions." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
   const supabase = await createClient();
@@ -53,7 +57,7 @@ export async function updateInstitutionAction(
   formData: FormData,
 ): Promise<InstitutionState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit institutions." };
+  if (!(await canManageGroups())) return { error: "You cannot edit institutions." };
   if (!isUuid(id)) return { error: "Missing institution." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
@@ -84,7 +88,7 @@ export async function deleteInstitutionAction(
   void _prev;
   void _formData;
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit institutions." };
+  if (!(await canManageGroups())) return { error: "You cannot edit institutions." };
   if (!isUuid(id)) return { error: "Missing institution." };
   const supabase = await createClient();
   const { error } = await supabase.from("institutions").delete().eq("id", id);

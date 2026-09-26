@@ -24,9 +24,13 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
 
   const payment = await getPaymentById(id);
   if (!payment) notFound();
-  const [duplicates, canVerify] = await Promise.all([
+  const [duplicates, canVerify, canEditParticipants] = await Promise.all([
     getDuplicateProofPayments(payment.proof_sha256, payment.id),
     hasPermission("payment.verify", payment.edition_id),
+    Promise.all([
+      hasPermission("payment.edit", payment.edition_id),
+      hasPermission("payment.verify", payment.edition_id),
+    ]).then(([edit, verify]) => edit || verify),
   ]);
   const copy = PAYMENT_STATUS_COPY[payment.status];
   const payer = Array.isArray(payment.payer) ? payment.payer[0] : payment.payer;
@@ -77,7 +81,12 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
           )}
         </Card>
         <Card>
-          <PaymentReviewActions payment={payment} canVerify={canVerify} proofHref={proofHref} />
+          <PaymentReviewActions
+            payment={payment}
+            canVerify={canVerify}
+            canEditParticipants={canEditParticipants}
+            proofHref={proofHref}
+          />
         </Card>
       </div>
     </Container>

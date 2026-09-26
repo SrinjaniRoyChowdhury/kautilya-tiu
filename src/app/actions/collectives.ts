@@ -20,12 +20,16 @@ function revalidate() {
   revalidatePath("/dashboard/register");
 }
 
+async function canManageGroups(): Promise<boolean> {
+  return (await hasPermission("edition.manage")) || (await hasPermission("groups.manage"));
+}
+
 export async function createCollectiveAction(
   _prev: CollectiveState,
   formData: FormData,
 ): Promise<CollectiveState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
+  if (!(await canManageGroups())) return { error: "You cannot edit collectives." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
   const supabase = await createClient();
@@ -53,7 +57,7 @@ export async function updateCollectiveAction(
   formData: FormData,
 ): Promise<CollectiveState> {
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
+  if (!(await canManageGroups())) return { error: "You cannot edit collectives." };
   if (!isUuid(id)) return { error: "Missing collective." };
   const parsed = nameSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Enter a name." };
@@ -84,7 +88,7 @@ export async function deleteCollectiveAction(
   void _prev;
   void _formData;
   if (!(await isStaffUser())) return { error: "Staff only." };
-  if (!(await hasPermission("edition.manage"))) return { error: "You cannot edit collectives." };
+  if (!(await canManageGroups())) return { error: "You cannot edit collectives." };
   if (!isUuid(id)) return { error: "Missing collective." };
   const supabase = await createClient();
   const { error } = await supabase.from("collectives").delete().eq("id", id);

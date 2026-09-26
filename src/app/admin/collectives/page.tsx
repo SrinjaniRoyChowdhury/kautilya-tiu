@@ -20,7 +20,8 @@ export default async function AdminCollectivesPage({
   searchParams: Promise<{ tab?: string; q?: string; page?: string }>;
 }) {
   const { tab = "collectives", q = "", page: pageRaw } = await searchParams;
-  const canEdit = await hasPermission("edition.manage");
+  const canEdit =
+    (await hasPermission("edition.manage")) || (await hasPermission("groups.manage"));
   const readOnly = !canEdit;
   if (!canEdit && !isLimitedStaff(await getRoleNames())) {
     return (
