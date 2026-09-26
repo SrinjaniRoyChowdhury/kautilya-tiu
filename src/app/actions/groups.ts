@@ -82,12 +82,16 @@ export async function removeGroupMemberAction(
   return { success: "Member removed from the group." };
 }
 
+async function canManageGroups(): Promise<boolean> {
+  return (await hasPermission("edition.manage")) || (await hasPermission("groups.manage"));
+}
+
 export async function setGroupRepresentativeAction(
   userId: string,
   collectiveId: string | null,
   institutionId: string | null,
 ): Promise<GroupActionState> {
-  if (!(await hasPermission("edition.manage"))) {
+  if (!(await canManageGroups())) {
     return { error: "You cannot assign representatives." };
   }
   if (!isUuid(userId)) return { error: "Missing user." };
@@ -107,7 +111,7 @@ export async function clearGroupRepresentativeAction(
   collectiveId: string | null,
   institutionId: string | null,
 ): Promise<GroupActionState> {
-  if (!(await hasPermission("edition.manage"))) {
+  if (!(await canManageGroups())) {
     return { error: "You cannot change representatives." };
   }
   const supabase = await createClient();
@@ -128,6 +132,7 @@ export async function loadGroupDetailAction(
   if (!isUuid(groupId) || !isUuid(editionId)) return null;
   const allowed =
     (await hasPermission("edition.manage")) ||
+    (await hasPermission("groups.manage")) ||
     (await getMyTeamAccessForGroup(kind, groupId));
   if (!allowed) return null;
   if (kind === "collective") return getCollectiveDetail(groupId, editionId);
