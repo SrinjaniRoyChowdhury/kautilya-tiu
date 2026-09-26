@@ -163,6 +163,9 @@ export type RegistrationFieldDefinition = {
   section: FieldSection;
 };
 
+export type OutstationStudentType = "SCHOOL" | "COLLEGE";
+export type OutstationCheckIn = "NOV_26_NIGHT" | "NOV_27_MORNING";
+
 export type Registration = {
   id: string;
   edition_id: string;
@@ -185,6 +188,10 @@ export type Registration = {
   pair_id?: string | null;
   is_pair_lead?: boolean;
   partner_name?: string | null;
+  is_outstation?: boolean;
+  outstation_student_type?: OutstationStudentType | null;
+  outstation_needs_accommodation?: boolean;
+  outstation_check_in?: OutstationCheckIn | null;
 };
 
 export type RegistrationPreference = {
@@ -252,6 +259,10 @@ export type AdminParticipant = {
   committee_id?: string | null;
   expected_fee_minor?: number | null;
   preferences?: RegistrationPreference[];
+  is_outstation?: boolean;
+  outstation_student_type?: OutstationStudentType | null;
+  outstation_needs_accommodation?: boolean;
+  outstation_check_in?: OutstationCheckIn | null;
 };
 
 export type AdminParticipantField = {

@@ -39,6 +39,7 @@ async function participantRows(editionId: string) {
     .from("registrations")
     .select(
       `status, food_preference, expected_fee_minor, submitted_at, confirmed_at,
+       is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in,
        users:user_id (full_name, email, phone),
        committees:committee_id (short_name, name),
        collectives:collective_id (name)`,
@@ -52,6 +53,10 @@ async function participantRows(editionId: string) {
     expected_fee_minor: number | null;
     submitted_at: string | null;
     confirmed_at: string | null;
+    is_outstation: boolean | null;
+    outstation_student_type: string | null;
+    outstation_needs_accommodation: boolean | null;
+    outstation_check_in: string | null;
     users: { full_name: string; email: string; phone: string | null } | { full_name: string; email: string; phone: string | null }[] | null;
     committees: { short_name: string; name: string } | { short_name: string; name: string }[] | null;
     collectives: { name: string } | { name: string }[] | null;
@@ -64,6 +69,10 @@ async function participantRows(editionId: string) {
     "collective",
     "status",
     "food_preference",
+    "is_outstation",
+    "outstation_student_type",
+    "outstation_accommodation",
+    "outstation_check_in",
     "expected_fee_inr",
     "submitted_at",
     "confirmed_at",
@@ -80,6 +89,10 @@ async function participantRows(editionId: string) {
       collective?.name ?? "",
       row.status,
       row.food_preference ?? "",
+      row.is_outstation ? "yes" : "no",
+      row.outstation_student_type ?? "",
+      row.outstation_needs_accommodation ? "yes" : "no",
+      row.outstation_check_in ?? "",
       rupees(row.expected_fee_minor),
       iso(row.submitted_at),
       iso(row.confirmed_at),
