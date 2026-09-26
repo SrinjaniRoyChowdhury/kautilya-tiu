@@ -100,7 +100,7 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
 const EDITION_SELECT_BASE =
   "id, name, year, slug, theme, start_date, end_date, registration_open_at, registration_close_at, status, is_public_active, registration_status";
 
-const EDITION_SELECT = `${EDITION_SELECT_BASE}, hide_executive_board, hide_team, portfolio_matrix_url`;
+const EDITION_SELECT = `${EDITION_SELECT_BASE}, hide_executive_board, hide_team, portfolio_matrix_url, outstation_prices_url`;
 
 function hydrateEdition(row: unknown): Edition | null {
   if (!row || typeof row !== "object") return null;
@@ -110,6 +110,7 @@ function hydrateEdition(row: unknown): Edition | null {
     hide_executive_board: Boolean(e.hide_executive_board),
     hide_team: Boolean(e.hide_team),
     portfolio_matrix_url: typeof e.portfolio_matrix_url === "string" ? e.portfolio_matrix_url : null,
+    outstation_prices_url: typeof e.outstation_prices_url === "string" ? e.outstation_prices_url : null,
   };
 }
 

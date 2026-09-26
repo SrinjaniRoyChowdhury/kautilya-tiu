@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOutstationPayload, outstationSummary } from "./outstation";
+import {
+  normalizeOutstationPayload,
+  outstationSummary,
+  suggestedOutstationFeeMinor,
+} from "./outstation";
 
 describe("normalizeOutstationPayload", () => {
   it("clears related fields when not outstation", () => {
@@ -65,5 +69,60 @@ describe("outstationSummary", () => {
         outstation_check_in: "NOV_27_MORNING",
       }),
     ).toContain("College student");
+  });
+});
+
+describe("suggestedOutstationFeeMinor", () => {
+  it("returns null for local delegates", () => {
+    expect(suggestedOutstationFeeMinor({ is_outstation: false })).toBeNull();
+  });
+
+  it("prices school students at 15000", () => {
+    expect(
+      suggestedOutstationFeeMinor({
+        is_outstation: true,
+        outstation_student_type: "SCHOOL",
+      }),
+    ).toBe(1_500_000);
+  });
+
+  it("prices college without accommodation at 2500", () => {
+    expect(
+      suggestedOutstationFeeMinor({
+        is_outstation: true,
+        outstation_student_type: "COLLEGE",
+        outstation_needs_accommodation: false,
+      }),
+    ).toBe(250_000);
+  });
+
+  it("prices college accommodation by check-in", () => {
+    expect(
+      suggestedOutstationFeeMinor({
+        is_outstation: true,
+        outstation_student_type: "COLLEGE",
+        outstation_needs_accommodation: true,
+        outstation_check_in: "NOV_26_NIGHT",
+      }),
+    ).toBe(800_000);
+    expect(
+      suggestedOutstationFeeMinor({
+        is_outstation: true,
+        outstation_student_type: "COLLEGE",
+        outstation_needs_accommodation: true,
+        outstation_check_in: "NOV_27_MORNING",
+      }),
+    ).toBe(700_000);
+  });
+
+  it("returns null when college accommodation lacks check-in", () => {
+    expect(
+      suggestedOutstationFeeMinor({
+        is_outstation: true,
+        outstation_student_type: "COLLEGE",
+        outstation_needs_accommodation: true,
+        outstation_check_in: null,
+      }),
+    ).toBeNull();
   });
 });

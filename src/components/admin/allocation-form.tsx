@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import { formatInrFromMinor } from "@/lib/format";
-import { outstationSummary } from "@/lib/outstation";
+import { outstationSummary, suggestedOutstationFeeMinor } from "@/lib/outstation";
 import type { AdminParticipant, Committee } from "@/types";
 
 export function AllocateRegistrationForm({
@@ -43,11 +43,16 @@ export function AllocateRegistrationForm({
     committeeFeeMinor != null
       ? formatInrFromMinor(committeeFeeMinor)
       : null;
+  const suggestedOutstationMinor = isOutstation ? suggestedOutstationFeeMinor(participant) : null;
   const defaultFeeRupees =
     participant.expected_fee_minor != null
       ? String(Math.round(participant.expected_fee_minor / 100))
-      : "";
+      : suggestedOutstationMinor != null
+        ? String(Math.round(suggestedOutstationMinor / 100))
+        : "";
   const outstationLabel = outstationSummary(participant);
+  const suggestedFeeLabel =
+    suggestedOutstationMinor != null ? formatInrFromMinor(suggestedOutstationMinor) : null;
 
   if (participant.status === "DRAFT" || participant.status === "CANCELLED") {
     return <p className="text-sm text-ink-muted">They must submit the form before allocation.</p>;
@@ -148,11 +153,17 @@ export function AllocateRegistrationForm({
           label="Fee (₹)"
           htmlFor="expected_fee_rupees"
           hint={
-            feeLabel
-              ? `Outstation fee is entered manually. Committee reference: ${feeLabel}${
-                  participant.delegation_type === "DOUBLE" ? " (double)" : ""
-                }.`
-              : "Outstation fee is entered manually at allotment."
+            [
+              suggestedFeeLabel ? `Suggested from outstation options: ${suggestedFeeLabel}.` : null,
+              "Editable — enter the final fee before unlocking payment.",
+              feeLabel
+                ? `Committee reference: ${feeLabel}${
+                    participant.delegation_type === "DOUBLE" ? " (double)" : ""
+                  }.`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" ")
           }
         >
           <Input

@@ -27,6 +27,7 @@ const editionSchema = z.object({
   registration_status: z.enum(["OPEN", "CLOSED"]).optional(),
   hide_executive_board: z.coerce.boolean().optional(),
   hide_team: z.coerce.boolean().optional(),
+  outstation_prices_url: z.string().trim().url().optional().or(z.literal("")),
 });
 
 async function requireEditionManager() {
@@ -115,6 +116,7 @@ export async function createEditionAction(
         : "OPEN",
     hide_executive_board: formData.get("hide_executive_board") === "on",
     hide_team: formData.get("hide_team") === "on",
+    outstation_prices_url: String(formData.get("outstation_prices_url") ?? "").trim(),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -141,6 +143,7 @@ export async function createEditionAction(
       registration_status: parsed.data.registration_status ?? "OPEN",
       hide_executive_board: Boolean(parsed.data.hide_executive_board),
       hide_team: Boolean(parsed.data.hide_team),
+      outstation_prices_url: parsed.data.outstation_prices_url || null,
       created_by: gate.user.id,
     })
     .select("id")
@@ -194,6 +197,7 @@ export async function updateEditionAction(
         : "OPEN",
     hide_executive_board: formData.get("hide_executive_board") === "on",
     hide_team: formData.get("hide_team") === "on",
+    outstation_prices_url: String(formData.get("outstation_prices_url") ?? "").trim(),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edition" };
 
@@ -219,6 +223,7 @@ export async function updateEditionAction(
       registration_status: parsed.data.registration_status ?? "OPEN",
       hide_executive_board: Boolean(parsed.data.hide_executive_board),
       hide_team: Boolean(parsed.data.hide_team),
+      outstation_prices_url: parsed.data.outstation_prices_url || null,
     })
     .eq("id", editionId);
 

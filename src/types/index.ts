@@ -46,6 +46,7 @@ export type Edition = {
   hide_executive_board?: boolean;
   hide_team?: boolean;
   portfolio_matrix_url?: string | null;
+  outstation_prices_url?: string | null;
 };
 
 export type EbMember = {
