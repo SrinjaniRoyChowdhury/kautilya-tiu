@@ -156,6 +156,7 @@ async function RegistrationBody({
         paymentLocked={coveringPaymentLocksRegistration(covering?.status)}
         publishedDocs={publishedDocs}
         portfolioMatrixUrl={edition.portfolio_matrix_url}
+        outstationPricesUrl={edition.outstation_prices_url}
       />
     </Card>
   );
