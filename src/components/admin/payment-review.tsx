@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
-import { Field, Textarea } from "@/components/ui/field";
+import { Field, Input, Textarea } from "@/components/ui/field";
 import {
+  manualConfirmPaymentAction,
   rejectPaymentAction,
   verifyPaymentAction,
   type AdminPaymentState,
@@ -23,14 +24,22 @@ export function PaymentReviewActions({
   proofHref?: string | null;
 }) {
   const verify = verifyPaymentAction.bind(null, payment.id);
+  const manualConfirm = manualConfirmPaymentAction.bind(null, payment.id);
   const reject = rejectPaymentAction.bind(null, payment.id);
   const [verifyState, verifyAction, verifyPending] = useActionState(verify, {} as AdminPaymentState);
+  const [confirmState, confirmAction, confirmPending] = useActionState(
+    manualConfirm,
+    {} as AdminPaymentState,
+  );
   const [rejectState, rejectAction, rejectPending] = useActionState(reject, {} as AdminPaymentState);
   const closed = payment.status === "VERIFIED" || payment.status === "CANCELLED";
+  const reviewable =
+    !closed && payment.status !== "REJECTED" && (payment.status === "UNDER_REVIEW" || payment.status === "PENDING");
   const difference =
     payment.paid_amount_minor != null
       ? payment.paid_amount_minor - payment.expected_amount_minor
       : null;
+  const busy = verifyPending || confirmPending || rejectPending;
 
   return (
     <div className="grid gap-4">
@@ -84,27 +93,51 @@ export function PaymentReviewActions({
           </li>
         ))}
       </ul>
-      {canVerify && !closed && payment.status !== "REJECTED" && proofHref ? (
+
+      {canVerify && reviewable ? (
+        <form action={confirmAction} className="grid gap-3 rounded-sm border border-gold-700/25 bg-parchment-100/50 p-4">
+          <p className="font-medium text-gold-800">Manually confirm payment</p>
+          <p className="text-xs text-ink-muted">
+            Upload the payment screenshot, then confirm. Screenshot upload is required even if the
+            payer already attached one.
+          </p>
+          <Field
+            label="Payment screenshot"
+            htmlFor={`admin-proof-${payment.id}`}
+            hint="JPEG, PNG, or WebP · max 5 MB"
+          >
+            <Input
+              id={`admin-proof-${payment.id}`}
+              name="proof"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              required
+            />
+          </Field>
+          <Button type="submit" disabled={busy}>
+            {confirmPending ? "Confirming…" : "Confirm with screenshot"}
+          </Button>
+          <ActionFeedback error={confirmState.error} success={confirmState.success} />
+        </form>
+      ) : null}
+
+      {canVerify && reviewable && payment.status === "UNDER_REVIEW" && proofHref ? (
         <div className="flex flex-wrap gap-3">
           <form action={verifyAction}>
-            <Button type="submit" disabled={verifyPending || rejectPending}>
-              {verifyPending ? "Verifying…" : "Verify payment"}
+            <Button type="submit" variant="secondary" disabled={busy}>
+              {verifyPending ? "Verifying…" : "Verify existing screenshot"}
             </Button>
             <ActionFeedback error={verifyState.error} success={verifyState.success} />
           </form>
         </div>
       ) : null}
-      {canVerify && !closed && payment.status !== "REJECTED" && !proofHref ? (
-        <p className="rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="status">
-          A payment screenshot is required before this can be verified.
-        </p>
-      ) : null}
+
       {canVerify && !closed && payment.status !== "REJECTED" ? (
         <form action={rejectAction} className="grid gap-3">
           <Field label="Reject with reason" htmlFor="reason">
             <Textarea id="reason" name="reason" required minLength={3} placeholder="amount short" />
           </Field>
-          <Button type="submit" variant="secondary" disabled={verifyPending || rejectPending}>
+          <Button type="submit" variant="secondary" disabled={busy}>
             {rejectPending ? "Rejecting…" : "Reject"}
           </Button>
           <ActionFeedback error={rejectState.error} success={rejectState.success} />

@@ -71,8 +71,9 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
               </a>
             </div>
           ) : (
-            <p className="mt-4 rounded-sm bg-red-50 px-3 py-2 text-sm text-red-800" role="status">
-              No screenshot on this payment. Ask the payer to upload proof before verifying.
+            <p className="mt-4 rounded-sm bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+              No screenshot on this payment yet. Use <strong>Manually confirm payment</strong> and
+              upload a screenshot to confirm, or ask the payer to upload proof.
             </p>
           )}
         </Card>
