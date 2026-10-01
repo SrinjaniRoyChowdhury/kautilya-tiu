@@ -47,11 +47,13 @@ export function PaymentReviewActions({
   payment,
   canVerify,
   canEditParticipants,
+  canManualConfirm,
   proofHref,
 }: {
   payment: PaymentWithParticipants;
   canVerify: boolean;
   canEditParticipants: boolean;
+  canManualConfirm?: boolean;
   proofHref?: string | null;
 }) {
   const verify = verifyPaymentAction.bind(null, payment.id);
@@ -169,13 +171,29 @@ export function PaymentReviewActions({
         </form>
       ) : null}
 
-      {canVerify && reviewable ? (
+      {canManualConfirm && reviewable ? (
         <form action={confirmAction} className="grid gap-3 rounded-sm border border-gold-700/25 bg-parchment-100/50 p-4">
-          <p className="font-medium text-gold-800">Manually confirm payment</p>
+          <p className="font-medium text-gold-800">Manually confirm (Super Admin)</p>
           <p className="text-xs text-ink-muted">
-            Upload the payment screenshot, then confirm. Screenshot upload is required even if the
-            payer already attached one.
+            For delegates who paid at a previous phase but missed uploading proof, or who submitted
+            earlier and were allotted after the phase changed. Upload the screenshot and optionally
+            lock the previous-phase amount in rupees.
           </p>
+          <Field
+            label="Previous-phase amount (₹, optional)"
+            htmlFor={`confirm-amount-${payment.id}`}
+            hint="Leave blank to use the current expected total. Enter the older phase fee to lock that amount."
+          >
+            <Input
+              id={`confirm-amount-${payment.id}`}
+              name="confirm_amount_rupees"
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              placeholder="e.g. 2500"
+            />
+          </Field>
           <Field
             label="Payment screenshot"
             htmlFor={`admin-proof-${payment.id}`}

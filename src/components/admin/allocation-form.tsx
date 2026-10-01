@@ -7,15 +7,22 @@ import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/field";
 import { formatInrFromMinor } from "@/lib/format";
 import { outstationSummary, suggestedOutstationFeeMinor } from "@/lib/outstation";
+import { PHASE_LABELS } from "@/lib/phases";
 import type { AdminParticipant, Committee } from "@/types";
 
 export function AllocateRegistrationForm({
   participant,
   committees,
+  submittedPhaseFees = {},
+  canOverrideFee = false,
   compact = false,
 }: {
   participant: AdminParticipant;
   committees: Committee[];
+  /** Fees for the phase locked at submission (Early Bird etc.). */
+  submittedPhaseFees?: Record<string, { single_fee_minor: number; double_fee_minor: number }>;
+  /** Super Admin may enter a previous-phase / custom fee. */
+  canOverrideFee?: boolean;
   compact?: boolean;
 }) {
   const action = allocateRegistrationAction.bind(null, participant.id);
@@ -34,15 +41,19 @@ export function AllocateRegistrationForm({
     (name): name is string => Boolean(name && name.trim()),
   );
   const defaultPortfolio = participant.allocated_portfolio || suggested[0] || "";
+  const phaseFee = committeeId ? submittedPhaseFees[committeeId] : undefined;
   const committeeFeeMinor =
     committee &&
     (participant.delegation_type === "DOUBLE"
-      ? (committee.double_fee_minor ?? committee.fee_minor)
-      : committee.fee_minor);
+      ? (phaseFee?.double_fee_minor ?? committee.double_fee_minor ?? committee.fee_minor)
+      : (phaseFee?.single_fee_minor ?? committee.fee_minor));
   const feeLabel =
     committeeFeeMinor != null
       ? formatInrFromMinor(committeeFeeMinor)
       : null;
+  const submittedPhaseLabel = participant.submitted_phase_kind
+    ? PHASE_LABELS[participant.submitted_phase_kind]
+    : null;
   const suggestedOutstationMinor = isOutstation ? suggestedOutstationFeeMinor(participant) : null;
   const defaultFeeRupees =
     participant.expected_fee_minor != null
@@ -77,6 +88,13 @@ export function AllocateRegistrationForm({
       {outstationLabel ? (
         <p className="rounded-sm border border-gold-700/20 bg-parchment-100/60 px-3 py-2 text-sm text-gold-800">
           {outstationLabel}
+        </p>
+      ) : null}
+      {submittedPhaseLabel ? (
+        <p className="rounded-sm border border-gold-700/20 bg-parchment-100/60 px-3 py-2 text-sm text-gold-800">
+          Submitted under <span className="font-medium">{submittedPhaseLabel}</span>. First allotment
+          uses that phase’s fee. If the active phase changes after allotment, unpaid delegates move to
+          the new phase fee unless a Super Admin locks a previous amount.
         </p>
       ) : null}
       {!compact && prefs.length ? (
@@ -155,7 +173,7 @@ export function AllocateRegistrationForm({
           hint={
             [
               suggestedFeeLabel ? `Suggested from outstation options: ${suggestedFeeLabel}.` : null,
-              "Editable — enter the final fee before unlocking payment.",
+              "Editable — enter the final fee before unlocking payment (must be greater than zero; use Confirm free for complimentary).",
               feeLabel
                 ? `Committee reference: ${feeLabel}${
                     participant.delegation_type === "DOUBLE" ? " (double)" : ""
@@ -170,17 +188,45 @@ export function AllocateRegistrationForm({
             id="expected_fee_rupees"
             name="expected_fee_rupees"
             type="number"
-            min={0}
+            min={1}
             step={1}
             required
             defaultValue={defaultFeeRupees}
             placeholder="e.g. 2500"
           />
         </Field>
+      ) : canOverrideFee ? (
+        <Field
+          label="Fee override (₹, Super Admin)"
+          htmlFor="expected_fee_rupees"
+          hint={
+            [
+              feeLabel
+                ? `Default allotment fee: ${feeLabel}${
+                    submittedPhaseLabel ? ` (${submittedPhaseLabel})` : ""
+                  }.`
+                : null,
+              "Leave blank for automatic pricing. Enter a previous-phase amount only when locking an older fee after a phase change.",
+            ]
+              .filter(Boolean)
+              .join(" ")
+          }
+        >
+          <Input
+            id="expected_fee_rupees"
+            name="expected_fee_rupees"
+            type="number"
+            min={1}
+            step={1}
+            defaultValue=""
+            placeholder={feeLabel ? `e.g. ${Math.round((committeeFeeMinor ?? 0) / 100)}` : "Previous phase ₹"}
+          />
+        </Field>
       ) : feeLabel ? (
         <p className="text-xs text-ink-muted">
           Fee: {feeLabel}
           {participant.delegation_type === "DOUBLE" ? " (double)" : ""}
+          {submittedPhaseLabel ? ` · ${submittedPhaseLabel}` : ""}
         </p>
       ) : null}
       <Button type="submit" disabled={pending || !committeeId} size={compact ? "sm" : undefined}>

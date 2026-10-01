@@ -35,6 +35,8 @@ const RPC_MESSAGES: Record<string, string> = {
     "Submit your own registration and wait for committee allocation before paying for yourself, or uncheck “Pay for myself” and select allocated delegates instead.",
   ALLOCATION_PENDING:
     "Payment opens after the secretariat allocates a committee and portfolio. The fee is unknown until then.",
+  FEE_ZERO_NOT_ALLOWED:
+    "That registration has no payable fee. Wait for allotment with a fee, or ask staff to confirm free.",
   NOT_REGISTERED:
     "That person has not been allocated a committee yet, so the fee is unknown and they cannot be added.",
   NO_PARTICIPANTS: "Add at least one participant.",

@@ -53,5 +53,8 @@ export async function activatePhaseAction(phaseId: string): Promise<PhaseState> 
   revalidatePath("/admin/committees");
   revalidatePath("/committees");
   revalidatePath("/dashboard/register");
-  return { success: "Active registration phase updated. New submissions use this phase's fees." };
+  return {
+    success:
+      "Active registration phase updated. Unpaid allotted delegates now owe the new phase fee (outstation unchanged). Super Admin can still lock a previous-phase amount manually. Unallotted Early Bird submitters keep Early Bird pricing when allotted later.",
+  };
 }

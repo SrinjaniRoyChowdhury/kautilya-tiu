@@ -109,23 +109,23 @@ function SignInPopover({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ── Register teaser popover ───────────────────────────────────────────────────
-function RegisterPopover({ onClose }: { onClose: () => void }) {
+// ── Sign-up teaser popover ────────────────────────────────────────────────────
+function SignUpPopover({ onClose }: { onClose: () => void }) {
   return (
     <Popover onClose={onClose}>
       <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gold-700">
         <HiOutlineUserAdd className="h-4 w-4" />
-        Create account
+        Sign up
       </div>
       <p className="mt-2 text-sm text-ink-muted">
-        New to Kautilya MUN? Register to secure your delegation and join the conference.
+        New to Kautilya MUN? Sign up to secure your delegation and join the conference.
       </p>
       <Link
         href="/signup"
         onClick={onClose}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-sm bg-gold-700 px-3 py-1.5 text-sm font-semibold text-parchment-50 transition hover:bg-gold-700/90"
       >
-        Register now <HiArrowRight className="h-4 w-4" />
+        Sign up now <HiArrowRight className="h-4 w-4" />
       </Link>
     </Popover>
   );
@@ -292,7 +292,7 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
                 )}
               </div>
 
-              {/* Register with teaser popover */}
+              {/* Sign up with teaser popover */}
               <div className="relative">
                 <button
                   type="button"
@@ -304,10 +304,10 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
                       : "bg-gold-700 text-parchment-50 hover:bg-gold-700/90",
                   )}
                 >
-                  Register
+                  Sign up
                 </button>
                 {popover === "register" && (
-                  <RegisterPopover onClose={() => setPopover(null)} />
+                  <SignUpPopover onClose={() => setPopover(null)} />
                 )}
               </div>
             </>
@@ -394,7 +394,7 @@ export function Header({ societyName, email, showAdmin, adminHref = "/admin", ca
                   Sign in
                 </Link>
                 <Link href="/signup" className="font-semibold" onClick={() => setOpen(false)}>
-                  Register
+                  Sign up
                 </Link>
               </>
             )}
