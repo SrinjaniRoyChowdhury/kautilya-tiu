@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { hasPermission, isProtectedAdminAccount, verifySuperAdminCredentials } from "@/lib/auth";
+import { getRoleNames, hasPermission, isProtectedAdminAccount, isSuperAdmin, verifySuperAdminCredentials } from "@/lib/auth";
 import {
   getCollectives,
   getFieldDefinitions,
@@ -226,6 +226,10 @@ const ALLOCATE_MESSAGES: Record<string, string> = {
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
   OUTSTATION_FEE_REQUIRED: "Enter the fee for this outstation delegate.",
   FEE_INVALID: "Enter a valid fee amount.",
+  FEE_ZERO_NOT_ALLOWED:
+    "Expected fee cannot be zero for a paying allotment. Use Confirm free for complimentary delegates.",
+  FEE_OVERRIDE_FORBIDDEN:
+    "Only a Super Admin can set a previous-phase or custom fee. Regular allotment uses the submission-phase fee (then current phase after a phase change).",
 };
 
 export async function allocateRegistrationAction(
@@ -265,9 +269,23 @@ export async function allocateRegistrationAction(
   const feeRaw = String(formData.get("expected_fee_rupees") ?? "").trim();
   let expectedFeeMinor: number | null = null;
   if (isOutstation || feeRaw) {
+    if (!isOutstation && feeRaw) {
+      const roles = await getRoleNames();
+      if (!isSuperAdmin(roles)) {
+        return {
+          error:
+            "Only a Super Admin can set a previous-phase or custom fee. Regular allotment uses the submission-phase fee.",
+        };
+      }
+    }
     if (!feeRaw) return { error: "Enter the fee for this outstation delegate." };
     const rupees = Number(feeRaw);
-    if (!Number.isFinite(rupees) || rupees < 0) return { error: "Enter a valid fee amount." };
+    if (!Number.isFinite(rupees) || rupees <= 0) {
+      return {
+        error:
+          "Expected fee cannot be zero for a paying allotment. Use Confirm free for complimentary delegates.",
+      };
+    }
     expectedFeeMinor = Math.round(rupees * 100);
   }
 

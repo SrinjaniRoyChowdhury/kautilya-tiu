@@ -1265,14 +1265,15 @@ export async function getAdminParticipant(
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
        partner_registration_id, pair_id, is_pair_lead, confirmed_free, committee_id,
-       expected_fee_minor, allocated_slr, allocated_portfolio, submitted_at, confirmed_at,
-       accepted_rules_at,
+       expected_fee_minor, allocated_slr, allocated_portfolio, submitted_at, submitted_phase_id,
+       confirmed_at, accepted_rules_at,
        is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in,
        users:user_id (full_name, email, phone),
        committees:committee_id (short_name, name),
        collectives:collective_id (name),
        institutions:institution_id (name),
        mun_editions:edition_id (name),
+       registration_phases:submitted_phase_id (id, kind),
        qr_tokens (display_code, status, issued_at)`,
     )
     .eq("id", registrationId)
@@ -1297,6 +1298,7 @@ export async function getAdminParticipant(
     committee_id: string | null;
     expected_fee_minor: number | null;
     submitted_at: string | null;
+    submitted_phase_id: string | null;
     confirmed_at: string | null;
     accepted_rules_at: string | null;
     is_outstation: boolean | null;
@@ -1308,6 +1310,10 @@ export async function getAdminParticipant(
     collectives: { name: string } | { name: string }[] | null;
     institutions: { name: string } | { name: string }[] | null;
     mun_editions: { name: string } | { name: string }[] | null;
+    registration_phases:
+      | { id: string; kind: AdminParticipant["submitted_phase_kind"] }
+      | { id: string; kind: AdminParticipant["submitted_phase_kind"] }[]
+      | null;
     qr_tokens:
       | { display_code: string; status: string; issued_at: string }[]
       | { display_code: string; status: string; issued_at: string }
@@ -1319,6 +1325,9 @@ export async function getAdminParticipant(
   const collective = Array.isArray(row.collectives) ? row.collectives[0] : row.collectives;
   const institution = Array.isArray(row.institutions) ? row.institutions[0] : row.institutions;
   const edition = Array.isArray(row.mun_editions) ? row.mun_editions[0] : row.mun_editions;
+  const submittedPhase = Array.isArray(row.registration_phases)
+    ? row.registration_phases[0]
+    : row.registration_phases;
   const tokens = Array.isArray(row.qr_tokens) ? row.qr_tokens : row.qr_tokens ? [row.qr_tokens] : [];
   const active = tokens.find((item) => item.status === "ACTIVE") ?? null;
 
@@ -1480,6 +1489,8 @@ export async function getAdminParticipant(
     committee_id: row.committee_id,
     expected_fee_minor: row.expected_fee_minor,
     submitted_at: row.submitted_at,
+    submitted_phase_id: row.submitted_phase_id,
+    submitted_phase_kind: submittedPhase?.kind ?? null,
     confirmed_at: row.confirmed_at,
     accepted_rules_at: row.accepted_rules_at,
     edition_name: edition?.name ?? null,
@@ -1761,6 +1772,30 @@ export async function getRegistrationPhases(editionId: string): Promise<Registra
   return ((data as RegistrationPhase[] | null) ?? []).sort(
     (a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9),
   );
+}
+
+/** Per-committee single/double fees for a specific registration phase (allotment pricing). */
+export async function getCommitteeFeesForPhase(
+  phaseId: string | null | undefined,
+): Promise<Record<string, { single_fee_minor: number; double_fee_minor: number }>> {
+  if (!phaseId) return {};
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("committee_phase_fees")
+    .select("committee_id, single_fee_minor, double_fee_minor")
+    .eq("phase_id", phaseId);
+  const out: Record<string, { single_fee_minor: number; double_fee_minor: number }> = {};
+  for (const row of (data as Array<{
+    committee_id: string;
+    single_fee_minor: number;
+    double_fee_minor: number;
+  }> | null) ?? []) {
+    out[row.committee_id] = {
+      single_fee_minor: row.single_fee_minor,
+      double_fee_minor: row.double_fee_minor,
+    };
+  }
+  return out;
 }
 
 export async function getCommitteeFeeRows(committeeId: string): Promise<CommitteePhaseFee[]> {

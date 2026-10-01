@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { getSessionUser, hasPermission } from "@/lib/auth";
+import { getRoleNames, getSessionUser, hasPermission, isSuperAdmin } from "@/lib/auth";
 import { compressProofImage } from "@/lib/image-compress";
 import { isUuid } from "@/lib/ids";
 import { deliverQrEmailsForPayment } from "@/lib/qr-mail";
@@ -30,6 +30,9 @@ const RPC_MESSAGES: Record<string, string> = {
   PAYMENT_ALREADY_VERIFIED: "That delegate is already confirmed or payment-verified.",
   PROOF_REQUIRED: "Upload a payment screenshot before confirming.",
   NO_PARTICIPANTS: "This payment has no participants.",
+  FEE_ZERO_NOT_ALLOWED:
+    "Expected fee cannot be zero. Allot a payable fee first, or confirm the delegate as free.",
+  FEE_INVALID: "Enter a valid amount in rupees.",
 };
 
 function rpcMessage(error: { message?: string } | null): string {
@@ -74,19 +77,34 @@ export async function verifyPaymentAction(
   return { success: "Payment verified. Linked registrations are confirmed and credentials emailed." };
 }
 
-/** Admin / Delegate Affairs: attach screenshot (required) and confirm UNDER_REVIEW or PENDING. */
+/** Super Admin only: attach screenshot and confirm, optionally at a previous-phase amount. */
 export async function manualConfirmPaymentAction(
   paymentId: string,
   _prev: AdminPaymentState,
   formData: FormData,
 ): Promise<AdminPaymentState> {
   void _prev;
-  const allowed = await hasPermission("payment.verify");
-  if (!allowed) return { error: "You need payment.verify to confirm payments." };
+  const roles = await getRoleNames();
+  if (!isSuperAdmin(roles)) {
+    return {
+      error:
+        "Only a Super Admin can manually confirm with proof at a previous-phase amount.",
+    };
+  }
   if (!isUuid(paymentId)) return { error: "Missing payment." };
 
   const user = await getSessionUser();
   if (!user) return { error: "Sign in to continue." };
+
+  const amountRaw = String(formData.get("confirm_amount_rupees") ?? "").trim();
+  let confirmAmountMinor: number | undefined;
+  if (amountRaw) {
+    const rupees = Number(amountRaw);
+    if (!Number.isFinite(rupees) || rupees <= 0) {
+      return { error: "Enter a valid previous-phase amount in rupees (greater than zero)." };
+    }
+    confirmAmountMinor = Math.round(rupees * 100);
+  }
 
   const file = formData.get("proof");
   if (!(file instanceof File) || file.size === 0) {
@@ -119,11 +137,19 @@ export async function manualConfirmPaymentAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("staff_confirm_payment_with_proof", {
+  const rpcArgs: {
+    p_payment_id: string;
+    p_proof_image_key: string;
+    p_proof_sha256: string;
+    p_confirm_amount_minor?: number;
+  } = {
     p_payment_id: paymentId,
     p_proof_image_key: key,
     p_proof_sha256: sha,
-  });
+  };
+  if (confirmAmountMinor != null) rpcArgs.p_confirm_amount_minor = confirmAmountMinor;
+
+  const { error } = await supabase.rpc("staff_confirm_payment_with_proof", rpcArgs);
   if (error) {
     await admin.storage.from("payment-proofs").remove([key]);
     return { error: rpcMessage(error) };
@@ -132,7 +158,9 @@ export async function manualConfirmPaymentAction(
   await deliverQrEmailsForPayment(paymentId);
   revalidate(paymentId);
   return {
-    success: "Payment confirmed with screenshot. Linked registrations are confirmed and credentials emailed.",
+    success: confirmAmountMinor != null
+      ? "Payment confirmed at the entered previous-phase amount. Credentials emailed."
+      : "Payment confirmed with screenshot. Linked registrations are confirmed and credentials emailed.",
   };
 }
 
