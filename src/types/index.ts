@@ -176,6 +176,8 @@ export type Registration = {
   food_preference: FoodPreference | null;
   expected_fee_minor: number | null;
   submitted_at: string | null;
+  submitted_phase_id?: string | null;
+  submitted_phase_kind?: RegistrationPhaseKind | null;
   confirmed_at: string | null;
   confirmed_free?: boolean;
   institution_id?: string | null;
@@ -259,6 +261,8 @@ export type AdminParticipant = {
   display_code?: string | null;
   committee_id?: string | null;
   expected_fee_minor?: number | null;
+  submitted_phase_id?: string | null;
+  submitted_phase_kind?: RegistrationPhaseKind | null;
   preferences?: RegistrationPreference[];
   is_outstation?: boolean;
   outstation_student_type?: OutstationStudentType | null;

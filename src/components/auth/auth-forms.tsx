@@ -37,7 +37,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         </Link>
         {" · "}
         <Link href="/signup" className="text-gold-700 hover:underline">
-          Create an account
+          Sign up
         </Link>
       </p>
     </form>
@@ -109,7 +109,7 @@ export function SignupForm() {
         />
       </Field>
       <Button type="submit" disabled={pending}>
-        {pending ? "Creating account…" : "Create account"}
+        {pending ? "Signing up…" : "Sign up"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
       <p className="text-sm text-ink-muted">

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PaymentReviewActions } from "@/components/admin/payment-review";
 import { Card, Container, PageHeader } from "@/components/ui/card";
-import { hasPermission } from "@/lib/auth";
+import { hasPermission, getRoleNames, isSuperAdmin } from "@/lib/auth";
 import { getDuplicateProofPayments, getPaymentById, paymentProofHref } from "@/lib/data";
 import { formatDateTime12h } from "@/lib/format";
 import { PAYMENT_STATUS_COPY } from "@/lib/payments";
@@ -24,14 +24,16 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
 
   const payment = await getPaymentById(id);
   if (!payment) notFound();
-  const [duplicates, canVerify, canEditParticipants] = await Promise.all([
+  const [duplicates, canVerify, canEditParticipants, roles] = await Promise.all([
     getDuplicateProofPayments(payment.proof_sha256, payment.id),
     hasPermission("payment.verify", payment.edition_id),
     Promise.all([
       hasPermission("payment.edit", payment.edition_id),
       hasPermission("payment.verify", payment.edition_id),
     ]).then(([edit, verify]) => edit || verify),
+    getRoleNames(),
   ]);
+  const canManualConfirm = isSuperAdmin(roles);
   const copy = PAYMENT_STATUS_COPY[payment.status];
   const payer = Array.isArray(payment.payer) ? payment.payer[0] : payment.payer;
   const proofHref = paymentProofHref(payment.id, payment.proof_image_key);
@@ -76,8 +78,8 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
             </div>
           ) : (
             <p className="mt-4 rounded-sm bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
-              No screenshot on this payment yet. Use <strong>Manually confirm payment</strong> and
-              upload a screenshot to confirm, or ask the payer to upload proof.
+              No screenshot on this payment yet. Ask the payer to upload proof, or a Super Admin can
+              manually confirm with a screenshot (including previous-phase amounts).
             </p>
           )}
         </Card>
@@ -86,6 +88,7 @@ export default async function AdminPaymentDetailPage({ params }: Props) {
             payment={payment}
             canVerify={canVerify}
             canEditParticipants={canEditParticipants}
+            canManualConfirm={canManualConfirm}
             proofHref={proofHref}
           />
         </Card>
