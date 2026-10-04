@@ -9,11 +9,12 @@ import {
   ParticipantPasswordForm,
 } from "@/components/admin/participant-forms";
 import { Container } from "@/components/ui/card";
-import { hasPermission, isProtectedAdminAccount } from "@/lib/auth";
-import { getAdminParticipant, getCommitteesForEdition } from "@/lib/data";
+import { hasPermission, isProtectedAdminAccount, getRoleNames, isSuperAdmin, canReallocatePortfolioAfterPayment } from "@/lib/auth";
+import { getAdminParticipant, getCommitteeFeesForPhase, getCommitteesForEdition } from "@/lib/data";
 import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
 import { outstationSummary } from "@/lib/outstation";
+import { PHASE_LABELS } from "@/lib/phases";
 import { SECTION_LABELS } from "@/lib/registration";
 import type { AdminParticipantDetail, AdminParticipantPartner, FieldSection } from "@/types";
 
@@ -152,8 +153,14 @@ export default async function AdminParticipantPage({
 
   const participant = await getAdminParticipant(id);
   if (!participant) notFound();
-  const committees = await getCommitteesForEdition(participant.edition_id);
-  const canEdit = await hasPermission("registration.edit", participant.edition_id);
+  const [committees, submittedPhaseFees, canEdit, roles] = await Promise.all([
+    getCommitteesForEdition(participant.edition_id),
+    getCommitteeFeesForPhase(participant.submitted_phase_id),
+    hasPermission("registration.edit", participant.edition_id),
+    getRoleNames(),
+  ]);
+  const canOverrideFee = isSuperAdmin(roles);
+  const canUnlockAfterPayment = canReallocatePortfolioAfterPayment(roles);
   const protectedAdmin = await isProtectedAdminAccount(participant.user_id, participant.email);
   const canChangePassword = protectedAdmin
     ? await hasPermission("users.manage")
@@ -241,6 +248,14 @@ export default async function AdminParticipantPage({
                 }
               />
               <DetailRow label="Submitted" value={formatWhen(participant.submitted_at)} />
+              <DetailRow
+                label="Submit phase"
+                value={
+                  participant.submitted_phase_kind
+                    ? PHASE_LABELS[participant.submitted_phase_kind]
+                    : null
+                }
+              />
               <DetailRow label="Confirmed" value={formatWhen(participant.confirmed_at)} />
               <DetailRow label="Rules accepted" value={formatWhen(participant.accepted_rules_at)} />
             </dl>
@@ -299,9 +314,16 @@ export default async function AdminParticipantPage({
         </div>
 
         <div className="grid gap-3 content-start">
-          {canEdit && !protectedAdmin ? (
-            <Panel title="Allocate">
-              <AllocateRegistrationForm participant={participant} committees={committees} compact />
+          {(canEdit || canUnlockAfterPayment) && !protectedAdmin ? (
+            <Panel title={canUnlockAfterPayment && (participant.status === "PAYMENT_VERIFIED" || participant.status === "CONFIRMED") ? "Portfolio (post-payment)" : "Allocate"}>
+              <AllocateRegistrationForm
+                participant={participant}
+                committees={committees}
+                submittedPhaseFees={submittedPhaseFees}
+                canOverrideFee={canOverrideFee}
+                canUnlockAfterPayment={canUnlockAfterPayment}
+                compact
+              />
             </Panel>
           ) : null}
           {canEdit && !protectedAdmin ? (

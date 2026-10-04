@@ -24,3 +24,12 @@ export function hasFullAdminRole(roleNames: string[]): boolean {
 export function isSuperAdmin(roleNames: string[]): boolean {
   return roleNames.includes("SUPER_ADMIN");
 }
+
+export function isDelegateAffairs(roleNames: string[]): boolean {
+  return roleNames.includes("DELEGATE_AFFAIRS");
+}
+
+/** Super Admin or Delegate Affairs may change portfolio after payment (with reason). */
+export function canReallocatePortfolioAfterPayment(roleNames: string[]): boolean {
+  return isSuperAdmin(roleNames) || isDelegateAffairs(roleNames);
+}
