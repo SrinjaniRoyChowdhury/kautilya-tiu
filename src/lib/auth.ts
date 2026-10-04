@@ -141,10 +141,12 @@ export async function isProtectedAdminAccount(userId: string, email?: string | n
 export {
   hasFullAdminRole,
   isContentEditorOnly,
+  isDelegateAffairs,
   isDelegateAffairsOnly,
   isOperatorOnly,
   isSuperAdmin,
   isViewerOnly,
+  canReallocatePortfolioAfterPayment,
 } from "@/lib/roles";
 
 export async function resolveLoginEmail(identifier: string): Promise<string | null> {

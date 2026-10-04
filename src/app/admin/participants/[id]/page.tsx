@@ -9,7 +9,7 @@ import {
   ParticipantPasswordForm,
 } from "@/components/admin/participant-forms";
 import { Container } from "@/components/ui/card";
-import { hasPermission, isProtectedAdminAccount, getRoleNames, isSuperAdmin } from "@/lib/auth";
+import { hasPermission, isProtectedAdminAccount, getRoleNames, isSuperAdmin, canReallocatePortfolioAfterPayment } from "@/lib/auth";
 import { getAdminParticipant, getCommitteeFeesForPhase, getCommitteesForEdition } from "@/lib/data";
 import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
@@ -160,6 +160,7 @@ export default async function AdminParticipantPage({
     getRoleNames(),
   ]);
   const canOverrideFee = isSuperAdmin(roles);
+  const canUnlockAfterPayment = canReallocatePortfolioAfterPayment(roles);
   const protectedAdmin = await isProtectedAdminAccount(participant.user_id, participant.email);
   const canChangePassword = protectedAdmin
     ? await hasPermission("users.manage")
@@ -313,13 +314,14 @@ export default async function AdminParticipantPage({
         </div>
 
         <div className="grid gap-3 content-start">
-          {canEdit && !protectedAdmin ? (
-            <Panel title="Allocate">
+          {(canEdit || canUnlockAfterPayment) && !protectedAdmin ? (
+            <Panel title={canUnlockAfterPayment && (participant.status === "PAYMENT_VERIFIED" || participant.status === "CONFIRMED") ? "Portfolio (post-payment)" : "Allocate"}>
               <AllocateRegistrationForm
                 participant={participant}
                 committees={committees}
                 submittedPhaseFees={submittedPhaseFees}
                 canOverrideFee={canOverrideFee}
+                canUnlockAfterPayment={canUnlockAfterPayment}
                 compact
               />
             </Panel>
