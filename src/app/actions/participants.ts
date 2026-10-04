@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getRoleNames, hasPermission, isProtectedAdminAccount, isSuperAdmin, verifySuperAdminCredentials } from "@/lib/auth";
+import { getRoleNames, hasPermission, isProtectedAdminAccount, isSuperAdmin, canReallocatePortfolioAfterPayment, verifySuperAdminCredentials } from "@/lib/auth";
 import {
   getCollectives,
   getFieldDefinitions,
@@ -322,6 +322,78 @@ export async function allocateRegistrationAction(
       ? "Special crisis committee allocated. Payment is unlocked; portfolio can be set later if needed."
       : "Committee and portfolio allocated. Payment is now unlocked for this delegate.",
   };
+}
+
+const REALLOCATE_MESSAGES: Record<string, string> = {
+  UNAUTHENTICATED: "Sign in to continue.",
+  FORBIDDEN: "Only Delegate Affairs or a Super Admin can change portfolio after payment.",
+  NOT_FOUND: "Participant not found.",
+  NOT_PAID: "Portfolio unlock is only available after payment is verified or the delegate is confirmed.",
+  REASON_REQUIRED: "Enter a reason (at least 3 characters).",
+  COMMITTEE_REQUIRED: "This registration has no committee allotted yet.",
+  COMMITTEE_NOT_FOUND: "That committee is not available.",
+  PORTFOLIO_REQUIRED: "Enter a portfolio.",
+};
+
+export async function reallocatePortfolioAfterPaymentAction(
+  registrationId: string,
+  _prev: ParticipantAdminState,
+  formData: FormData,
+): Promise<ParticipantAdminState> {
+  void _prev;
+  if (!isUuid(registrationId)) return { error: "Missing participant." };
+
+  const roles = await getRoleNames();
+  if (!canReallocatePortfolioAfterPayment(roles)) {
+    return {
+      error: "Only Delegate Affairs or a Super Admin can change portfolio after payment.",
+    };
+  }
+
+  const portfolio = String(formData.get("portfolio") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (reason.length < 3) return { error: "Enter a reason (at least 3 characters)." };
+
+  const supabase = await createClient();
+  const { data: registrationRow } = await supabase
+    .from("registrations")
+    .select("committee_id")
+    .eq("id", registrationId)
+    .maybeSingle();
+  const committeeId = (registrationRow as { committee_id?: string | null } | null)?.committee_id;
+  if (!committeeId) return { error: "This registration has no committee allotted yet." };
+
+  const { data: committeeRow } = await supabase
+    .from("committees")
+    .select("is_special_crisis")
+    .eq("id", committeeId)
+    .maybeSingle();
+  const isSpecialCrisis = Boolean(
+    (committeeRow as { is_special_crisis?: boolean } | null)?.is_special_crisis,
+  );
+  if (!portfolio && !isSpecialCrisis) return { error: "Enter a portfolio." };
+
+  const { error } = await supabase.rpc("reallocate_portfolio_after_payment", {
+    p_registration_id: registrationId,
+    p_portfolio: portfolio || null,
+    p_reason: reason,
+  });
+  if (error) {
+    const raw = (error.message ?? "").toUpperCase();
+    for (const [code, text] of Object.entries(REALLOCATE_MESSAGES)) {
+      if (raw.includes(code)) return { error: text };
+    }
+    return { error: error.message || "Could not update portfolio." };
+  }
+
+  revalidatePath("/admin/participants");
+  revalidatePath(`/admin/participants/${registrationId}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/committees");
+  revalidatePath("/admin/credentials");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/register");
+  return { success: "Portfolio updated after payment. Reason recorded in the audit log." };
 }
 
 const CREATE_MESSAGES: Record<string, string> = {
