@@ -1154,7 +1154,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     .from("registrations")
     .select(
       `id, edition_id, user_id, status, food_preference, delegation_type, partner_email,
-       confirmed_free, committee_id, expected_fee_minor,
+       confirmed_free, committee_id, collective_id, expected_fee_minor,
        allocated_slr, allocated_portfolio,
        is_outstation, outstation_student_type, outstation_needs_accommodation, outstation_check_in,
        users:user_id (full_name, email),
@@ -1180,6 +1180,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
     allocated_portfolio: string | null;
     confirmed_free: boolean;
     committee_id: string | null;
+    collective_id: string | null;
     expected_fee_minor: number | null;
     is_outstation: boolean | null;
     outstation_student_type: AdminParticipant["outstation_student_type"];
@@ -1239,6 +1240,7 @@ export async function getAdminParticipants(editionId?: string | null): Promise<A
       paid,
       confirmed_free: row.confirmed_free,
       collective_name: collective?.name ?? null,
+      collective_id: row.collective_id,
       institution_name: institution?.name ?? null,
       delegation_type: row.delegation_type ?? "SINGLE",
       partner_email: row.partner_email,
