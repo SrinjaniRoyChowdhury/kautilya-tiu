@@ -253,6 +253,7 @@ export type AdminParticipant = {
   paid: boolean;
   confirmed_free?: boolean;
   collective_name?: string | null;
+  collective_id?: string | null;
   institution_name?: string | null;
   delegation_type?: DelegationType | null;
   partner_email?: string | null;
