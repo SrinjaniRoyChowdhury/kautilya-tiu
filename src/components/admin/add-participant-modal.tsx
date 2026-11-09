@@ -150,8 +150,8 @@ function AddParticipantForm({
       <input type="hidden" name="delegation_type" value={doubleOnly ? "DOUBLE" : delegationType} />
 
       <p className="text-sm text-ink-muted">
-        The person must already have a signed-up account with a verified email. This creates a submitted
-        registration linked to that account; allocate a committee afterward.
+        Enter any email — a verified account is created automatically if needed. This creates a
+        submitted registration; allocate a committee afterward.
       </p>
 
       {editions.length > 1 ? (
@@ -171,9 +171,9 @@ function AddParticipantForm({
       ) : null}
 
       <Field
-        label="Signed-up email"
+        label="Email"
         htmlFor="email"
-        hint="Must match an existing verified participant account."
+        hint="New emails are accepted and verified automatically."
         error={state.fieldErrors?.email}
       >
         <Input id="email" name="email" type="email" required autoComplete="off" />
@@ -289,7 +289,7 @@ function AddParticipantForm({
               <Field
                 label="Partner email"
                 htmlFor="partner_email"
-                hint="Partner must already have a signed-up account."
+                hint="New partner emails are accepted and verified automatically."
                 error={state.fieldErrors?.partner_email}
               >
                 <Input id="partner_email" name="partner_email" type="email" />

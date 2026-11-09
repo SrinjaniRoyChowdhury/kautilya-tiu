@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AllocateRegistrationForm } from "@/components/admin/allocation-form";
 import {
+  ConvertToDoubleForm,
   DeleteParticipantForm,
   ConfirmFreeParticipantForm,
   ParticipantPasswordForm,
@@ -324,6 +325,11 @@ export default async function AdminParticipantPage({
                 canUnlockAfterPayment={canUnlockAfterPayment}
                 compact
               />
+            </Panel>
+          ) : null}
+          {canEdit && !protectedAdmin && participant.delegation_type !== "DOUBLE" ? (
+            <Panel title="Convert to double">
+              <ConvertToDoubleForm participant={participant} />
             </Panel>
           ) : null}
           {canEdit && !protectedAdmin ? (

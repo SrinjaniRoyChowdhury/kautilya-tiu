@@ -18,6 +18,7 @@ import {
   preferencesPayloadForCommittees,
   visibleRegistrationFields,
 } from "@/lib/registration";
+import { ensureAdminManagedUser } from "@/lib/admin-users";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -399,10 +400,10 @@ export async function reallocatePortfolioAfterPaymentAction(
 const CREATE_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: "Sign in to continue.",
   FORBIDDEN: "You need registration.edit to add a participant.",
-  EMAIL_REQUIRED: "Enter the signed-up email.",
-  USER_NOT_FOUND: "No signed-up account with that email.",
+  EMAIL_REQUIRED: "Enter the participant's email.",
+  USER_NOT_FOUND: "Could not create or find an account for that email.",
   USER_INACTIVE: "That account is not active.",
-  EMAIL_UNVERIFIED: "That account has not verified their email yet. Verify it under Users first.",
+  EMAIL_UNVERIFIED: "Could not verify that email automatically. Try again.",
   ALREADY_REGISTERED: "That person already has a registration for this edition.",
   EDITION_NOT_FOUND: "Edition not found.",
   FOOD_REQUIRED: "Select a food preference.",
@@ -412,12 +413,30 @@ const CREATE_MESSAGES: Record<string, string> = {
   PORTFOLIO_REQUIRED: "Enter at least one portfolio for each preferred committee.",
   PORTFOLIO_DUPLICATE: "Do not enter the same portfolio twice for one committee.",
   PREFERENCE_DUPLICATE: "Each committee can only be selected once.",
-  PARTNER_REQUIRED: "Enter the partner's signed-up email for a double delegation.",
+  PARTNER_REQUIRED: "Enter the partner's email for a double delegation.",
   PARTNER_SELF: "Partner email cannot be the same as the participant.",
-  PARTNER_NOT_SIGNED_UP: "Partner must already have a signed-up account.",
+  PARTNER_NOT_SIGNED_UP: "Could not create or find an account for the partner email.",
   PARTNER_BUSY: "That partner already has a registration that cannot be paired.",
   PARTNER_ALREADY_PAIRED: "That partner is already in another double delegation.",
   DELEGATION_NOT_ALLOWED: "That committee does not allow this delegation type.",
+};
+
+const CONVERT_MESSAGES: Record<string, string> = {
+  UNAUTHENTICATED: "Sign in to continue.",
+  FORBIDDEN: "You need registration.edit to convert delegation.",
+  NOT_FOUND: "Registration not found.",
+  REGISTRATION_LOCKED: "Draft or cancelled registrations cannot be converted.",
+  NOT_PAIR_LEAD: "Only the pair lead (or a single del) can convert to double.",
+  ALREADY_DOUBLE: "This registration is already a double delegation.",
+  PARTNER_REQUIRED: "Enter the partner's email.",
+  PARTNER_SELF: "Partner email cannot be the same as the participant.",
+  PARTNER_NOT_SIGNED_UP: "Could not create or find an account for the partner email.",
+  PARTNER_BUSY: "That partner already has a registration that cannot be paired.",
+  PARTNER_ALREADY_PAIRED: "That partner is already in another double delegation.",
+  DELEGATION_NOT_ALLOWED: "This committee does not allow double delegations.",
+  COMMITTEE_NOT_FOUND: "Committee not found.",
+  REASON_REQUIRED: "Enter a short reason (at least 3 characters).",
+  FEE_INVALID: "Fee cannot be negative.",
 };
 
 export type CreateParticipantState = {
@@ -461,7 +480,7 @@ export async function createParticipantRegistrationAction(
   const editionId = String(formData.get("edition_id") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!isUuid(editionId)) return { error: "Select an edition." };
-  if (!email) return { error: "Enter the participant's signed-up email." };
+  if (!email) return { error: "Enter the participant's email." };
 
   const fields = visibleRegistrationFields(await getFieldDefinitions(editionId));
   const raw: Record<string, unknown> = {
@@ -556,6 +575,19 @@ export async function createParticipantRegistrationAction(
   const prefs = preferencesPayloadForCommittees(prefItems, specialCrisisIds);
   const collectiveRaw = String(raw.collective_id ?? "").trim();
   const collectiveId = isUuid(collectiveRaw) ? collectiveRaw : null;
+  const delegationType =
+    String(raw.delegation_type ?? "SINGLE") === "DOUBLE" ? "DOUBLE" : "SINGLE";
+  const partnerEmail = String(raw.partner_email ?? "").trim().toLowerCase() || null;
+  const fullNameRaw = raw.full_name ?? raw.name ?? raw.participant_name;
+  const fullName = fullNameRaw == null ? null : String(fullNameRaw).trim() || null;
+
+  const ensured = await ensureAdminManagedUser(email, fullName);
+  if ("error" in ensured) return { error: ensured.error };
+
+  if (delegationType === "DOUBLE" && partnerEmail) {
+    const partnerEnsured = await ensureAdminManagedUser(partnerEmail);
+    if ("error" in partnerEnsured) return { error: partnerEnsured.error };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_create_submitted_registration", {
@@ -563,8 +595,8 @@ export async function createParticipantRegistrationAction(
     p_email: email,
     p_food_preference: foodPref,
     p_values: values,
-    p_delegation_type: String(raw.delegation_type ?? "SINGLE") === "DOUBLE" ? "DOUBLE" : "SINGLE",
-    p_partner_email: String(raw.partner_email ?? "").trim() || null,
+    p_delegation_type: delegationType,
+    p_partner_email: partnerEmail,
     p_preferences: prefs,
     p_collective_id: collectiveId,
   });
@@ -602,4 +634,58 @@ export async function createParticipantRegistrationAction(
   return {
     success: "Participant registration created. Allocate a committee next.",
   };
+}
+
+export async function convertRegistrationToDoubleAction(
+  registrationId: string,
+  _prev: ParticipantAdminState,
+  formData: FormData,
+): Promise<ParticipantAdminState> {
+  if (!isUuid(registrationId)) return { error: "Invalid registration." };
+  const allowed = await hasPermission("registration.edit");
+  if (!allowed) return { error: "You need registration.edit to convert delegation." };
+
+  const partnerEmail = String(formData.get("partner_email") ?? "").trim().toLowerCase();
+  const reason = String(formData.get("reason") ?? "").trim();
+  const portfolio = String(formData.get("allocated_portfolio") ?? "").trim();
+  const slrRaw = String(formData.get("allocated_slr") ?? "").trim();
+  const partnerName = String(formData.get("partner_name") ?? "").trim();
+
+  if (!partnerEmail) return { error: "Enter the partner's email." };
+  if (reason.length < 3) return { error: "Enter a short reason (at least 3 characters)." };
+
+  const partnerEnsured = await ensureAdminManagedUser(
+    partnerEmail,
+    partnerName || null,
+  );
+  if ("error" in partnerEnsured) return { error: partnerEnsured.error };
+
+  const slr =
+    slrRaw === "" || Number.isNaN(Number(slrRaw)) ? null : Math.trunc(Number(slrRaw));
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("convert_registration_to_double", {
+    p_registration_id: registrationId,
+    p_partner_email: partnerEmail,
+    p_reason: reason,
+    p_allocated_portfolio: portfolio || null,
+    p_allocated_slr: slr,
+    p_expected_fee_minor: null,
+  });
+
+  if (error) {
+    const rawMsg = (error.message ?? "").toUpperCase();
+    for (const [code, text] of Object.entries(CONVERT_MESSAGES)) {
+      if (rawMsg.includes(code)) return { error: text };
+    }
+    return { error: error.message || "Could not convert to double delegation." };
+  }
+
+  revalidatePath(`/admin/participants/${registrationId}`);
+  revalidatePath("/admin/participants");
+  revalidatePath("/admin");
+  revalidatePath("/admin/committees");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/register");
+  return { success: "Converted to double delegation. Partner linked; fee updated if allotted." };
 }
