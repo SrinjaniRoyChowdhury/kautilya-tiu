@@ -257,6 +257,7 @@ export type AdminParticipant = {
   institution_name?: string | null;
   delegation_type?: DelegationType | null;
   partner_email?: string | null;
+  is_pair_lead?: boolean | null;
   allocated_slr?: number | null;
   allocated_portfolio?: string | null;
   display_code?: string | null;
