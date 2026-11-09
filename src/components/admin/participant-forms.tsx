@@ -85,18 +85,16 @@ export function DeleteParticipantForm({ participant }: { participant: AdminParti
 }
 
 export function ConvertToDoubleForm({ participant }: { participant: AdminParticipant }) {
-  if (
-    participant.delegation_type === "DOUBLE" ||
-    participant.status === "DRAFT" ||
-    participant.status === "CANCELLED" ||
-    participant.is_pair_lead === false
-  ) {
-    return null;
-  }
-
   const action = convertRegistrationToDoubleAction.bind(null, participant.id);
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
   const allotted = Boolean(participant.committee_id);
+  const blocked =
+    participant.delegation_type === "DOUBLE" ||
+    participant.status === "DRAFT" ||
+    participant.status === "CANCELLED" ||
+    participant.is_pair_lead === false;
+
+  if (blocked) return null;
 
   return (
     <form action={formAction} className="grid gap-2.5">
