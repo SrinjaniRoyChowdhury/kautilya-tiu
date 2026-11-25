@@ -147,6 +147,7 @@ export {
   isSuperAdmin,
   isViewerOnly,
   canReallocatePortfolioAfterPayment,
+  canReallocateAfterPayment,
 } from "@/lib/roles";
 
 export async function resolveLoginEmail(identifier: string): Promise<string | null> {

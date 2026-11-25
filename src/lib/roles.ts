@@ -29,7 +29,12 @@ export function isDelegateAffairs(roleNames: string[]): boolean {
   return roleNames.includes("DELEGATE_AFFAIRS");
 }
 
-/** Super Admin or Delegate Affairs may change portfolio after payment (with reason). */
+/** Super Admin or Delegate Affairs may change committee/portfolio after payment (with reason). */
 export function canReallocatePortfolioAfterPayment(roleNames: string[]): boolean {
   return isSuperAdmin(roleNames) || isDelegateAffairs(roleNames);
+}
+
+/** Alias — full allotment (committee + portfolio) after payment. */
+export function canReallocateAfterPayment(roleNames: string[]): boolean {
+  return canReallocatePortfolioAfterPayment(roleNames);
 }

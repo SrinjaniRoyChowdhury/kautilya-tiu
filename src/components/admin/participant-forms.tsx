@@ -2,6 +2,10 @@
 
 import { useActionState } from "react";
 import {
+  recordParticipantPaymentAction,
+  type AdminPaymentState,
+} from "@/app/actions/admin-payments";
+import {
   confirmParticipantFreeAction,
   convertRegistrationToDoubleAction,
   deleteParticipantAction,
@@ -12,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
+import { formatInrFromMinor } from "@/lib/format";
 import type { AdminParticipant } from "@/types";
 
 export function ParticipantPasswordForm({ registrationId }: { registrationId: string }) {
@@ -192,6 +197,104 @@ export function ConfirmFreeParticipantForm({ participant }: { participant: Admin
       </p>
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Confirming…" : "Confirm as free participant"}
+      </Button>
+      <ActionFeedback error={state.error} success={state.success} />
+    </form>
+  );
+}
+
+/** Record an offline / separate UPI payment for this participant → revenue + credentials. */
+export function RecordParticipantPaymentForm({ participant }: { participant: AdminParticipant }) {
+  const action = recordParticipantPaymentAction.bind(null, participant.id);
+  const [state, formAction, pending] = useActionState(action, {} as AdminPaymentState);
+
+  if (participant.confirmed_free) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Confirmed free — no payment to record.
+      </p>
+    );
+  }
+  if (participant.paid || participant.status === "CONFIRMED" || participant.status === "PAYMENT_VERIFIED") {
+    return (
+      <p className="text-sm text-ink-muted">
+        Payment already recorded or under review.
+      </p>
+    );
+  }
+  if (participant.status === "DRAFT" || participant.status === "CANCELLED") {
+    return (
+      <p className="text-sm text-ink-muted">They must submit a registration first.</p>
+    );
+  }
+  if (!participant.committee_id) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Allocate a committee and portfolio first, then record payment.
+      </p>
+    );
+  }
+  if (participant.is_pair_lead === false && (participant.expected_fee_minor ?? 0) <= 0) {
+    return (
+      <p className="text-sm text-ink-muted">
+        Co-delegate fee is covered by the pair lead. Record payment on the lead, or use free
+        confirmation for this co-delegate.
+      </p>
+    );
+  }
+
+  const defaultRupees =
+    participant.expected_fee_minor != null && participant.expected_fee_minor > 0
+      ? String(Math.round(participant.expected_fee_minor / 100))
+      : "";
+  const feeHint =
+    participant.expected_fee_minor != null && participant.expected_fee_minor > 0
+      ? `Allotted fee ${formatInrFromMinor(participant.expected_fee_minor)}. Amount entered is added to total revenue.`
+      : "Amount entered is added to total revenue.";
+
+  return (
+    <form action={formAction} className="grid gap-2.5" encType="multipart/form-data">
+      <p className="text-xs text-ink-muted">
+        For delegates who paid separately (offline UPI). Records a verified payment, confirms them
+        {participant.delegation_type === "DOUBLE" && participant.is_pair_lead !== false
+          ? " (and co-delegate)"
+          : ""}
+        , and emails credentials.
+      </p>
+      <Field label="Amount paid (₹)" htmlFor="amount_rupees" hint={feeHint}>
+        <Input
+          id="amount_rupees"
+          name="amount_rupees"
+          type="number"
+          min={1}
+          step={1}
+          required
+          defaultValue={defaultRupees}
+          placeholder="e.g. 1500"
+        />
+      </Field>
+      <Field label="Transaction / UPI ref" htmlFor="transaction_ref" hint="Optional.">
+        <Input
+          id="transaction_ref"
+          name="transaction_ref"
+          autoComplete="off"
+          placeholder="UPI ref or bank UTR"
+        />
+      </Field>
+      <Field label="Screenshot" htmlFor="proof" hint="Optional JPEG / PNG / WebP, max 5 MB.">
+        <Input id="proof" name="proof" type="file" accept="image/jpeg,image/png,image/webp" />
+      </Field>
+      <Field label="Reason" htmlFor="reason" hint="At least 3 characters — audit log.">
+        <Input
+          id="reason"
+          name="reason"
+          required
+          minLength={3}
+          placeholder="e.g. Paid via UPI outside app; screenshot on WhatsApp"
+        />
+      </Field>
+      <Button type="submit" size="sm" disabled={pending}>
+        {pending ? "Recording…" : "Record payment & issue credentials"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
     </form>

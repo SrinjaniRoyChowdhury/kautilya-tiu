@@ -8,9 +8,17 @@ import {
   DeleteParticipantForm,
   ConfirmFreeParticipantForm,
   ParticipantPasswordForm,
+  RecordParticipantPaymentForm,
 } from "@/components/admin/participant-forms";
 import { Container } from "@/components/ui/card";
-import { hasPermission, isProtectedAdminAccount, getRoleNames, isSuperAdmin, canReallocatePortfolioAfterPayment } from "@/lib/auth";
+import {
+  hasPermission,
+  isProtectedAdminAccount,
+  getRoleNames,
+  isSuperAdmin,
+  isDelegateAffairs,
+  canReallocatePortfolioAfterPayment,
+} from "@/lib/auth";
 import { getAdminParticipant, getCommitteeFeesForPhase, getCommitteesForEdition } from "@/lib/data";
 import { formatDelegation, formatInrFromMinor } from "@/lib/format";
 import { isUuid } from "@/lib/ids";
@@ -162,10 +170,16 @@ export default async function AdminParticipantPage({
   ]);
   const canOverrideFee = isSuperAdmin(roles);
   const canUnlockAfterPayment = canReallocatePortfolioAfterPayment(roles);
+  const canRecordPayment =
+    (await hasPermission("payment.verify", participant.edition_id)) ||
+    isSuperAdmin(roles) ||
+    isDelegateAffairs(roles);
   const protectedAdmin = await isProtectedAdminAccount(participant.user_id, participant.email);
   const canChangePassword = protectedAdmin
     ? await hasPermission("users.manage")
     : canEdit;
+  const postPayment =
+    participant.status === "PAYMENT_VERIFIED" || participant.status === "CONFIRMED";
 
   const paymentLabel = participant.confirmed_free
     ? "Free confirmation"
@@ -316,7 +330,7 @@ export default async function AdminParticipantPage({
 
         <div className="grid gap-3 content-start">
           {(canEdit || canUnlockAfterPayment) && !protectedAdmin ? (
-            <Panel title={canUnlockAfterPayment && (participant.status === "PAYMENT_VERIFIED" || participant.status === "CONFIRMED") ? "Portfolio (post-payment)" : "Allocate"}>
+            <Panel title={canUnlockAfterPayment && postPayment ? "Allotment (post-payment)" : "Allocate"}>
               <AllocateRegistrationForm
                 participant={participant}
                 committees={committees}
@@ -325,6 +339,11 @@ export default async function AdminParticipantPage({
                 canUnlockAfterPayment={canUnlockAfterPayment}
                 compact
               />
+            </Panel>
+          ) : null}
+          {canRecordPayment && !protectedAdmin ? (
+            <Panel title="Record payment">
+              <RecordParticipantPaymentForm participant={participant} />
             </Panel>
           ) : null}
           {canEdit && !protectedAdmin && participant.delegation_type !== "DOUBLE" ? (
