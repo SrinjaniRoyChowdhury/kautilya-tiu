@@ -35,7 +35,7 @@ export function AllocateRegistrationForm({
   submittedPhaseFees?: Record<string, { single_fee_minor: number; double_fee_minor: number }>;
   /** Super Admin may enter a previous-phase / custom fee. */
   canOverrideFee?: boolean;
-  /** Delegate Affairs / Super Admin may change portfolio after payment. */
+  /** Delegate Affairs / Super Admin may change committee + portfolio after payment. */
   canUnlockAfterPayment?: boolean;
   compact?: boolean;
 }) {
@@ -48,19 +48,12 @@ export function AllocateRegistrationForm({
       return (
         <p className="text-sm text-ink-muted">
           Allocation is locked after payment. Delegate Affairs or a Super Admin can change the
-          portfolio (committee stays fixed) with a reason.
-        </p>
-      );
-    }
-    if (!participant.committee_id) {
-      return (
-        <p className="text-sm text-ink-muted">
-          No committee on this registration — cannot unlock portfolio after payment.
+          committee and portfolio with a reason; credentials are regenerated.
         </p>
       );
     }
     return (
-      <ReallocatePortfolioForm
+      <ReallocateAfterPaymentForm
         participant={participant}
         committees={committees}
         compact={compact}
@@ -72,8 +65,8 @@ export function AllocateRegistrationForm({
   if (participant.paid) {
     return (
       <p className="text-sm text-ink-muted">
-        Payment is under review. Portfolio can be changed after verification by Delegate Affairs or a
-        Super Admin.
+        Payment is under review. Committee and portfolio can be changed after verification by
+        Delegate Affairs or a Super Admin.
       </p>
     );
   }
@@ -89,7 +82,7 @@ export function AllocateRegistrationForm({
   );
 }
 
-function ReallocatePortfolioForm({
+function ReallocateAfterPaymentForm({
   participant,
   committees,
   compact,
@@ -100,28 +93,49 @@ function ReallocatePortfolioForm({
 }) {
   const action = reallocatePortfolioAfterPaymentAction.bind(null, participant.id);
   const [state, formAction, pending] = useActionState(action, {} as ParticipantAdminState);
-  const committee = committees.find((item) => item.id === participant.committee_id);
-  const isSpecialCrisis = Boolean(committee?.is_special_crisis);
   const prefs = participant.preferences ?? [];
-  const pref = prefs.find((item) => item.committee_id === participant.committee_id);
+  const preferredIds = prefs.map((pref) => pref.committee_id);
+  const [committeeId, setCommitteeId] = useState(
+    participant.committee_id ?? preferredIds[0] ?? committees[0]?.id ?? "",
+  );
+
+  const committee = committees.find((item) => item.id === committeeId);
+  const isSpecialCrisis = Boolean(committee?.is_special_crisis);
+  const pref = prefs.find((item) => item.committee_id === committeeId);
   const suggested = [pref?.portfolio_1, pref?.portfolio_2].filter(
     (name): name is string => Boolean(name && name.trim()),
   );
-  const defaultPortfolio = participant.allocated_portfolio || suggested[0] || "";
-  const committeeLabel = committee
-    ? `${committee.short_name} · ${committee.name}`
-    : participant.committee_short_name ?? "Allotted committee";
+  const defaultPortfolio =
+    committeeId === participant.committee_id
+      ? participant.allocated_portfolio || suggested[0] || ""
+      : suggested[0] || participant.allocated_portfolio || "";
+  const isDouble = participant.delegation_type === "DOUBLE";
 
   return (
     <form action={formAction} className={compact ? "grid gap-2.5" : "grid gap-4"}>
       <p className="rounded-sm border border-gold-700/20 bg-parchment-100/60 px-3 py-2 text-sm text-gold-800">
-        Payment complete. You can change <span className="font-medium">portfolio only</span> —
-        committee cannot be changed. A reason is required and stored in the audit log.
+        Payment complete. You can change <span className="font-medium">committee and portfolio</span>
+        {isDouble ? " (applies to both delegates)" : ""}. Credentials are regenerated and emailed. A
+        reason is required for the audit log.
       </p>
-      <div>
-        <p className="text-xs uppercase tracking-widest text-gold-700">Committee (locked)</p>
-        <p className="mt-1 text-sm font-medium">{committeeLabel}</p>
-      </div>
+      <Field label="Committee" htmlFor="committee_id">
+        <Select
+          id="committee_id"
+          name="committee_id"
+          value={committeeId}
+          onChange={(event) => setCommitteeId(event.target.value)}
+        >
+          <option value="">Select</option>
+          {committees.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.short_name} · {item.name}
+              {preferredIds.includes(item.id)
+                ? ` · pref ${prefs.find((prefItem) => prefItem.committee_id === item.id)?.preference_order}`
+                : ""}
+            </option>
+          ))}
+        </Select>
+      </Field>
       <Field
         label="Portfolio"
         htmlFor="portfolio"
@@ -138,6 +152,7 @@ function ReallocatePortfolioForm({
           name="portfolio"
           required={!isSpecialCrisis}
           defaultValue={defaultPortfolio}
+          key={`${committeeId}-${defaultPortfolio}-${isSpecialCrisis ? "special" : "normal"}`}
           placeholder={isSpecialCrisis ? "Optional" : "e.g. France"}
         />
       </Field>
@@ -148,11 +163,11 @@ function ReallocatePortfolioForm({
           required
           minLength={3}
           rows={3}
-          placeholder="e.g. Portfolio conflict resolved with EB; reassigned country"
+          placeholder="e.g. Committee clash resolved; moved to DISEC with France"
         />
       </Field>
-      <Button type="submit" disabled={pending} size={compact ? "sm" : undefined}>
-        {pending ? "Updating…" : "Update portfolio"}
+      <Button type="submit" disabled={pending || !committeeId} size={compact ? "sm" : undefined}>
+        {pending ? "Updating…" : "Update allotment & regenerate credentials"}
       </Button>
       <ActionFeedback error={state.error} success={state.success} />
     </form>
